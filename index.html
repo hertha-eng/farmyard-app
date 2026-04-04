@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>FarmYard - Marketplace</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- LOGIN SCREEN -->
+<div id="login-screen" class="tab">
+    <h1>FarmYard Login</h1>
+    <p class="auth-tagline">Agriculture-only marketplace for products, raw materials, finished goods, and farm services.</p>
+    <input type="email" id="login-email" placeholder="Email">
+    <input type="password" id="login-password" placeholder="Password">
+    <button id="login-btn">Login</button>
+    <p>Don't have an account? <span id="show-register">Register</span></p>
+</div>
+
+<!-- REGISTER SCREEN -->
+<div id="register-screen" class="tab">
+    <h1>Register</h1>
+    <p class="auth-tagline">Join buyers, farmers, and agri-businesses trading within the agricultural value chain.</p>
+    <input type="text" id="reg-name" placeholder="Full Name">
+    <input type="email" id="reg-email" placeholder="Email">
+    <input type="password" id="reg-password" placeholder="Password">
+    <button id="register-btn">Register</button>
+    <p>Already have an account? <span id="show-login">Login</span></p>
+</div>
+
+<!-- APP MAIN -->
+<div id="app">
+
+    <!-- HEADER -->
+    <header>
+        <h1>🌱 FarmYard</h1>
+        <p class="app-tagline">Produce, raw materials, finished agricultural goods, and farm services in one marketplace.</p>
+        <div class="auth-actions">
+            <button id="open-login" type="button">Login</button>
+            <button id="open-register" type="button">Register</button>
+        </div>
+        <input type="text" id="search" placeholder="Search products...">
+    </header>
+
+    <!-- TABS -->
+    <div id="home-tab" class="tab active">
+        <section id="marketplace">
+            <h2>Marketplace</h2>
+            <p class="section-intro">Trade only agriculture-related goods and services, from fresh produce to mechanized farm work.</p>
+            <div id="marketplace-grid"></div>
+        </section>
+    </div>
+
+    <div id="post-tab" class="tab">
+        <h2>Post a Listing</h2>
+        <p class="form-intro">Create a clear agricultural listing buyers can trust at a glance.</p>
+        <div class="post-form">
+            <label for="category">Category</label>
+            <select id="category">
+                <option value="">Select category</option>
+                <option value="Produce">Produce</option>
+                <option value="Raw Materials">Raw Materials</option>
+                <option value="Finished Goods">Finished Goods</option>
+                <option value="Services">Services</option>
+            </select>
+
+            <label for="title">Listing title</label>
+            <input type="text" id="title" placeholder="Example: Fresh Tomatoes or Tractor Ploughing">
+
+            <div class="form-row">
+                <div>
+                    <label for="price">Price</label>
+                    <input type="number" id="price" placeholder="Enter price">
+                </div>
+                <div>
+                    <label for="unit">Unit</label>
+                    <input type="text" id="unit" list="unit-options" placeholder="kg, bag, acre, litre">
+                    <datalist id="unit-options">
+                        <option value="kg"></option>
+                        <option value="bag"></option>
+                        <option value="crate"></option>
+                        <option value="ton"></option>
+                        <option value="litre"></option>
+                        <option value="acre"></option>
+                        <option value="day"></option>
+                    </datalist>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div>
+                    <label for="minOrder">Minimum order</label>
+                    <input type="text" id="minOrder" placeholder="50kg, 5 bags, 1 acre">
+                </div>
+                <div>
+                    <label for="location">Location</label>
+                    <input type="text" id="location" placeholder="District, town, or farm name">
+                </div>
+            </div>
+
+            <label for="description">Description</label>
+            <textarea id="description" rows="4" placeholder="Add quality, quantity, availability, delivery, or service details."></textarea>
+
+            <label for="image">Listing image</label>
+            <input type="file" id="image" accept="image/*" capture="environment">
+
+            <label class="checkbox-row"><input type="checkbox" id="negotiable"> Price negotiable</label>
+        </div>
+        <button id="postBtn">Post Listing</button>
+    </div>
+
+    <div id="messages-tab" class="tab">
+        <h2>Messages</h2>
+        <p class="messages-intro">Follow up on produce, raw materials, finished goods, and farm service conversations.</p>
+        <div class="messages-layout">
+            <div class="messages-panel">
+                <div class="messages-panel-header">
+                    <h3>Conversations</h3>
+                    <p>Open a chat from any listing to continue here.</p>
+                </div>
+                <div id="conversation-list" class="conversation-list"></div>
+            </div>
+            <div class="messages-panel active-chat">
+                <div class="messages-panel-header">
+                    <button id="messages-back" class="messages-back" type="button">Back to Inbox</button>
+                    <h3 id="active-chat-title">Select a conversation</h3>
+                    <p id="active-chat-meta">Tap a buyer or seller conversation to view messages.</p>
+                </div>
+                <div class="chat-trust-actions">
+                    <button id="chat-rate-user" type="button">Rate User</button>
+                    <button id="chat-report-user" type="button">Report User</button>
+                </div>
+                <div id="chat-feedback-panel" class="chat-feedback-panel">
+                    <h4 id="chat-feedback-title">Rate User</h4>
+                    <label for="chat-rating">Rating</label>
+                    <select id="chat-rating">
+                        <option value="">Select rating</option>
+                        <option value="5">5 - Excellent</option>
+                        <option value="4">4 - Good</option>
+                        <option value="3">3 - Fair</option>
+                        <option value="2">2 - Poor</option>
+                        <option value="1">1 - Bad</option>
+                    </select>
+                    <label for="chat-feedback-note">Note</label>
+                    <textarea id="chat-feedback-note" rows="3" placeholder="Add a short note"></textarea>
+                    <div class="chat-feedback-actions">
+                        <button id="chat-feedback-confirm" type="button">Submit</button>
+                        <button id="chat-feedback-cancel" type="button">Cancel</button>
+                    </div>
+                </div>
+                <div id="messages-empty" class="messages-empty">
+                    <p>No conversation selected yet.</p>
+                </div>
+                <div id="chat-thread" class="chat-thread"></div>
+                <div class="chat-composer">
+                    <input type="text" id="message-input" placeholder="Type a message about delivery, price, or availability">
+                    <button id="message-send" type="button">Send</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="account-tab" class="tab">
+        <h2>My Listings</h2>
+    </div>
+
+    <div id="legal-tab" class="tab">
+        <h2>Privacy, Terms, and Marketplace Rules</h2>
+        <p class="legal-intro">Important information about how FarmYard handles user data, marketplace conduct, and listing requirements.</p>
+
+        <section class="legal-card">
+            <h3>Privacy Policy</h3>
+            <p>FarmYard collects the information users provide when creating accounts, posting listings, sending messages, or contacting support.</p>
+            <p>That information may include names, email addresses, phone numbers, listing details, uploaded images, messages, and basic device or usage information needed to operate the app.</p>
+            <p>FarmYard uses this information to run the marketplace, show listings, support messaging, improve safety, and respond to user requests.</p>
+            <p>FarmYard should only collect the data it needs, protect it with reasonable security practices, and avoid using personal data in ways that conflict with what users were told.</p>
+            <p>Users should be able to request help, ask questions about their data, or ask for account changes through a support contact published in the app.</p>
+        </section>
+
+        <section class="legal-card">
+            <h3>Terms of Use</h3>
+            <p>FarmYard is an agriculture-only marketplace for produce, raw materials, finished agricultural goods, and agricultural services.</p>
+            <p>Users are responsible for the accuracy of listing titles, prices, quantities, availability, photos, delivery details, and contact information.</p>
+            <p>Users must not post misleading information, impersonate others, interfere with marketplace activity, or misuse the messaging system.</p>
+            <p>FarmYard may remove listings, suspend accounts, or restrict access where listings or conduct appear unsafe, misleading, abusive, or outside the purpose of the platform.</p>
+        </section>
+
+        <section class="legal-card">
+            <h3>Seller Requirements</h3>
+            <p>Listings should clearly state category, product or service name, unit, price, location, and any minimum order or service scope.</p>
+            <p>Sellers should only list agriculture-related items or services and should describe quality, availability, timing, and delivery terms honestly.</p>
+            <p>Images should match the listing and must not be stolen, misleading, or unrelated to the item or service being offered.</p>
+            <p>Where local law requires permits, licenses, inspections, or certifications, sellers are responsible for meeting those obligations before listing or selling.</p>
+        </section>
+
+        <section class="legal-card">
+            <h3>Prohibited Content and Conduct</h3>
+            <p>FarmYard should not be used for illegal goods, unrelated consumer products, harassment, spam, deceptive pricing, or unsafe transactions.</p>
+            <p>Users must not post content that infringes another person’s rights, contains false claims, or attempts to collect data from other users without permission.</p>
+            <p>Repeated violations may lead to listing removal, account restrictions, or permanent suspension.</p>
+        </section>
+
+        <section class="legal-card">
+            <h3>Safety and Support</h3>
+            <p>Users should verify counterparties, confirm price and quantity terms, and use caution before making payments or handing over goods.</p>
+            <p>For a production version of FarmYard, this section should include a support email, complaint channel, and process for reporting fraud, abuse, or suspicious listings.</p>
+            <p class="legal-note">This is a product-ready starter policy set, not legal advice. A lawyer should review it before public launch.</p>
+        </section>
+
+        <section class="legal-card">
+            <h3>Verified Company Term</h3>
+            <p>FarmYard may offer eligible company accounts a Verified Company subscription for $10 per month.</p>
+            <p>The subscription is intended to help businesses display an additional trust badge and clearer company identity, but it does not guarantee sales, ranking priority, or business performance.</p>
+            <p>The monthly fee renews every 30 days unless cancelled before the next renewal date. Access already paid for remains active until the end of the current billing period.</p>
+            <p>FarmYard may remove or suspend the Verified Company badge if a company violates marketplace rules, provides misleading information, or fails verification review.</p>
+            <p>Subscription fees should generally be treated as non-refundable once a billing period has started, except where local law requires otherwise.</p>
+        </section>
+    </div>
+
+    <!-- CARD DETAIL MODAL -->
+    <div id="card-detail" class="tab">
+        <button id="close-detail">← Back</button>
+        <img id="detail-image" src="" alt="Listing Image">
+        <h2 id="detail-title"></h2>
+        <p id="detail-verification" class="detail-badge"></p>
+        <p id="detail-price"></p>
+        <p id="detail-minOrder"></p>
+        <p id="detail-location"></p>
+        <p id="detail-negotiable"></p>
+        <div class="detail-actions">
+            <button id="detail-message">Message Seller</button>
+            <button id="detail-call">Call Seller</button>
+            <button id="detail-profile">View Profile</button>
+            <button id="detail-save">Save Listing</button>
+            <button id="detail-order">Request Order</button>
+            <button id="detail-schedule">Schedule Order</button>
+            <button id="detail-report">Report Listing</button>
+        </div>
+        <div id="schedule-order-panel" class="schedule-order-panel">
+            <h3>Schedule Order</h3>
+            <div class="schedule-grid">
+                <div>
+                    <label for="schedule-date">Preferred date</label>
+                    <input type="date" id="schedule-date">
+                </div>
+                <div>
+                    <label for="schedule-time">Preferred time</label>
+                    <input type="time" id="schedule-time">
+                </div>
+            </div>
+            <label for="schedule-note">Order note</label>
+            <textarea id="schedule-note" rows="3" placeholder="Add delivery, pickup, or preparation details"></textarea>
+            <div class="schedule-actions">
+                <button id="schedule-confirm" type="button">Confirm Schedule</button>
+                <button id="schedule-cancel" type="button">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="profile-tab" class="tab">
+        <button id="close-profile">← Back</button>
+        <section class="profile-hero">
+            <div>
+                <p id="profile-type" class="profile-kicker"></p>
+                <h2 id="profile-name"></h2>
+                <p id="profile-rating"></p>
+            </div>
+            <div id="profile-avatar" class="profile-avatar"></div>
+        </section>
+
+        <section class="profile-card">
+            <h3>About</h3>
+            <p id="profile-about"></p>
+        </section>
+
+        <section class="profile-card">
+            <h3>Public Details</h3>
+            <div id="profile-fields" class="profile-fields"></div>
+        </section>
+
+        <section class="profile-card">
+            <h3>Trust</h3>
+            <p id="profile-verification"></p>
+            <p id="profile-stats"></p>
+        </section>
+    </div>
+
+    <!-- NAVIGATION -->
+    <nav>
+        <button id="nav-home">Home</button>
+        <button id="nav-post">Post</button>
+        <button id="nav-messages">Messages</button>
+        <button id="nav-account">Account</button>
+    </nav>
+
+    <div class="app-footer-links">
+        <button id="open-legal" type="button">Privacy & Terms</button>
+        <button id="legal-back-home" type="button">Back to Marketplace</button>
+    </div>
+
+</div>
+
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+<script src="script.js"></script>
+</body>
+</html>
