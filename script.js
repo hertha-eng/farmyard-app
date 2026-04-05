@@ -5,19 +5,47 @@ function formatPrice(number) {
     return num.toLocaleString();
 }
 
+const SUPABASE_URL = 'https://gekjlypawswkjmaamwme.supabase.co';
+const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_mOsnuYtcElQ0Qj9HzqV5rA_dItzoREq';
+const supabaseClient = window.supabase?.createClient
+    ? window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY)
+    : null;
+
+const DEFAULT_SECURITY = {
+    passwordUpdated: '30 days ago',
+    twoFactorEnabled: false,
+    activeSessions: 1,
+    loginAlerts: true,
+};
+
+const DEFAULT_VERIFICATION_PLAN = {
+    subscribed: false,
+    price: 10,
+    billing: 'monthly',
+    renewalDate: null,
+};
+
 // Data
 let userListings = [];
 const currentUser = {
     id: 'user-guest',
     name: 'Guest User',
-    role: 'Buyer and Seller',
-    accountType: 'Seller Profile',
-    location: 'Set your trading location',
+    role: 'Sales Representative',
+    accountType: 'Individual Profile',
+    location: 'Kampala',
     phone: '+256 700 000000',
     email: 'guest@farmyard.app',
-    verified: true,
+    verified: false,
     communityRating: 4.7,
     ratingCount: 18,
+    companyId: 'company-farmyard-traders',
+    companyRole: 'Admin',
+    accessStatus: 'Active company access',
+    permissions: {
+        canPostForCompany: true,
+        canManageCompany: true,
+        canApproveInvites: true,
+    },
     security: {
         passwordUpdated: '30 days ago',
         twoFactorEnabled: false,
@@ -35,18 +63,38 @@ const profiles = {
     'user-guest': {
         id: 'user-guest',
         name: 'Guest User',
-        type: 'Seller Profile',
-        about: 'Active on FarmYard for agriculture products, raw materials, finished goods, and services.',
-        verified: true,
+        type: 'Individual Profile',
+        about: 'Agricultural sales representative handling listings and buyer communication on behalf of a registered company.',
+        verified: false,
         verificationPlan: { subscribed: false, price: 10, billing: 'monthly', renewalDate: null },
         rating: 4.7,
         ratingCount: 18,
         completedDeals: 12,
         fields: {
-            location: { label: 'Location', value: 'Set your trading location', visible: true },
+            location: { label: 'Location', value: 'Kampala', visible: true },
             phone: { label: 'Phone', value: '+256 700 000000', visible: false },
             email: { label: 'Email', value: 'guest@farmyard.app', visible: false },
-            businessHours: { label: 'Business Hours', value: 'Mon-Sat, 8:00 AM - 6:00 PM', visible: true },
+            companyRole: { label: 'Company Role', value: 'Admin sales representative', visible: true },
+            companyName: { label: 'Selling For', value: 'FarmYard Traders Ltd', visible: true },
+        },
+    },
+    'company-farmyard-traders': {
+        id: 'company-farmyard-traders',
+        name: 'FarmYard Traders Ltd',
+        type: 'Company Profile',
+        about: 'Registered agricultural trading company supplying produce and farm inputs through a managed sales team.',
+        verified: false,
+        verificationPlan: { subscribed: false, price: 10, billing: 'monthly', renewalDate: null },
+        rating: 4.8,
+        ratingCount: 23,
+        completedDeals: 36,
+        fields: {
+            location: { label: 'Head Office', value: 'Kampala Industrial Area', visible: true },
+            phone: { label: 'Company Phone', value: '+256 709 000111', visible: true },
+            email: { label: 'Company Email', value: 'sales@farmyardtraders.example', visible: true },
+            registration: { label: 'Registration', value: 'FTL-AGR-2026', visible: true },
+            certification: { label: 'Permits or Certifications', value: '', visible: true },
+            team: { label: 'Sales Team', value: '3 active representatives', visible: true },
         },
     },
     'seller-amina': {
@@ -118,6 +166,67 @@ const profiles = {
         },
     },
 };
+const companyAccounts = {
+    'company-farmyard-traders': {
+        id: 'company-farmyard-traders',
+        name: 'FarmYard Traders Ltd',
+        maxSalesMembers: 4,
+        members: [
+            { id: 'user-guest', name: 'Guest User', email: 'guest@farmyard.app', phone: '+256 700 000000', nationalId: 'UG-000111', role: 'Admin', status: 'Active' },
+            { id: 'rep-1', name: 'Sarah Namusoke', email: 'sarah@farmyardtraders.example', phone: '+256 711 222444', nationalId: 'UG-222444', role: 'Sales Representative', status: 'Active' },
+            { id: 'rep-2', name: 'Joel Kato', email: 'joel@farmyardtraders.example', phone: '+256 712 333555', nationalId: 'UG-333555', role: 'Sales Representative', status: 'Active' },
+        ],
+        pendingInvites: [
+            {
+                id: 'invite-1',
+                name: 'Mercy Atuhairwe',
+                email: 'mercy@farmyardtraders.example',
+                phone: '+256 710 222333',
+                nationalId: 'CM-448211',
+                inviteCode: 'FY-TRADERS-4821',
+                role: 'Sales Representative',
+                status: 'Sent',
+                linkedUserId: null,
+                claimedAt: null,
+                createdAt: '2026-04-05',
+                expiresOn: '2026-04-19',
+            },
+        ],
+        verificationRequirements: {
+            businessRegistration: true,
+            companyEmail: true,
+            companyPhone: true,
+            businessLocation: true,
+            completeProfile: true,
+            goodStanding: true,
+            permits: false,
+        },
+    },
+};
+const userAccounts = {
+    'guest@farmyard.app': {
+        id: 'user-guest',
+        name: 'Guest User',
+        role: 'Sales Representative',
+        accountType: 'Individual Profile',
+        location: 'Kampala',
+        phone: '+256 700 000000',
+        email: 'guest@farmyard.app',
+        verified: false,
+        communityRating: 4.7,
+        ratingCount: 18,
+        companyId: 'company-farmyard-traders',
+        companyRole: 'Admin',
+        accessStatus: 'Active company access',
+        permissions: {
+            canPostForCompany: true,
+            canManageCompany: true,
+            canApproveInvites: true,
+        },
+        security: { ...DEFAULT_SECURITY },
+        verificationPlan: { ...DEFAULT_VERIFICATION_PLAN },
+    },
+};
 let savedListings = [];
 let orderRequests = [];
 let reportedListings = [];
@@ -160,6 +269,11 @@ let mobileMessagesView = 'inbox';
 let returnTabAfterAuth = 'home';
 let tabHistory = [];
 let isEditingProfile = false;
+let isEditingCompanyProfile = false;
+let isInvitingSalesRep = false;
+let showCompanyTeamMembers = false;
+let showCompanyPendingInvites = false;
+let editingListingIndex = null;
 
 const app = document.getElementById('app');
 
@@ -198,6 +312,7 @@ const profileAbout = document.getElementById('profile-about');
 const profileFields = document.getElementById('profile-fields');
 const profileVerification = document.getElementById('profile-verification');
 const profileStats = document.getElementById('profile-stats');
+const profileAdminTools = document.getElementById('profile-admin-tools');
 const conversationList = document.getElementById('conversation-list');
 const activeChatTitle = document.getElementById('active-chat-title');
 const activeChatMeta = document.getElementById('active-chat-meta');
@@ -212,6 +327,9 @@ const chatFeedbackTitle = document.getElementById('chat-feedback-title');
 const chatRatingInput = document.getElementById('chat-rating');
 const chatFeedbackNote = document.getElementById('chat-feedback-note');
 const toast = document.getElementById('toast');
+const openLoginBtn = document.getElementById('open-login');
+const openRegisterBtn = document.getElementById('open-register');
+const signOutBtn = document.getElementById('sign-out-btn');
 const navButtons = {
     home: document.getElementById('nav-home'),
     post: document.getElementById('nav-post'),
@@ -219,6 +337,12 @@ const navButtons = {
     account: document.getElementById('nav-account'),
 };
 let toastTimeoutId = null;
+
+function setElementVisibility(element, isVisible, displayMode = 'block'){
+    if (!element) return;
+    element.hidden = !isVisible;
+    element.style.display = isVisible ? displayMode : 'none';
+}
 
 // Bottom nav
 document.getElementById('nav-home').onclick = () => showTab('home');
@@ -228,14 +352,17 @@ document.getElementById('nav-messages').onclick = () => {
     showTab('messages');
 };
 document.getElementById('nav-account').onclick = () => { showTab('account'); renderUserListings(); };
-document.getElementById('open-login').onclick = () => openAuthScreen('login');
-document.getElementById('open-register').onclick = () => openAuthScreen('register');
+openLoginBtn.onclick = () => openAuthScreen('login');
+openRegisterBtn.onclick = () => openAuthScreen('register');
 document.getElementById('open-legal').onclick = () => showTab('legal');
 document.getElementById('legal-back-home').onclick = () => showTab('home');
 document.getElementById('show-register').onclick = () => openAuthScreen('register');
 document.getElementById('show-login').onclick = () => openAuthScreen('login');
-document.getElementById('login-btn').onclick = () => completeAuth('Welcome back to FarmYard');
-document.getElementById('register-btn').onclick = () => completeAuth('Your account is ready');
+document.getElementById('login-btn').onclick = () => signInWithEmail();
+document.getElementById('register-btn').onclick = () => signUpWithEmail();
+document.getElementById('login-google-btn').onclick = () => signInWithGoogle();
+document.getElementById('register-google-btn').onclick = () => signInWithGoogle();
+signOutBtn.onclick = () => signOutUser();
 document.getElementById('close-detail').onclick = () => goBack();
 document.getElementById('detail-message').onclick = () => startConversationFromDetail();
 document.getElementById('detail-call').onclick = () => showToast('Seller call action opened');
@@ -264,10 +391,10 @@ function showTab(name, options = {}){
     if (!skipHistory && activeTab && activeTab !== name) {
         tabHistory.push(activeTab);
     }
-    app.style.display = 'block';
-    Object.values(authScreens).forEach(screen => screen.style.display = 'none');
-    Object.values(tabs).forEach(t => t.style.display = 'none');
-    tabs[name].style.display = 'block';
+    setElementVisibility(app, true);
+    Object.values(authScreens).forEach(screen => setElementVisibility(screen, false));
+    Object.values(tabs).forEach(t => setElementVisibility(t, false));
+    setElementVisibility(tabs[name], true);
     returnTabAfterAuth = name;
     updateNavState(name);
     if (name === 'messages') {
@@ -279,28 +406,105 @@ function openAuthScreen(name){
     const activeTab = getActiveTabName();
     if (activeTab) {
         returnTabAfterAuth = activeTab;
+        localStorage.setItem('farmyard-return-tab', activeTab);
     }
-    app.style.display = 'none';
-    Object.values(authScreens).forEach(screen => screen.style.display = 'none');
-    authScreens[name].style.display = 'flex';
+    setElementVisibility(app, false);
+    Object.values(authScreens).forEach(screen => setElementVisibility(screen, false, 'flex'));
+    setElementVisibility(authScreens[name], true, 'flex');
 }
 
-function completeAuth(message){
-    const isRegistering = authScreens.register.style.display === 'flex';
-    const nameInput = document.getElementById('reg-name').value.trim();
-    const emailInput = (isRegistering ? document.getElementById('reg-email') : document.getElementById('login-email')).value.trim();
-
-    if (isRegistering && nameInput) {
-        currentUser.name = nameInput;
+async function signInWithEmail(){
+    if (!supabaseClient) {
+        handleSignedInSession(null, 'Auth service unavailable right now. Opened the app in local mode.');
+        return;
     }
-    if (emailInput) {
-        currentUser.email = emailInput;
+    const email = document.getElementById('login-email').value.trim().toLowerCase();
+    const password = document.getElementById('login-password').value.trim();
+    const inviteCode = document.getElementById('login-invite-code').value.trim().toUpperCase();
+
+    if (!email || !password) {
+        showToast('Enter your email and password');
+        return;
     }
 
-    Object.values(authScreens).forEach(screen => screen.style.display = 'none');
-    app.style.display = 'block';
-    showTab(returnTabAfterAuth || 'home', { skipHistory: true });
-    showToast(message);
+    const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+    if (error) {
+        showToast(error.message);
+        return;
+    }
+
+    handleSignedInSession(data.session, inviteCode ? 'Welcome back. Company invite checked.' : 'Welcome back to FarmYard', { inviteCode });
+}
+
+async function signUpWithEmail(){
+    if (!supabaseClient) {
+        handleSignedInSession(null, 'Auth service unavailable right now. Opened the app in local mode.');
+        return;
+    }
+    const fullName = document.getElementById('reg-name').value.trim();
+    const email = document.getElementById('reg-email').value.trim().toLowerCase();
+    const password = document.getElementById('reg-password').value.trim();
+    const inviteCode = document.getElementById('reg-invite-code').value.trim().toUpperCase();
+
+    if (!fullName || !email || !password) {
+        showToast('Fill in name, email, and password');
+        return;
+    }
+
+    const { data, error } = await supabaseClient.auth.signUp({
+        email,
+        password,
+        options: {
+            data: { full_name: fullName },
+        },
+    });
+    if (error) {
+        showToast(error.message);
+        return;
+    }
+
+    if (data.session) {
+        handleSignedInSession(data.session, inviteCode ? 'Your account is ready. Company invite checked.' : 'Your account is ready', { inviteCode });
+    } else {
+        showToast('Check your email to confirm your account');
+    }
+}
+
+async function signInWithGoogle(){
+    if (!supabaseClient) {
+        showToast('Google sign-in is unavailable right now');
+        return;
+    }
+    localStorage.setItem('farmyard-return-tab', returnTabAfterAuth || getActiveTabName() || 'home');
+    const { error } = await supabaseClient.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+            redirectTo: window.location.href,
+        },
+    });
+    if (error) {
+        showToast(error.message);
+    }
+}
+
+async function signOutUser(){
+    if (!supabaseClient) {
+        hydrateCurrentUser(userAccounts['guest@farmyard.app']);
+        ensureProfileForAccount(userAccounts['guest@farmyard.app']);
+        updateAuthButtons(false);
+        showToast('Signed out successfully');
+        return;
+    }
+    const { error } = await supabaseClient.auth.signOut();
+    if (error) {
+        showToast(error.message);
+        return;
+    }
+
+    hydrateCurrentUser(userAccounts['guest@farmyard.app']);
+    ensureProfileForAccount(userAccounts['guest@farmyard.app']);
+    updateAuthButtons(false);
+    showToast('Signed out successfully');
 }
 
 function goBack(fallback = 'home'){
@@ -309,12 +513,14 @@ function goBack(fallback = 'home'){
 }
 
 function getActiveTabName(){
-    const activeTab = Object.entries(tabs).find(([, element]) => element.style.display === 'block');
+    const activeTab = Object.entries(tabs).find(([, element]) => !element.hidden);
     return activeTab ? activeTab[0] : null;
 }
 
 // Post listing
 document.getElementById('postBtn').onclick = () => {
+    const canPostForLinkedCompany = currentUser.companyId && currentUser.permissions?.canPostForCompany;
+    const existingListing = editingListingIndex !== null ? userListings[editingListingIndex] : null;
     const category = document.getElementById('category').value.trim();
     const title = document.getElementById('title').value.trim();
     const price = document.getElementById('price').value.trim();
@@ -322,13 +528,16 @@ document.getElementById('postBtn').onclick = () => {
     const minOrder = document.getElementById('minOrder').value.trim();
     const location = document.getElementById('location').value.trim();
     const description = document.getElementById('description').value.trim();
-    const image = document.getElementById('image').files[0] ? URL.createObjectURL(document.getElementById('image').files[0]) : 'https://via.placeholder.com/150';
+    const image = document.getElementById('image').files[0]
+        ? URL.createObjectURL(document.getElementById('image').files[0])
+        : (existingListing?.image || 'https://via.placeholder.com/150');
     const negotiable = document.getElementById('negotiable').checked;
+    const isEditingListing = editingListingIndex !== null;
 
     if (!category || !title || !price || !unit || !location) { alert('Fill all required fields'); return; }
     if (description.length > 220) { alert('Keep the description under 220 characters for now.'); return; }
 
-    userListings.push({
+    const listingPayload = {
         category,
         title,
         price,
@@ -339,19 +548,27 @@ document.getElementById('postBtn').onclick = () => {
         image,
         negotiable,
         slug: title.toLowerCase().replace(/\s+/g,'-'),
-        verified: currentUser.verified,
-        sellerId: currentUser.id,
-    });
+        verified: false,
+        sellerId: canPostForLinkedCompany ? currentUser.companyId : currentUser.id,
+        postedByName: currentUser.name,
+    };
+
+    if (isEditingListing) {
+        userListings[editingListingIndex] = listingPayload;
+    } else {
+        userListings.push(listingPayload);
+    }
 
     refreshMarketplace();
     clearPostForm();
     showTab('home');
-    showToast('Listing posted successfully');
+    showToast(isEditingListing ? 'Listing updated successfully' : 'Listing posted successfully');
 };
 
 function clearPostForm(){
     ['category','title','price','unit','minOrder','location','description','image'].forEach(id => document.getElementById(id).value='');
     document.getElementById('negotiable').checked = false;
+    editingListingIndex = null;
 }
 
 // Refresh marketplace
@@ -362,15 +579,16 @@ function refreshMarketplace(){
     all.forEach((listing)=>{
         const isSaved = savedListings.some(item => item.slug === listing.slug);
         const sellerProfile = profiles[listing.sellerId];
-        const verificationLabel = sellerProfile?.verificationPlan?.subscribed
+        const isVerifiedCompany = sellerProfile?.type === 'Company Profile' && sellerProfile?.verificationPlan?.subscribed;
+        const verificationLabel = isVerifiedCompany
             ? 'Verified Company'
-            : (listing.verified ? 'Verified seller' : 'Standard seller');
-        const verificationClass = sellerProfile?.verificationPlan?.subscribed ? 'company-badge' : '';
+            : (sellerProfile?.type === 'Company Profile' ? 'Company profile' : 'Individual profile');
+        const verificationClass = isVerifiedCompany ? 'company-badge' : '';
         const card = document.createElement('div');
         card.className='card';
-        const verificationText = sellerProfile?.verificationPlan?.subscribed
+        const verificationText = isVerifiedCompany
             ? `<span class="badge-full">Verified Company</span><span class="badge-short">Verified</span>${isSaved ? ' • Saved' : ''}`
-            : `${verificationLabel}${isSaved ? ' • Saved' : ''}`;
+            : `${verificationLabel}${isSaved ? ' • Saved' : ''}${listing.postedByName ? ` • Posted by ${listing.postedByName}` : ''}`;
         card.innerHTML = `
             <img src="${listing.image}">
             <span class="card-category">${listing.category || 'General'}</span>
@@ -398,11 +616,10 @@ function refreshMarketplace(){
 
 function getInitialListings(){
     return [
-        { category: 'Produce', title: 'Maize Grain', price: '1200', unit: 'kg', minOrder: '50kg', location: 'Farm A', image: 'https://via.placeholder.com/150', negotiable: false, verified: true, slug: 'maize-grain', sellerId: 'seller-amina' },
-        { category: 'Produce', title: 'Maize Grain', price: '1200', unit: 'kg', minOrder: '50kg', location: 'Farm A', image: 'https://via.placeholder.com/150', negotiable: false, verified: true, slug: 'maize-grain', sellerId: 'seller-amina' },
-        { category: 'Services', title: 'Tractor Ploughing', price: '80000', unit: 'acre', location: 'Farm B', image: 'https://via.placeholder.com/150', negotiable: false, verified: true, slug: 'tractor-ploughing', sellerId: 'seller-kato' },
+        { category: 'Produce', title: 'Maize Grain', price: '1200', unit: 'kg', minOrder: '50kg', location: 'Farm A', image: 'https://via.placeholder.com/150', negotiable: false, verified: true, slug: 'maize-grain', sellerId: 'seller-amina', postedByName: 'Amina Sales Desk' },
+        { category: 'Services', title: 'Tractor Ploughing', price: '80000', unit: 'acre', location: 'Farm B', image: 'https://via.placeholder.com/150', negotiable: false, verified: true, slug: 'tractor-ploughing', sellerId: 'seller-kato', postedByName: 'Kato Mechanics Team' },
         { category: 'Raw Materials', title: 'Organic Manure', price: '35000', unit: 'bag', minOrder: '10 bags', location: 'Farm C', image: 'https://via.placeholder.com/150', negotiable: true, verified: false, slug: 'organic-manure', sellerId: 'seller-manure' },
-        { category: 'Finished Goods', title: 'Layer Mash Feed', price: '95000', unit: 'bag', minOrder: '5 bags', location: 'Farm D', image: 'https://via.placeholder.com/150', negotiable: false, verified: true, slug: 'layer-mash-feed', sellerId: 'seller-feed' }
+        { category: 'Finished Goods', title: 'Layer Mash Feed', price: '95000', unit: 'bag', minOrder: '5 bags', location: 'Farm D', image: 'https://via.placeholder.com/150', negotiable: false, verified: true, slug: 'layer-mash-feed', sellerId: 'seller-feed', postedByName: 'LayerPro Team' }
     ];
 }
 
@@ -427,7 +644,7 @@ function requestCurrentOrder(){
         location: currentDetailListing.location,
         type: 'Request',
     });
-    showToast(`Order request sent for ${currentDetailListing.title}`);
+    showToast(`Order request sent for ${currentDetailListing.title}. FarmYard does not handle payments.`);
     renderUserListings();
 }
 
@@ -476,28 +693,37 @@ function scheduleCurrentOrder(){
         type: 'Scheduled',
     });
     toggleSchedulePanel(false);
-    showToast(`Order scheduled for ${currentDetailListing.title}`);
+    showToast(`Order scheduled for ${currentDetailListing.title}. Payments happen outside FarmYard.`);
     renderUserListings();
 }
 
 function openListingDetail(listing){
     currentDetailListing = listing;
     currentProfileId = listing.sellerId || currentUser.id;
+    const sellerProfile = profiles[currentProfileId];
+    const sellerName = sellerProfile?.name || `${listing.title} Seller`;
+    const isVerifiedCompany = sellerProfile?.type === 'Company Profile' && sellerProfile?.verificationPlan?.subscribed;
+    const verificationLabel = isVerifiedCompany
+        ? 'Verified Company'
+        : (sellerProfile?.type === 'Company Profile' ? 'Company profile' : 'Individual profile');
     toggleSchedulePanel(false);
     detailMessage.dataset.listing = JSON.stringify({
         title: listing.title,
         location: listing.location,
         category: listing.category,
+        sellerId: currentProfileId,
+        contact: sellerName,
     });
     detailImage.src = listing.image;
     detailImage.alt = listing.title;
     detailTitle.textContent = listing.title;
-    detailVerification.textContent = listing.verified ? 'Verified seller' : 'Standard seller';
+    detailVerification.textContent = verificationLabel;
+    detailVerification.className = isVerifiedCompany ? 'detail-badge company-badge' : 'detail-badge';
     detailPrice.textContent = listing.negotiable ? 'Price: Negotiable' : 'Price: UGX ' + formatPrice(listing.price) + '/' + listing.unit;
     detailMinOrder.textContent = listing.minOrder ? 'Minimum order: ' + listing.minOrder : 'Minimum order: Flexible';
     detailLocation.textContent = 'Location: ' + listing.location;
-    detailNegotiable.textContent = (listing.description ? listing.description + ' | ' : '') + 'Category: ' + (listing.category || 'General');
-    detailMessage.textContent = 'Message Seller';
+    detailNegotiable.textContent = `${listing.description ? `${listing.description} | ` : ''}Category: ${listing.category || 'General'} | Seller: ${sellerName}${listing.postedByName ? ` | Posted by: ${listing.postedByName}` : ''}`;
+    detailMessage.textContent = `Message ${sellerName}`;
     document.getElementById('detail-save').textContent = savedListings.some(item => item.slug === listing.slug) ? 'Saved' : 'Save Listing';
     showTab('detail');
 }
@@ -510,18 +736,23 @@ function openCurrentProfile(){
 function openProfile(profileId){
     const profile = profiles[profileId];
     if (!profile) return;
+    const isCurrentUsersCompany = profileId === currentUser.companyId;
+    const canManageCompanyProfile = isCurrentUsersCompany && currentUser.companyRole === 'Admin';
     currentProfileId = profileId;
     profileType.textContent = profile.type;
     profileName.textContent = profile.name;
     profileRating.textContent = `${profile.rating.toFixed(1)} stars from ${profile.ratingCount} ratings`;
     profileAvatar.textContent = getInitials(profile.name);
     profileAbout.textContent = profile.about;
-    profileVerification.textContent = profile.verificationPlan?.subscribed
-        ? `Verified Company active • $${profile.verificationPlan.price}/${profile.verificationPlan.billing}${profile.verificationPlan.renewalDate ? ` • renews ${profile.verificationPlan.renewalDate}` : ''}`
-        : (profile.verified ? 'Verified FarmYard profile' : 'Verification not yet completed');
-    profileVerification.className = profile.verificationPlan?.subscribed ? 'detail-badge company-badge' : 'detail-badge';
+    profileVerification.textContent = profile.type === 'Company Profile'
+        ? (profile.verificationPlan?.subscribed
+            ? `Verified Company approved • $${profile.verificationPlan.price}/${profile.verificationPlan.billing}${profile.verificationPlan.renewalDate ? ` • renews ${profile.verificationPlan.renewalDate}` : ''}`
+            : 'Company profile pending verification review')
+        : 'Individual profiles can sell personally or represent a company, but only company profiles receive the Verified Company badge.';
+    profileVerification.className = profile.type === 'Company Profile' && profile.verificationPlan?.subscribed ? 'detail-badge company-badge' : 'detail-badge';
     profileStats.textContent = `${profile.completedDeals} completed marketplace interactions`;
     profileFields.innerHTML = '';
+    profileAdminTools.innerHTML = '';
 
     Object.values(profile.fields).forEach(field => {
         const item = document.createElement('div');
@@ -533,7 +764,61 @@ function openProfile(profileId){
         profileFields.appendChild(item);
     });
 
+    if (canManageCompanyProfile) {
+        const manageButton = document.createElement('button');
+        manageButton.type = 'button';
+        manageButton.textContent = isEditingCompanyProfile ? 'Close Company Editor' : 'Edit Company Profile';
+        manageButton.onclick = () => toggleCompanyProfileEditor();
+        profileAdminTools.appendChild(manageButton);
+
+        if (isEditingCompanyProfile) {
+            const editor = document.createElement('div');
+            editor.className = 'profile-field';
+            editor.innerHTML = `
+                <label for="company-name-edit"><strong>Company name</strong></label>
+                <input id="company-name-edit" type="text" value="${profile.name}">
+                <label for="company-location-edit"><strong>Head office</strong></label>
+                <input id="company-location-edit" type="text" value="${profile.fields.location?.value || ''}">
+                <label for="company-phone-edit"><strong>Company phone</strong></label>
+                <input id="company-phone-edit" type="text" value="${profile.fields.phone?.value || ''}">
+                <label for="company-email-edit"><strong>Company email</strong></label>
+                <input id="company-email-edit" type="email" value="${profile.fields.email?.value || ''}">
+                <label for="company-registration-edit"><strong>Registration</strong></label>
+                <input id="company-registration-edit" type="text" value="${profile.fields.registration?.value || ''}">
+                <label for="company-certification-edit"><strong>Permits or certifications</strong></label>
+                <input id="company-certification-edit" type="text" value="${profile.fields.certification?.value || ''}">
+                <label for="company-about-edit"><strong>About company</strong></label>
+                <textarea id="company-about-edit" rows="4">${profile.about}</textarea>
+                <div class="company-verification-editor">
+                    <strong>Internal verification checklist</strong>
+                    <p class="card-summary">${countCompletedRequirements(companyAccounts[currentUser.companyId].verificationRequirements)} of ${Object.keys(companyAccounts[currentUser.companyId].verificationRequirements).length} requirements completed.</p>
+                    ${Object.entries(companyAccounts[currentUser.companyId].verificationRequirements).map(([key, complete]) => `
+                        <label class="verification-item">
+                            <input type="checkbox" class="verification-toggle" data-requirement="${key}" ${key === 'goodStanding' ? '' : 'disabled'} ${complete ? 'checked' : ''}>
+                            <span>${formatRequirementLabel(key)}</span>
+                            <strong>${complete ? 'Complete' : 'Pending'}</strong>
+                        </label>
+                        <p class="card-summary verification-source">${getRequirementSourceLabel(key)}</p>
+                    `).join('')}
+                </div>
+                <div class="profile-edit-actions">
+                    <button id="save-company-profile-btn" type="button">Save Company Profile</button>
+                    <button id="cancel-company-profile-btn" type="button">Cancel</button>
+                </div>
+            `;
+            profileFields.appendChild(editor);
+        }
+    }
+
     showTab('profile');
+
+    if (canManageCompanyProfile && isEditingCompanyProfile) {
+        document.getElementById('save-company-profile-btn').onclick = () => saveCompanyProfileEdits();
+        document.getElementById('cancel-company-profile-btn').onclick = () => toggleCompanyProfileEditor(false);
+        document.querySelectorAll('.verification-toggle').forEach(toggle => {
+            toggle.onchange = (event) => updateVerificationRequirement(event.target.dataset.requirement, event.target.checked, false);
+        });
+    }
 }
 
 function startConversationFromDetail(){
@@ -542,23 +827,30 @@ function startConversationFromDetail(){
     startConversation({
         title: listing.title,
         location: listing.location || 'Marketplace',
+        category: listing.category,
+        sellerId: listing.sellerId,
+        contact: listing.contact,
     });
 }
 
 function startConversation(listing){
-    const existingConversation = conversations.find(conversation => conversation.listingTitle === listing.title);
+    const contactName = listing.contact || profiles[listing.sellerId]?.name || `${listing.title} Seller`;
+    const sellerProfile = profiles[listing.sellerId];
+    const existingConversation = conversations.find(conversation =>
+        conversation.listingTitle === listing.title && conversation.contact === contactName
+    );
     if (existingConversation) {
         activeConversationId = existingConversation.id;
     } else {
         const newConversation = {
             id: `conv-${Date.now()}`,
             listingTitle: listing.title,
-            contact: `${listing.title} Seller`,
-            role: listing.category === 'Services' ? 'Service Provider' : 'Seller',
+            contact: contactName,
+            role: sellerProfile?.type || (listing.category === 'Services' ? 'Service Provider' : 'Seller'),
             location: listing.location || 'Marketplace',
             lastUpdated: 'Just now',
             messages: [
-                { author: `${listing.title} Seller`, text: `Thanks for your interest in ${listing.title}. How can I help?`, time: 'Now', mine: false },
+                { author: contactName, text: `Thanks for your interest in ${listing.title}. How can I help?`, time: 'Now', mine: false },
             ],
         };
         conversations.unshift(newConversation);
@@ -663,6 +955,276 @@ function showToast(message){
     }, 2200);
 }
 
+function handleSignedInSession(session, message, options = {}){
+    const authContextMessage = syncCurrentUserFromSession(session, options);
+    const savedReturnTab = localStorage.getItem('farmyard-return-tab');
+    const destination = savedReturnTab || returnTabAfterAuth || 'home';
+    localStorage.removeItem('farmyard-return-tab');
+    Object.values(authScreens).forEach(screen => setElementVisibility(screen, false, 'flex'));
+    setElementVisibility(app, true);
+    updateAuthButtons(true);
+    showTab(destination, { skipHistory: true });
+    showToast(authContextMessage || message);
+}
+
+function syncCurrentUserFromSession(session, options = {}){
+    const user = session?.user;
+    if (!user) {
+        hydrateCurrentUser(userAccounts['guest@farmyard.app']);
+        ensureProfileForAccount(userAccounts['guest@farmyard.app']);
+        return '';
+    }
+    const normalizedEmail = normalizeEmail(user.email || currentUser.email);
+    const fullName = user.user_metadata?.full_name || user.user_metadata?.name || currentUser.name;
+    const inviteCode = (options.inviteCode || '').trim().toUpperCase();
+    let contextMessage = '';
+
+    if (inviteCode) {
+        contextMessage = claimCompanyInvite(normalizedEmail, inviteCode, fullName, user.id) || '';
+    }
+
+    const account = getOrCreateUserAccount(normalizedEmail, fullName, user.id);
+    hydrateCurrentUser(account);
+    ensureProfileForAccount(account);
+    profiles[currentUser.id].name = currentUser.name;
+    profiles[currentUser.id].fields.email.value = currentUser.email;
+    if (!contextMessage) {
+        const pendingInvite = findPendingInviteByEmail(normalizedEmail);
+        if (pendingInvite && currentUser.accessStatus === 'Independent account') {
+            contextMessage = 'A company invite exists for this email. Enter the invite code to claim company access.';
+        } else if (currentUser.accessStatus === 'Invite claimed - awaiting admin activation') {
+            contextMessage = 'Your company invite is claimed and waiting for admin activation.';
+        }
+    }
+    return contextMessage;
+}
+
+function normalizeEmail(email){
+    return (email || '').trim().toLowerCase();
+}
+
+function slugifyValue(value){
+    return (value || 'user')
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/(^-|-$)/g, '') || 'user';
+}
+
+function buildSecurityState(){
+    return { ...DEFAULT_SECURITY };
+}
+
+function buildVerificationPlanState(){
+    return { ...DEFAULT_VERIFICATION_PLAN };
+}
+
+function buildIndividualProfile(account){
+    const companyName = account.companyId && companyAccounts[account.companyId]
+        ? companyAccounts[account.companyId].name
+        : 'Independent';
+    return {
+        id: account.id,
+        name: account.name,
+        type: 'Individual Profile',
+        about: 'FarmYard member account used for agricultural trading and marketplace communication.',
+        verified: false,
+        verificationPlan: buildVerificationPlanState(),
+        rating: account.communityRating || 5,
+        ratingCount: account.ratingCount || 1,
+        completedDeals: 0,
+        fields: {
+            location: { label: 'Location', value: account.location || 'Not set', visible: true },
+            phone: { label: 'Phone', value: account.phone || 'Not set', visible: false },
+            email: { label: 'Email', value: account.email, visible: false },
+            companyRole: { label: 'Company Role', value: account.companyRole || 'Independent seller', visible: true },
+            companyName: { label: 'Selling For', value: companyName, visible: true },
+        },
+    };
+}
+
+function ensureProfileForAccount(account){
+    if (!profiles[account.id]) {
+        profiles[account.id] = buildIndividualProfile(account);
+    }
+    profiles[account.id].name = account.name;
+    profiles[account.id].fields.location.value = account.location;
+    profiles[account.id].fields.phone.value = account.phone;
+    profiles[account.id].fields.email.value = account.email;
+    profiles[account.id].fields.companyRole.value = account.companyRole || 'Independent seller';
+    profiles[account.id].fields.companyName.value = account.companyId && companyAccounts[account.companyId]
+        ? companyAccounts[account.companyId].name
+        : 'Independent';
+}
+
+function buildBaseUserAccount(email, fullName, userId){
+    return {
+        id: userId || `user-${slugifyValue(email)}`,
+        name: fullName || 'FarmYard User',
+        role: 'Buyer and Seller',
+        accountType: 'Individual Profile',
+        location: 'Set your trading location',
+        phone: 'Add your phone number',
+        email,
+        verified: false,
+        communityRating: 5,
+        ratingCount: 1,
+        companyId: null,
+        companyRole: null,
+        accessStatus: 'Independent account',
+        permissions: {
+            canPostForCompany: false,
+            canManageCompany: false,
+            canApproveInvites: false,
+        },
+        security: buildSecurityState(),
+        verificationPlan: buildVerificationPlanState(),
+    };
+}
+
+function getOrCreateUserAccount(email, fullName, userId){
+    const normalizedEmail = normalizeEmail(email);
+    if (!userAccounts[normalizedEmail]) {
+        userAccounts[normalizedEmail] = buildBaseUserAccount(normalizedEmail, fullName, userId);
+    }
+    const account = userAccounts[normalizedEmail];
+    account.email = normalizedEmail;
+    account.name = fullName || account.name;
+    account.id = userId || account.id;
+    return account;
+}
+
+function hydrateCurrentUser(account){
+    currentUser.id = account.id;
+    currentUser.name = account.name;
+    currentUser.role = account.role;
+    currentUser.accountType = account.accountType;
+    currentUser.location = account.location;
+    currentUser.phone = account.phone;
+    currentUser.email = account.email;
+    currentUser.verified = account.verified;
+    currentUser.communityRating = account.communityRating;
+    currentUser.ratingCount = account.ratingCount;
+    currentUser.companyId = account.companyId;
+    currentUser.companyRole = account.companyRole;
+    currentUser.accessStatus = account.accessStatus;
+    currentUser.permissions = { ...account.permissions };
+    currentUser.security = { ...account.security };
+    currentUser.verificationPlan = { ...account.verificationPlan };
+}
+
+function persistCurrentUserAccount(previousEmail = currentUser.email){
+    const normalizedPreviousEmail = normalizeEmail(previousEmail);
+    const normalizedCurrentEmail = normalizeEmail(currentUser.email);
+    if (normalizedPreviousEmail && normalizedPreviousEmail !== normalizedCurrentEmail) {
+        delete userAccounts[normalizedPreviousEmail];
+    }
+    userAccounts[normalizedCurrentEmail] = {
+        id: currentUser.id,
+        name: currentUser.name,
+        role: currentUser.role,
+        accountType: currentUser.accountType,
+        location: currentUser.location,
+        phone: currentUser.phone,
+        email: normalizedCurrentEmail,
+        verified: currentUser.verified,
+        communityRating: currentUser.communityRating,
+        ratingCount: currentUser.ratingCount,
+        companyId: currentUser.companyId,
+        companyRole: currentUser.companyRole,
+        accessStatus: currentUser.accessStatus,
+        permissions: { ...currentUser.permissions },
+        security: { ...currentUser.security },
+        verificationPlan: { ...currentUser.verificationPlan },
+    };
+}
+
+function findPendingInviteByEmail(email){
+    const normalizedEmail = normalizeEmail(email);
+    return Object.values(companyAccounts).flatMap(company =>
+        company.pendingInvites.map(invite => ({ company, invite }))
+    ).find(({ invite }) => normalizeEmail(invite.email) === normalizedEmail);
+}
+
+function claimCompanyInvite(email, inviteCode, fullName, userId){
+    const normalizedEmail = normalizeEmail(email);
+    const match = Object.values(companyAccounts).flatMap(company =>
+        company.pendingInvites.map(invite => ({ company, invite }))
+    ).find(({ invite }) =>
+        normalizeEmail(invite.email) === normalizedEmail
+        && invite.inviteCode === inviteCode
+        && invite.status !== 'Revoked'
+    );
+
+    if (!match) {
+        return 'No valid company invite matched that email and code';
+    }
+
+    const { company, invite } = match;
+    if (invite.expiresOn && invite.expiresOn < '2026-04-05') {
+        return 'This company invite has expired';
+    }
+
+    invite.status = 'Claimed by user';
+    invite.claimedAt = '2026-04-05';
+    invite.linkedUserId = userId;
+    invite.name = fullName || invite.name;
+
+    const account = getOrCreateUserAccount(normalizedEmail, fullName || invite.name, userId);
+    account.role = invite.role;
+    account.location = profiles[company.id]?.fields.location?.value || account.location;
+    account.phone = invite.phone || account.phone;
+    account.companyId = company.id;
+    account.companyRole = invite.role;
+    account.accessStatus = 'Invite claimed - awaiting admin activation';
+    account.permissions = {
+        canPostForCompany: false,
+        canManageCompany: false,
+        canApproveInvites: false,
+    };
+    ensureProfileForAccount(account);
+    return `Invite claimed for ${company.name}. Access will be active after admin approval.`;
+}
+
+function updateAuthButtons(isAuthenticated){
+    openLoginBtn.style.display = isAuthenticated ? 'none' : 'inline-flex';
+    openRegisterBtn.style.display = isAuthenticated ? 'none' : 'inline-flex';
+    signOutBtn.style.display = isAuthenticated ? 'inline-flex' : 'none';
+}
+
+async function initializeAuth(){
+    updateAuthButtons(false);
+    if (!supabaseClient) {
+        hydrateCurrentUser(userAccounts['guest@farmyard.app']);
+        ensureProfileForAccount(userAccounts['guest@farmyard.app']);
+        return;
+    }
+    const { data, error } = await supabaseClient.auth.getSession();
+    if (error) {
+        showToast(error.message);
+        return;
+    }
+
+    if (data.session) {
+        syncCurrentUserFromSession(data.session);
+        updateAuthButtons(true);
+        const savedReturnTab = localStorage.getItem('farmyard-return-tab');
+        if (savedReturnTab) {
+            localStorage.removeItem('farmyard-return-tab');
+            showTab(savedReturnTab, { skipHistory: true });
+        }
+    }
+
+    supabaseClient.auth.onAuthStateChange((event, session) => {
+        if (event === 'SIGNED_IN' && session) {
+            syncCurrentUserFromSession(session);
+            updateAuthButtons(true);
+        }
+        if (event === 'SIGNED_OUT') {
+            updateAuthButtons(false);
+        }
+    });
+}
+
 function updateNavState(activeTab){
     Object.entries(navButtons).forEach(([key, button]) => {
         if (!button) return;
@@ -728,6 +1290,11 @@ function getCounterpartyProfile(contact){
 // Render account listings
 function renderUserListings(){
     const acc = tabs.account;
+    const companyAccount = currentUser.companyId ? companyAccounts[currentUser.companyId] : null;
+    const companyProfile = currentUser.companyId ? profiles[currentUser.companyId] : null;
+    if (companyAccount && companyProfile) {
+        syncVerificationRequirementsFromCompanyProfile(companyProfile, companyAccount);
+    }
     const negotiableCount = userListings.filter(listing => listing.negotiable).length;
     const categories = new Set(userListings.map(listing => listing.category)).size;
     const savedCount = savedListings.length;
@@ -735,16 +1302,81 @@ function renderUserListings(){
     const reportsCount = reportedListings.length;
     const ratingsGivenCount = ratingsGiven.length;
     const userReportsCount = userReports.length;
+    const isCompanyAdmin = currentUser.companyRole === 'Admin';
+    const accountRelationship = currentUser.companyId && companyAccount
+        ? `Selling on behalf of ${companyAccount.name}`
+        : 'Independent seller account';
+    const accountAccessLine = currentUser.companyId && companyAccount
+        ? (isCompanyAdmin
+            ? `You are the admin for ${companyAccount.name}`
+            : `You are a sales representative for ${companyAccount.name}`)
+        : 'You manage your own listings, profile, and buyer conversations.';
+    const verificationStatus = companyProfile?.verificationPlan?.subscribed
+        ? 'Verified Company approved'
+        : (companyProfile ? 'Pending verification review' : 'No company linked');
+    const seatUsage = companyAccount ? `${companyAccount.members.length + companyAccount.pendingInvites.length} / ${companyAccount.maxSalesMembers}` : '0 / 0';
+    const savedMarkup = savedListings.length
+        ? savedListings.map(item => `<p>${item.title} • ${item.location}</p>`).join('')
+        : '<div class="mini-empty-state"><strong>No saved listings yet</strong><p>Saved produce, goods, and services will appear here.</p></div>';
+    const ordersMarkup = orderRequests.length
+        ? orderRequests.map(item => `<p>${item.title} • ${item.type}: ${item.status}${item.note ? ` • ${item.note}` : ''}</p>`).join('')
+        : '<div class="mini-empty-state"><strong>No order requests yet</strong><p>Incoming requests and schedules will appear here.</p></div>';
+    const ratingsMarkup = ratingsGiven.length
+        ? ratingsGiven.map(item => `<p>${item.contact} • ${item.rating}/5${item.note ? ` • ${item.note}` : ''}</p>`).join('')
+        : '<div class="mini-empty-state"><strong>No ratings submitted</strong><p>Ratings you leave for buyers or sellers will show here.</p></div>';
+    const userReportsMarkup = userReports.length
+        ? userReports.map(item => `<p>${item.contact} • ${item.status} • ${item.note}</p>`).join('')
+        : '<div class="mini-empty-state"><strong>No user reports filed</strong><p>Any safety or conduct reports will be listed here.</p></div>';
+    const moderationMarkup = reportedListings.length
+        ? reportedListings.map(item => `<p>${item.title} • ${item.status}</p>`).join('')
+        : '<div class="mini-empty-state"><strong>No moderation items</strong><p>Reported listings and moderation updates will appear here.</p></div>';
+    const teamMarkup = companyAccount
+        ? companyAccount.members.map(member => `
+            <div class="team-invite-item">
+                <p><strong>${member.name}</strong> • ${member.role}</p>
+                <p>${member.email || 'No email on file'} • ${member.phone || 'No phone on file'}</p>
+                <p>${member.status}${member.nationalId ? ` • ID: ${member.nationalId}` : ''}</p>
+                ${isCompanyAdmin && member.role !== 'Admin'
+                    ? `<div class="security-actions"><button class="btn btn-danger remove-member-btn" type="button" data-member-id="${member.id}">Remove Access</button></div>`
+                    : ''}
+            </div>
+        `).join('')
+        : '<p class="card-summary">No company sales team assigned.</p>';
+    const inviteMarkup = companyAccount?.pendingInvites?.length
+        ? companyAccount.pendingInvites.map(invite => `
+            <div class="team-invite-item">
+                <p><strong>${invite.name}</strong> • ${invite.role}</p>
+                <p>${invite.email} • ${invite.phone}</p>
+                <p>ID: ${invite.nationalId} • ${invite.status}</p>
+                <p>Invite code: ${invite.inviteCode} • Expires ${invite.expiresOn}</p>
+                ${isCompanyAdmin ? `<div class="security-actions">
+                    ${invite.status === 'Claimed by user'
+                        ? `<button class="btn btn-primary approve-invite-btn" type="button" data-invite-id="${invite.id}">Activate Access</button>`
+                        : `<button class="btn btn-secondary resend-invite-btn" type="button" data-invite-id="${invite.id}">Resend Details</button>`}
+                    <button class="btn btn-danger remove-invite-btn" type="button" data-invite-id="${invite.id}">Revoke Invite</button>
+                </div>` : ''}
+            </div>
+        `).join('')
+        : '<p class="card-summary">No pending rep invitations.</p>';
 
     acc.innerHTML = `
         <section class="account-section account-hero">
-            <div>
-                <p class="account-kicker">Account</p>
+            <div class="account-hero-copy">
+                <p class="account-kicker">Individual Account</p>
                 <h2>${currentUser.name}</h2>
-                <p>${currentUser.role}</p>
-                <p>${currentUser.location}</p>
-                <p>${currentUser.verified ? 'Verified FarmYard member' : 'Verification pending'}</p>
-                <p>${currentUser.communityRating.toFixed(1)} stars from ${currentUser.ratingCount} ratings</p>
+                <p class="account-hero-subtitle">${currentUser.role} • ${currentUser.location}</p>
+                <p class="account-hero-meta">${accountRelationship}</p>
+                <p class="account-hero-meta">${accountAccessLine}</p>
+                <div class="account-pill-row">
+                    <span class="account-pill">${currentUser.accessStatus || 'Independent account'}</span>
+                    <span class="account-pill">${currentUser.communityRating.toFixed(1)} stars</span>
+                    <span class="account-pill">${userListings.length} active listings</span>
+                </div>
+                <div class="account-actions hero-actions">
+                    <button id="account-post-btn" class="btn btn-primary" type="button">Post New Listing</button>
+                    <button id="account-home-btn" class="btn btn-secondary" type="button">View Marketplace</button>
+                    <button id="view-profile-btn" class="btn btn-secondary" type="button">View Public Profile</button>
+                </div>
             </div>
             <div class="account-avatar">${getInitials(currentUser.name)}</div>
         </section>
@@ -784,34 +1416,93 @@ function renderUserListings(){
             </div>
         </section>
 
-        <section class="account-section account-card">
-            <h3>Profile Details</h3>
-            <p><strong>Email:</strong> ${currentUser.email}</p>
-            <p><strong>Phone:</strong> ${currentUser.phone}</p>
-            <p><strong>Verification:</strong> ${currentUser.verified ? 'Verified account' : 'Verification required'}</p>
-            <p><strong>Account type:</strong> ${currentUser.accountType}</p>
-            <p><strong>Community rating:</strong> ${currentUser.communityRating.toFixed(1)} / 5</p>
-            <p><strong>Trading focus:</strong> Agriculture products, raw materials, finished goods, and services</p>
-            <div class="profile-summary-actions">
-                <button id="open-profile-editor" type="button">${isEditingProfile ? 'Close Editor' : 'Edit Profile'}</button>
-                <button id="view-profile-btn" type="button">View Public Profile</button>
+        <section class="account-section account-grid account-overview-grid">
+            <div class="account-card">
+                <div class="section-heading">
+                    <p class="section-eyebrow">Profile</p>
+                    <h3>Profile Details</h3>
+                </div>
+                <div class="detail-list">
+                    <p><strong>Email</strong><span>${currentUser.email}</span></p>
+                    <p><strong>Phone</strong><span>${currentUser.phone}</span></p>
+                    <p><strong>Verification</strong><span>${currentUser.verified ? 'Verified account' : 'Verification required'}</span></p>
+                    <p><strong>Account type</strong><span>${currentUser.accountType}</span></p>
+                    <p><strong>Trading focus</strong><span>Agriculture products, raw materials, finished goods, and services</span></p>
+                </div>
+                <div class="profile-summary-actions">
+                    <button id="open-profile-editor" class="btn btn-primary" type="button">${isEditingProfile ? 'Close Editor' : 'Edit Profile'}</button>
+                    <button id="view-company-profile-btn" class="btn btn-secondary" type="button">View Company Profile</button>
+                </div>
+            </div>
+
+            <div class="account-card">
+                <div class="section-heading">
+                    <p class="section-eyebrow">Trust</p>
+                    <h3>Company Verification</h3>
+                </div>
+                <div class="detail-list">
+                    <p><strong>Company</strong><span>${companyProfile?.name || 'No company linked'}</span></p>
+                    <p><strong>Status</strong><span>${verificationStatus}</span></p>
+                    <p><strong>Subscription</strong><span>$${currentUser.verificationPlan.price}/${currentUser.verificationPlan.billing}</span></p>
+                    <p><strong>Renewal</strong><span>${companyProfile?.verificationPlan?.renewalDate || 'No renewal date set'}</span></p>
+                </div>
+                <p class="account-card-note">Only company profiles can become verified. Individual profiles can still post and manage listings, but the trust badge belongs to the company account they represent.</p>
+                <p class="account-card-note">Add registration, permits, location, company email, and company phone inside <strong>View Company Profile</strong> then <strong>Edit Company Profile</strong>.</p>
+                <div class="security-actions">
+                    <button id="subscribe-verification-btn" class="btn btn-primary" type="button">${companyProfile?.verificationPlan?.subscribed ? 'Review Verification' : 'Apply For Verification'}</button>
+                    <button id="view-verification-term-btn" class="btn btn-secondary" type="button">View Verification Rules</button>
+                </div>
             </div>
         </section>
 
-        <section class="account-section account-card">
-            <h3>Verified Company</h3>
-            <p><strong>Plan:</strong> $${currentUser.verificationPlan.price}/${currentUser.verificationPlan.billing}</p>
-            <p><strong>Status:</strong> ${currentUser.verificationPlan.subscribed ? 'Active subscription' : 'Not subscribed'}</p>
-            <p><strong>Renewal date:</strong> ${currentUser.verificationPlan.renewalDate || 'No renewal date set'}</p>
-            <p>Verified Company is designed for businesses that want a stronger trust badge and clearer visibility as a company on FarmYard.</p>
+        <details class="account-section account-card account-accordion"${showCompanyTeamMembers || showCompanyPendingInvites || isInvitingSalesRep ? ' open' : ''}>
+            <summary>
+                <div class="section-heading">
+                    <p class="section-eyebrow">Access</p>
+                    <h3>Company Team</h3>
+                </div>
+                <span class="accordion-meta">${seatUsage} seats used</span>
+            </summary>
+            <p class="account-card-note"><strong>Company access:</strong> ${currentUser.companyRole || 'No company role assigned'}</p>
+            <p class="account-card-note">Each company can assign up to 4 individuals to sell on its behalf, and one of them can act as the admin who appoints or removes the others.</p>
             <div class="security-actions">
-                <button id="subscribe-verification-btn" type="button">${currentUser.verificationPlan.subscribed ? 'Manage Verified Company' : 'Get Verified Company'}</button>
-                <button id="view-verification-term-btn" type="button">View Verification Term</button>
+                <button id="toggle-team-members-btn" class="btn btn-secondary" type="button">${showCompanyTeamMembers ? 'Hide Team Members' : 'Show Team Members'}</button>
+                <button id="toggle-pending-invites-btn" class="btn btn-secondary" type="button">${showCompanyPendingInvites ? 'Hide Pending Invites' : 'Show Pending Invites'}</button>
+                ${isCompanyAdmin ? `<button id="open-sales-invite-btn" class="btn btn-primary" type="button">${isInvitingSalesRep ? 'Close Invite Form' : 'Invite Sales Rep'}</button>` : ''}
             </div>
-        </section>
+            <div id="company-team-members" class="${showCompanyTeamMembers ? '' : 'is-hidden'}">${teamMarkup}</div>
+            <div class="team-invite-list ${showCompanyPendingInvites ? '' : 'is-hidden'}">
+                <h4>Pending Invitations</h4>
+                <div id="company-pending-invites">${inviteMarkup}</div>
+            </div>
+            ${isCompanyAdmin ? `
+            <div class="team-invite-form ${isInvitingSalesRep ? 'is-visible' : ''}">
+                <label for="invite-rep-name">Full name</label>
+                <input id="invite-rep-name" type="text" placeholder="Sales representative full name">
+                <label for="invite-rep-email">Work email</label>
+                <input id="invite-rep-email" type="email" placeholder="rep@company.com">
+                <label for="invite-rep-phone">Phone</label>
+                <input id="invite-rep-phone" type="text" placeholder="+256...">
+                <label for="invite-rep-id">National ID or staff ID</label>
+                <input id="invite-rep-id" type="text" placeholder="ID reference">
+                <label for="invite-rep-role">Role</label>
+                <input id="invite-rep-role" type="text" value="Sales Representative">
+                <div class="profile-edit-actions">
+                    <button id="submit-sales-invite-btn" class="btn btn-primary" type="button">Send Invite</button>
+                    <button id="cancel-sales-invite-btn" class="btn btn-secondary" type="button">Cancel</button>
+                </div>
+            </div>
+            ` : ''}
+        </details>
 
-        <section class="account-section account-card profile-editor ${isEditingProfile ? 'is-visible' : ''}">
-            <h3>Edit Profile</h3>
+        <details class="account-section account-card account-accordion"${isEditingProfile ? ' open' : ''}>
+            <summary>
+                <div class="section-heading">
+                    <p class="section-eyebrow">Settings</p>
+                    <h3>Edit Profile</h3>
+                </div>
+                <span class="accordion-meta">${isEditingProfile ? 'Editing now' : 'Profile fields and privacy'}</span>
+            </summary>
             <div class="profile-edit-grid">
                 <div>
                     <label for="edit-name">Display name</label>
@@ -834,85 +1525,107 @@ function renderUserListings(){
                     <input id="edit-email" type="email" value="${currentUser.email}">
                 </div>
                 <div>
-                    <label for="edit-hours">Business hours</label>
-                    <input id="edit-hours" type="text" value="${profiles[currentUser.id].fields.businessHours?.value || ''}">
+                    <label for="edit-company-role">Company role</label>
+                    <input id="edit-company-role" type="text" value="${profiles[currentUser.id].fields.companyRole?.value || ''}">
                 </div>
             </div>
             <label for="edit-about">About</label>
             <textarea id="edit-about" rows="4">${profiles[currentUser.id].about}</textarea>
             <div class="profile-edit-actions">
-                <button id="save-profile-btn" type="button">Save Profile</button>
-                <button id="cancel-profile-edit" type="button">Cancel</button>
+                <button id="save-profile-btn" class="btn btn-primary" type="button">Save Profile</button>
+                <button id="cancel-profile-edit" class="btn btn-secondary" type="button">Cancel</button>
             </div>
-        </section>
-
-        <section class="account-section account-card">
-            <h3>Profile Privacy</h3>
-            <p>Choose what buyers and other sellers can see on your public profile.</p>
+            <div class="section-divider"></div>
+            <div class="section-heading compact">
+                <h3>Profile Privacy</h3>
+                <p>Choose what buyers and other sellers can see on your public profile.</p>
+            </div>
             <div class="privacy-controls">
-                <button id="toggle-location-visibility" type="button">${profiles[currentUser.id].fields.location.visible ? 'Hide' : 'Show'} Location</button>
-                <button id="toggle-phone-visibility" type="button">${profiles[currentUser.id].fields.phone.visible ? 'Hide' : 'Show'} Phone</button>
-                <button id="toggle-email-visibility" type="button">${profiles[currentUser.id].fields.email.visible ? 'Hide' : 'Show'} Email</button>
+                <button id="toggle-location-visibility" class="btn btn-secondary" type="button">${profiles[currentUser.id].fields.location.visible ? 'Hide' : 'Show'} Location</button>
+                <button id="toggle-phone-visibility" class="btn btn-secondary" type="button">${profiles[currentUser.id].fields.phone.visible ? 'Hide' : 'Show'} Phone</button>
+                <button id="toggle-email-visibility" class="btn btn-secondary" type="button">${profiles[currentUser.id].fields.email.visible ? 'Hide' : 'Show'} Email</button>
             </div>
-        </section>
-
-        <section class="account-section account-card">
-            <h3>Account Security</h3>
-            <p><strong>Password updated:</strong> ${currentUser.security.passwordUpdated}</p>
-            <p><strong>Two-factor authentication:</strong> ${currentUser.security.twoFactorEnabled ? 'Enabled' : 'Not enabled'}</p>
-            <p><strong>Active sessions:</strong> ${currentUser.security.activeSessions}</p>
-            <p><strong>Login alerts:</strong> ${currentUser.security.loginAlerts ? 'Enabled' : 'Disabled'}</p>
+            <div class="section-divider"></div>
+            <div class="section-heading compact">
+                <h3>Account Security</h3>
+                <p>Keep your seller access secure across shared devices and team logins.</p>
+            </div>
+            <div class="detail-list">
+                <p><strong>Password updated</strong><span>${currentUser.security.passwordUpdated}</span></p>
+                <p><strong>Two-factor authentication</strong><span>${currentUser.security.twoFactorEnabled ? 'Enabled' : 'Not enabled'}</span></p>
+                <p><strong>Active sessions</strong><span>${currentUser.security.activeSessions}</span></p>
+                <p><strong>Login alerts</strong><span>${currentUser.security.loginAlerts ? 'Enabled' : 'Disabled'}</span></p>
+            </div>
             <div class="security-actions">
-                <button id="change-password-btn" type="button">Change Password</button>
-                <button id="toggle-2fa-btn" type="button">${currentUser.security.twoFactorEnabled ? 'Disable' : 'Enable'} 2FA</button>
-                <button id="toggle-alerts-btn" type="button">${currentUser.security.loginAlerts ? 'Disable' : 'Enable'} Alerts</button>
-                <button id="signout-sessions-btn" type="button">Sign Out Other Sessions</button>
+                <button id="change-password-btn" class="btn btn-primary" type="button">Change Password</button>
+                <button id="toggle-2fa-btn" class="btn btn-secondary" type="button">${currentUser.security.twoFactorEnabled ? 'Disable' : 'Enable'} 2FA</button>
+                <button id="toggle-alerts-btn" class="btn btn-secondary" type="button">${currentUser.security.loginAlerts ? 'Disable' : 'Enable'} Alerts</button>
+                <button id="signout-sessions-btn" class="btn btn-secondary" type="button">Sign Out Other Sessions</button>
             </div>
-        </section>
+        </details>
 
         <section class="account-section account-card">
-            <h3>Quick Actions</h3>
+            <div class="section-heading">
+                <p class="section-eyebrow">Shortcuts</p>
+                <h3>Quick Actions</h3>
+            </div>
             <div class="account-actions">
-                <button id="account-post-btn" type="button">Post New Listing</button>
-                <button id="account-home-btn" type="button">View Marketplace</button>
-                <button id="account-legal-btn" type="button">Privacy & Terms</button>
+                <button id="account-legal-btn" class="btn btn-secondary" type="button">Privacy & Terms</button>
             </div>
         </section>
 
         <section class="account-section">
-            <div class="account-listings-header">
+            <div class="account-listings-header section-heading">
+                <p class="section-eyebrow">Listings</p>
                 <h3>My Listings</h3>
                 <p>Manage the listings buyers can currently see.</p>
             </div>
             <div id="account-listings-grid" class="account-listings-grid"></div>
         </section>
 
-        <section class="account-section account-grid">
-            <div class="account-card">
-                <h3>Saved Listings</h3>
-                <div id="saved-listings"></div>
+        <details class="account-section account-card account-accordion">
+            <summary>
+                <div class="section-heading">
+                    <p class="section-eyebrow">History</p>
+                    <h3>Saved Listings and Orders</h3>
+                </div>
+                <span class="accordion-meta">${savedCount + ordersCount} items</span>
+            </summary>
+            <div class="account-grid">
+                <div class="account-card nested-card">
+                    <h3>Saved Listings</h3>
+                    <div id="saved-listings">${savedMarkup}</div>
+                </div>
+                <div class="account-card nested-card">
+                    <h3>Order Requests</h3>
+                    <div id="order-requests">${ordersMarkup}</div>
+                </div>
             </div>
-            <div class="account-card">
-                <h3>Order Requests</h3>
-                <div id="order-requests"></div>
-            </div>
-        </section>
+        </details>
 
-        <section class="account-section account-grid">
-            <div class="account-card">
-                <h3>Ratings Given</h3>
-                <div id="ratings-given"></div>
+        <details class="account-section account-card account-accordion">
+            <summary>
+                <div class="section-heading">
+                    <p class="section-eyebrow">Safety</p>
+                    <h3>Ratings, Reports, and Moderation</h3>
+                </div>
+                <span class="accordion-meta">${ratingsGivenCount + userReportsCount + reportsCount} items</span>
+            </summary>
+            <div class="account-grid">
+                <div class="account-card nested-card">
+                    <h3>Ratings Given</h3>
+                    <div id="ratings-given">${ratingsMarkup}</div>
+                </div>
+                <div class="account-card nested-card">
+                    <h3>User Reports</h3>
+                    <div id="user-reports">${userReportsMarkup}</div>
+                </div>
             </div>
-            <div class="account-card">
-                <h3>User Reports</h3>
-                <div id="user-reports"></div>
+            <div class="account-card nested-card nested-card-full">
+                <h3>Reports and Moderation</h3>
+                <div id="moderation-items">${moderationMarkup}</div>
             </div>
-        </section>
-
-        <section class="account-section account-card">
-            <h3>Reports and Moderation</h3>
-            <div id="moderation-items"></div>
-        </section>
+        </details>
     `;
 
     document.getElementById('account-post-btn').onclick = () => showTab('post');
@@ -921,8 +1634,28 @@ function renderUserListings(){
     document.getElementById('open-profile-editor').onclick = () => toggleProfileEditor();
     document.getElementById('save-profile-btn').onclick = () => saveProfileEdits();
     document.getElementById('view-profile-btn').onclick = () => openProfile(currentUser.id);
+    document.getElementById('view-company-profile-btn').onclick = () => openProfile(currentUser.companyId || currentUser.id);
     document.getElementById('subscribe-verification-btn').onclick = () => toggleCompanyVerification();
     document.getElementById('view-verification-term-btn').onclick = () => showTab('legal');
+    document.getElementById('toggle-team-members-btn').onclick = () => toggleCompanyTeamSection('members');
+    document.getElementById('toggle-pending-invites-btn').onclick = () => toggleCompanyTeamSection('invites');
+    if (isCompanyAdmin) {
+        document.getElementById('open-sales-invite-btn').onclick = () => toggleSalesInviteForm();
+        document.getElementById('submit-sales-invite-btn').onclick = () => inviteSalesRep();
+        document.getElementById('cancel-sales-invite-btn').onclick = () => toggleSalesInviteForm(false);
+        document.querySelectorAll('.approve-invite-btn').forEach(button => {
+            button.onclick = () => approveSalesInvite(button.dataset.inviteId);
+        });
+        document.querySelectorAll('.resend-invite-btn').forEach(button => {
+            button.onclick = () => resendSalesInvite(button.dataset.inviteId);
+        });
+        document.querySelectorAll('.remove-invite-btn').forEach(button => {
+            button.onclick = () => revokeSalesInvite(button.dataset.inviteId);
+        });
+        document.querySelectorAll('.remove-member-btn').forEach(button => {
+            button.onclick = () => removeSalesMember(button.dataset.memberId);
+        });
+    }
     document.getElementById('cancel-profile-edit').onclick = () => toggleProfileEditor(false);
     document.getElementById('toggle-location-visibility').onclick = () => toggleProfileVisibility('location');
     document.getElementById('toggle-phone-visibility').onclick = () => toggleProfileVisibility('phone');
@@ -939,7 +1672,7 @@ function renderUserListings(){
             <div class="account-card empty-state">
                 <h3>No listings yet</h3>
                 <p>Your produce, raw materials, finished goods, and farm services will appear here once posted.</p>
-                <button id="empty-post-btn" type="button">Create First Listing</button>
+                <button id="empty-post-btn" class="btn btn-primary" type="button">Create First Listing</button>
             </div>
         `;
         document.getElementById('empty-post-btn').onclick = () => showTab('post');
@@ -957,12 +1690,13 @@ function renderUserListings(){
             ${l.minOrder?`<p>Minimum: ${l.minOrder}</p>`:''}
             <p>📍 ${l.location}</p>
             ${l.description ? `<p class="card-summary">${l.description}</p>` : ''}
-            <button class="edit-btn" data-index="${i}">Edit</button>
-            <button class="delete-btn" data-index="${i}">Delete</button>
+            <button class="btn btn-primary edit-btn" data-index="${i}">Edit</button>
+            <button class="btn btn-danger delete-btn" data-index="${i}">Delete</button>
         `;
         listingsGrid.appendChild(card);
         card.querySelector('.delete-btn').onclick = ()=>{ userListings.splice(i,1); renderUserListings(); refreshMarketplace(); };
         card.querySelector('.edit-btn').onclick = ()=>{
+            editingListingIndex = i;
             document.getElementById('category').value=l.category || '';
             document.getElementById('title').value=l.title;
             document.getElementById('price').value=l.price;
@@ -972,6 +1706,7 @@ function renderUserListings(){
             document.getElementById('description').value=l.description || '';
             document.getElementById('negotiable').checked=l.negotiable;
             showTab('post');
+            showToast(`Editing ${l.title}`);
         };
     });
 }
@@ -985,23 +1720,23 @@ function renderAccountExtras(){
 
     savedContainer.innerHTML = savedListings.length
         ? savedListings.map(item => `<p>${item.title} • ${item.location}</p>`).join('')
-        : '<p class="card-summary">No saved listings yet.</p>';
+        : '<div class="mini-empty-state"><strong>No saved listings yet</strong><p>Saved produce, goods, and services will appear here.</p></div>';
 
     ordersContainer.innerHTML = orderRequests.length
         ? orderRequests.map(item => `<p>${item.title} • ${item.type}: ${item.status}${item.note ? ` • ${item.note}` : ''}</p>`).join('')
-        : '<p class="card-summary">No order requests yet.</p>';
+        : '<div class="mini-empty-state"><strong>No order requests yet</strong><p>Incoming requests and schedules will appear here.</p></div>';
 
     moderationContainer.innerHTML = reportedListings.length
         ? reportedListings.map(item => `<p>${item.title} • ${item.status}</p>`).join('')
-        : '<p class="card-summary">No moderation cases yet.</p>';
+        : '<div class="mini-empty-state"><strong>No moderation items</strong><p>Reported listings and moderation updates will appear here.</p></div>';
 
     ratingsContainer.innerHTML = ratingsGiven.length
         ? ratingsGiven.map(item => `<p>${item.contact} • ${item.rating}/5${item.note ? ` • ${item.note}` : ''}</p>`).join('')
-        : '<p class="card-summary">No user ratings submitted yet.</p>';
+        : '<div class="mini-empty-state"><strong>No ratings submitted</strong><p>Ratings you leave for buyers or sellers will show here.</p></div>';
 
     userReportsContainer.innerHTML = userReports.length
         ? userReports.map(item => `<p>${item.contact} • ${item.status} • ${item.note}</p>`).join('')
-        : '<p class="card-summary">No user reports filed yet.</p>';
+        : '<div class="mini-empty-state"><strong>No user reports filed</strong><p>Any safety or conduct reports will be listed here.</p></div>';
 }
 
 function toggleProfileVisibility(fieldKey){
@@ -1015,13 +1750,14 @@ function toggleProfileVisibility(fieldKey){
 function saveProfileEdits(){
     const profile = profiles[currentUser.id];
     if (!profile) return;
+    const previousEmail = currentUser.email;
 
     const name = document.getElementById('edit-name').value.trim();
     const role = document.getElementById('edit-role').value.trim();
     const location = document.getElementById('edit-location').value.trim();
     const phone = document.getElementById('edit-phone').value.trim();
     const email = document.getElementById('edit-email').value.trim();
-    const hours = document.getElementById('edit-hours').value.trim();
+    const companyRole = document.getElementById('edit-company-role').value.trim();
     const about = document.getElementById('edit-about').value.trim();
 
     if (!name || !role || !location || !phone || !email) {
@@ -1040,12 +1776,17 @@ function saveProfileEdits(){
     profile.fields.location.value = location;
     profile.fields.phone.value = phone;
     profile.fields.email.value = email;
-    if (profile.fields.businessHours) {
-        profile.fields.businessHours.value = hours || profile.fields.businessHours.value;
-    } else if (hours) {
-        profile.fields.businessHours = { label: 'Business Hours', value: hours, visible: true };
+    currentUser.companyRole = companyRole || currentUser.companyRole;
+    if (profile.fields.companyRole) {
+        profile.fields.companyRole.value = companyRole || profile.fields.companyRole.value;
+    } else if (companyRole) {
+        profile.fields.companyRole = { label: 'Company Role', value: companyRole, visible: true };
+    }
+    if (profile.fields.companyName && currentUser.companyId && companyAccounts[currentUser.companyId]) {
+        profile.fields.companyName.value = companyAccounts[currentUser.companyId].name;
     }
 
+    persistCurrentUserAccount(previousEmail);
     showToast('Profile updated successfully');
     isEditingProfile = false;
     renderUserListings();
@@ -1056,48 +1797,390 @@ function toggleProfileEditor(forceState){
     renderUserListings();
 }
 
-function toggleCompanyVerification(){
-    const plan = currentUser.verificationPlan;
-    const profile = profiles[currentUser.id];
+function toggleCompanyProfileEditor(forceState){
+    isEditingCompanyProfile = typeof forceState === 'boolean' ? forceState : !isEditingCompanyProfile;
+    openProfile(currentUser.companyId || currentUser.id);
+}
 
-    if (!plan.subscribed) {
-        plan.subscribed = true;
-        plan.renewalDate = '2026-05-04';
-        currentUser.accountType = 'Company Profile';
-        currentUser.verified = true;
-        profile.type = 'Company Profile';
-        profile.verified = true;
-        profile.verificationPlan = { ...plan };
-        showToast('Verified Company subscription activated for $10/month');
-    } else {
-        showToast('Verified Company is active. Cancel before renewal to stop the next monthly charge.');
+function saveCompanyProfileEdits(){
+    const companyProfile = currentUser.companyId ? profiles[currentUser.companyId] : null;
+    if (!companyProfile || currentUser.companyRole !== 'Admin') {
+        showToast('Only the company admin can edit this profile');
+        return;
     }
 
+    const companyName = document.getElementById('company-name-edit').value.trim();
+    const companyLocation = document.getElementById('company-location-edit').value.trim();
+    const companyPhone = document.getElementById('company-phone-edit').value.trim();
+    const companyEmail = document.getElementById('company-email-edit').value.trim();
+    const companyRegistration = document.getElementById('company-registration-edit').value.trim();
+    const companyCertification = document.getElementById('company-certification-edit').value.trim();
+    const companyAbout = document.getElementById('company-about-edit').value.trim();
+
+    if (!companyName || !companyLocation || !companyPhone || !companyEmail) {
+        showToast('Fill in the main company details first');
+        return;
+    }
+
+    companyProfile.name = companyName;
+    companyProfile.about = companyAbout || companyProfile.about;
+    companyProfile.fields.location.value = companyLocation;
+    companyProfile.fields.phone.value = companyPhone;
+    companyProfile.fields.email.value = companyEmail;
+    if (companyProfile.fields.registration) {
+        companyProfile.fields.registration.value = companyRegistration || companyProfile.fields.registration.value;
+    }
+    if (companyProfile.fields.certification) {
+        companyProfile.fields.certification.value = companyCertification;
+    } else {
+        companyProfile.fields.certification = { label: 'Permits or Certifications', value: companyCertification, visible: true };
+    }
+    companyAccounts[currentUser.companyId].name = companyName;
+    profiles[currentUser.id].fields.companyName.value = companyName;
+    syncVerificationRequirementsFromCompanyProfile(companyProfile, companyAccounts[currentUser.companyId]);
+
+    isEditingCompanyProfile = false;
+    showToast('Company profile updated successfully');
+    openProfile(currentUser.companyId);
     renderUserListings();
+}
+
+function toggleCompanyVerification(){
+    const companyAccount = currentUser.companyId ? companyAccounts[currentUser.companyId] : null;
+    const companyProfile = currentUser.companyId ? profiles[currentUser.companyId] : null;
+    if (!companyAccount || !companyProfile) {
+        showToast('Link an account to a company profile first');
+        return;
+    }
+    if (currentUser.companyRole !== 'Admin') {
+        showToast('Only the company admin can apply for verification');
+        return;
+    }
+    syncVerificationRequirementsFromCompanyProfile(companyProfile, companyAccount);
+    const missingItems = Object.entries(companyAccount.verificationRequirements).filter(([, complete]) => !complete);
+    if (missingItems.length) {
+        showToast(`Verification still needs: ${formatRequirementLabel(missingItems[0][0])}`);
+        isEditingCompanyProfile = true;
+        openProfile(currentUser.companyId);
+        return;
+    }
+    if (!companyProfile.verificationPlan.subscribed) {
+        companyProfile.verificationPlan.subscribed = true;
+        companyProfile.verificationPlan.renewalDate = '2026-05-04';
+        companyProfile.verified = true;
+        currentUser.verificationPlan.subscribed = true;
+        currentUser.verificationPlan.renewalDate = '2026-05-04';
+        showToast('Company verification approved and subscription activated');
+    } else {
+        showToast('Verified Company is already active for this company profile');
+    }
+    persistCurrentUserAccount();
+    renderUserListings();
+    openProfile(currentUser.companyId);
+}
+
+function toggleSalesInviteForm(forceState){
+    isInvitingSalesRep = typeof forceState === 'boolean' ? forceState : !isInvitingSalesRep;
+    renderUserListings();
+}
+
+function toggleCompanyTeamSection(section){
+    if (section === 'members') {
+        showCompanyTeamMembers = !showCompanyTeamMembers;
+    }
+    if (section === 'invites') {
+        showCompanyPendingInvites = !showCompanyPendingInvites;
+    }
+    renderUserListings();
+}
+
+function inviteSalesRep(){
+    const companyAccount = currentUser.companyId ? companyAccounts[currentUser.companyId] : null;
+    if (!companyAccount) return;
+    if (currentUser.companyRole !== 'Admin') {
+        showToast('Only the company admin can appoint sales reps');
+        return;
+    }
+    if ((companyAccount.members.length + companyAccount.pendingInvites.length) >= companyAccount.maxSalesMembers) {
+        showToast('No seat available. Approve, decline, or remove a rep first');
+        return;
+    }
+    const name = document.getElementById('invite-rep-name').value.trim();
+    const email = document.getElementById('invite-rep-email').value.trim().toLowerCase();
+    const phone = document.getElementById('invite-rep-phone').value.trim();
+    const nationalId = document.getElementById('invite-rep-id').value.trim();
+    const role = document.getElementById('invite-rep-role').value.trim() || 'Sales Representative';
+
+    if (!name || !email || !phone || !nationalId) {
+        showToast('Fill in name, email, phone, and ID before sending an invite');
+        return;
+    }
+
+    const emailExists = companyAccount.members.some(member => member.email === email)
+        || companyAccount.pendingInvites.some(invite => invite.email === email);
+    const idExists = companyAccount.members.some(member => member.nationalId === nationalId)
+        || companyAccount.pendingInvites.some(invite => invite.nationalId === nationalId);
+    if (emailExists || idExists) {
+        showToast('That rep already exists or already has a pending invite');
+        return;
+    }
+
+    companyAccount.pendingInvites.unshift({
+        id: `invite-${Date.now()}`,
+        name,
+        email,
+        phone,
+        nationalId,
+        inviteCode: generateInviteCode(companyAccount.name),
+        role,
+        status: 'Sent',
+        linkedUserId: null,
+        claimedAt: null,
+        createdAt: '2026-04-05',
+        expiresOn: '2026-04-19',
+    });
+    clearSalesInviteForm();
+    isInvitingSalesRep = false;
+    showToast('Sales rep invite created. Share the email and invite code with the rep');
+    renderUserListings();
+}
+
+function clearSalesInviteForm(){
+    ['invite-rep-name', 'invite-rep-email', 'invite-rep-phone', 'invite-rep-id', 'invite-rep-role'].forEach(id => {
+        const element = document.getElementById(id);
+        if (element) {
+            element.value = id === 'invite-rep-role' ? 'Sales Representative' : '';
+        }
+    });
+}
+
+function approveSalesInvite(inviteId){
+    const companyAccount = currentUser.companyId ? companyAccounts[currentUser.companyId] : null;
+    if (!companyAccount) return;
+    if (currentUser.companyRole !== 'Admin') {
+        showToast('Only the company admin can approve invites');
+        return;
+    }
+    if (companyAccount.members.length >= companyAccount.maxSalesMembers) {
+        showToast('This company already has the maximum 4 active reps');
+        return;
+    }
+    const inviteIndex = companyAccount.pendingInvites.findIndex(invite => invite.id === inviteId);
+    if (inviteIndex === -1) return;
+    const invite = companyAccount.pendingInvites.splice(inviteIndex, 1)[0];
+    if (invite.status !== 'Claimed by user' || !invite.linkedUserId) {
+        companyAccount.pendingInvites.splice(inviteIndex === -1 ? 0 : inviteIndex, 0, invite);
+        showToast('The invited user must claim the invite before access can be activated');
+        return;
+    }
+    companyAccount.members.push({
+        id: invite.linkedUserId,
+        name: invite.name,
+        email: invite.email,
+        phone: invite.phone,
+        nationalId: invite.nationalId,
+        role: invite.role,
+        status: 'Active',
+    });
+    const account = userAccounts[normalizeEmail(invite.email)];
+    if (account) {
+        account.companyId = currentUser.companyId;
+        account.companyRole = invite.role;
+        account.role = invite.role;
+        account.accessStatus = 'Active company access';
+        account.permissions = {
+            canPostForCompany: true,
+            canManageCompany: false,
+            canApproveInvites: false,
+        };
+        ensureProfileForAccount(account);
+    }
+    profiles[currentUser.companyId].fields.team.value = `${companyAccount.members.length} active representatives`;
+    showToast(`${invite.name} is now an active sales rep`);
+    renderUserListings();
+}
+
+function resendSalesInvite(inviteId){
+    const companyAccount = currentUser.companyId ? companyAccounts[currentUser.companyId] : null;
+    if (!companyAccount) return;
+    const invite = companyAccount.pendingInvites.find(item => item.id === inviteId);
+    if (!invite) return;
+    showToast(`Invite code for ${invite.name}: ${invite.inviteCode}`);
+}
+
+function revokeSalesInvite(inviteId){
+    const companyAccount = currentUser.companyId ? companyAccounts[currentUser.companyId] : null;
+    if (!companyAccount) return;
+    if (currentUser.companyRole !== 'Admin') {
+        showToast('Only the company admin can revoke invites');
+        return;
+    }
+    const inviteIndex = companyAccount.pendingInvites.findIndex(invite => invite.id === inviteId);
+    if (inviteIndex === -1) return;
+    const invite = companyAccount.pendingInvites.splice(inviteIndex, 1)[0];
+    const account = userAccounts[normalizeEmail(invite.email)];
+    if (account && account.accessStatus === 'Invite claimed - awaiting admin activation') {
+        account.companyId = null;
+        account.companyRole = null;
+        account.role = 'Buyer and Seller';
+        account.accessStatus = 'Independent account';
+        account.permissions = {
+            canPostForCompany: false,
+            canManageCompany: false,
+            canApproveInvites: false,
+        };
+        ensureProfileForAccount(account);
+    }
+    showToast(`Invite revoked for ${invite.name}`);
+    renderUserListings();
+}
+
+function removeSalesMember(memberId){
+    const companyAccount = currentUser.companyId ? companyAccounts[currentUser.companyId] : null;
+    if (!companyAccount) return;
+    if (currentUser.companyRole !== 'Admin') {
+        showToast('Only the company admin can remove sales reps');
+        return;
+    }
+    if (companyAccount.members.length <= 1) {
+        showToast('A company should keep at least one assigned user');
+        return;
+    }
+    const memberIndex = companyAccount.members.findIndex(member => member.id === memberId);
+    if (memberIndex === -1) return;
+    const member = companyAccount.members[memberIndex];
+    if (member.role === 'Admin') {
+        showToast('The company admin cannot be removed here');
+        return;
+    }
+    companyAccount.members.splice(memberIndex, 1);
+    const account = userAccounts[normalizeEmail(member.email)];
+    if (account) {
+        account.companyId = null;
+        account.companyRole = null;
+        account.role = 'Buyer and Seller';
+        account.accessStatus = 'Independent account';
+        account.permissions = {
+            canPostForCompany: false,
+            canManageCompany: false,
+            canApproveInvites: false,
+        };
+        ensureProfileForAccount(account);
+    }
+    profiles[currentUser.companyId].fields.team.value = `${companyAccount.members.length} active representatives`;
+    showToast(`${member.name} removed from company access`);
+    renderUserListings();
+}
+
+function updateVerificationRequirement(requirementKey, isComplete, rerenderProfile = true){
+    const companyAccount = currentUser.companyId ? companyAccounts[currentUser.companyId] : null;
+    const companyProfile = currentUser.companyId ? profiles[currentUser.companyId] : null;
+    if (!companyAccount || !companyProfile) return;
+    if (requirementKey !== 'goodStanding') {
+        showToast('That requirement is updated from the company profile fields');
+        if (rerenderProfile && currentProfileId === currentUser.companyId && isEditingCompanyProfile) {
+            openProfile(currentUser.companyId);
+        }
+        return;
+    }
+    companyAccount.verificationRequirements[requirementKey] = isComplete;
+
+    const missingItems = Object.entries(companyAccount.verificationRequirements).filter(([, complete]) => !complete);
+    if (missingItems.length) {
+        companyProfile.verificationPlan.subscribed = false;
+        companyProfile.verificationPlan.renewalDate = null;
+        companyProfile.verified = false;
+        currentUser.verificationPlan.subscribed = false;
+        currentUser.verificationPlan.renewalDate = null;
+    }
+
+    showToast(`${formatRequirementLabel(requirementKey)} marked as ${isComplete ? 'complete' : 'pending'}`);
+    renderUserListings();
+    if (rerenderProfile && currentProfileId === currentUser.companyId && isEditingCompanyProfile) {
+        openProfile(currentUser.companyId);
+    }
 }
 
 function changePassword(){
     currentUser.security.passwordUpdated = 'Just now';
+    persistCurrentUserAccount();
     showToast('Password update started');
     renderUserListings();
 }
 
 function toggleTwoFactor(){
     currentUser.security.twoFactorEnabled = !currentUser.security.twoFactorEnabled;
+    persistCurrentUserAccount();
     showToast(`Two-factor authentication ${currentUser.security.twoFactorEnabled ? 'enabled' : 'disabled'}`);
     renderUserListings();
 }
 
 function toggleLoginAlerts(){
     currentUser.security.loginAlerts = !currentUser.security.loginAlerts;
+    persistCurrentUserAccount();
     showToast(`Login alerts ${currentUser.security.loginAlerts ? 'enabled' : 'disabled'}`);
     renderUserListings();
 }
 
 function signOutOtherSessions(){
     currentUser.security.activeSessions = 1;
+    persistCurrentUserAccount();
     showToast('Other sessions signed out');
     renderUserListings();
+}
+
+function formatRequirementLabel(key){
+    const labels = {
+        businessRegistration: 'business registration documents',
+        companyEmail: 'verified company email',
+        companyPhone: 'verified company phone',
+        businessLocation: 'confirmed business location',
+        completeProfile: 'complete company profile',
+        goodStanding: 'good standing with no serious reports',
+        permits: 'required permits or certifications',
+    };
+    return labels[key] || key;
+}
+
+function getRequirementSourceLabel(key){
+    const sources = {
+        businessRegistration: 'Add this in Company Registration',
+        companyEmail: 'Add this in Company Email',
+        companyPhone: 'Add this in Company Phone',
+        businessLocation: 'Add this in Head Office',
+        completeProfile: 'Complete Company Name, About, Email, Phone, and Head Office',
+        goodStanding: 'Reviewed internally by FarmYard after moderation checks',
+        permits: 'Add this in Permits or Certifications',
+    };
+    return sources[key] || 'Update the company profile';
+}
+
+function syncVerificationRequirementsFromCompanyProfile(companyProfile, companyAccount){
+    if (!companyProfile || !companyAccount) return;
+    const location = companyProfile.fields.location?.value?.trim();
+    const phone = companyProfile.fields.phone?.value?.trim();
+    const email = companyProfile.fields.email?.value?.trim();
+    const registration = companyProfile.fields.registration?.value?.trim();
+    const certification = companyProfile.fields.certification?.value?.trim();
+    const about = companyProfile.about?.trim();
+    const name = companyProfile.name?.trim();
+
+    companyAccount.verificationRequirements.businessRegistration = Boolean(registration);
+    companyAccount.verificationRequirements.companyEmail = Boolean(email);
+    companyAccount.verificationRequirements.companyPhone = Boolean(phone);
+    companyAccount.verificationRequirements.businessLocation = Boolean(location);
+    companyAccount.verificationRequirements.completeProfile = Boolean(name && about && email && phone && location);
+    companyAccount.verificationRequirements.permits = Boolean(certification);
+}
+
+function countCompletedRequirements(requirements){
+    return Object.values(requirements).filter(Boolean).length;
+}
+
+function generateInviteCode(companyName){
+    const companyKey = slugifyValue(companyName).split('-').slice(0, 2).join('-').toUpperCase() || 'FARMYARD';
+    const randomDigits = `${Math.floor(1000 + Math.random() * 9000)}`;
+    return `${companyKey}-${randomDigits}`;
 }
 
 function getInitials(name){
@@ -1113,3 +2196,4 @@ function getInitials(name){
 showTab('home');
 refreshMarketplace();
 renderMessagesTab();
+initializeAuth();

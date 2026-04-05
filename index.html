@@ -9,23 +9,29 @@
 <body>
 
 <!-- LOGIN SCREEN -->
-<div id="login-screen" class="tab">
+<div id="login-screen" class="tab" hidden>
     <h1>FarmYard Login</h1>
     <p class="auth-tagline">Agriculture-only marketplace for products, raw materials, finished goods, and farm services.</p>
     <input type="email" id="login-email" placeholder="Email">
     <input type="password" id="login-password" placeholder="Password">
+    <input type="text" id="login-invite-code" placeholder="Company invite code (optional)">
     <button id="login-btn">Login</button>
+    <button id="login-google-btn" class="secondary-auth-btn" type="button">Continue with Google</button>
+    <p class="auth-help">Use the same email that received the company invitation. Add the invite code if you are claiming company access.</p>
     <p>Don't have an account? <span id="show-register">Register</span></p>
 </div>
 
 <!-- REGISTER SCREEN -->
-<div id="register-screen" class="tab">
+<div id="register-screen" class="tab" hidden>
     <h1>Register</h1>
     <p class="auth-tagline">Join buyers, farmers, and agri-businesses trading within the agricultural value chain.</p>
     <input type="text" id="reg-name" placeholder="Full Name">
     <input type="email" id="reg-email" placeholder="Email">
     <input type="password" id="reg-password" placeholder="Password">
+    <input type="text" id="reg-invite-code" placeholder="Company invite code (optional)">
     <button id="register-btn">Register</button>
+    <button id="register-google-btn" class="secondary-auth-btn" type="button">Continue with Google</button>
+    <p class="auth-help">If a company admin invited you, register with that work email and the invite code so your access can be linked properly.</p>
     <p>Already have an account? <span id="show-login">Login</span></p>
 </div>
 
@@ -39,6 +45,7 @@
         <div class="auth-actions">
             <button id="open-login" type="button">Login</button>
             <button id="open-register" type="button">Register</button>
+            <button id="sign-out-btn" type="button">Sign Out</button>
         </div>
         <input type="text" id="search" placeholder="Search products...">
     </header>
@@ -52,7 +59,7 @@
         </section>
     </div>
 
-    <div id="post-tab" class="tab">
+    <div id="post-tab" class="tab" hidden>
         <h2>Post a Listing</h2>
         <p class="form-intro">Create a clear agricultural listing buyers can trust at a glance.</p>
         <div class="post-form">
@@ -110,9 +117,10 @@
         <button id="postBtn">Post Listing</button>
     </div>
 
-    <div id="messages-tab" class="tab">
+    <div id="messages-tab" class="tab" hidden>
         <h2>Messages</h2>
         <p class="messages-intro">Follow up on produce, raw materials, finished goods, and farm service conversations.</p>
+        <p class="payment-warning">FarmYard does not process or hold payments. Never send money inside the platform because payments are handled directly between buyer and seller.</p>
         <div class="messages-layout">
             <div class="messages-panel">
                 <div class="messages-panel-header">
@@ -161,11 +169,11 @@
         </div>
     </div>
 
-    <div id="account-tab" class="tab">
+    <div id="account-tab" class="tab" hidden>
         <h2>My Listings</h2>
     </div>
 
-    <div id="legal-tab" class="tab">
+    <div id="legal-tab" class="tab" hidden>
         <h2>Privacy, Terms, and Marketplace Rules</h2>
         <p class="legal-intro">Important information about how FarmYard handles user data, marketplace conduct, and listing requirements.</p>
 
@@ -204,22 +212,23 @@
         <section class="legal-card">
             <h3>Safety and Support</h3>
             <p>Users should verify counterparties, confirm price and quantity terms, and use caution before making payments or handing over goods.</p>
+            <p>FarmYard does not collect, hold, route, or guarantee buyer or seller payments. Any payment arrangement happens outside FarmYard and is the responsibility of the parties involved.</p>
             <p>For a production version of FarmYard, this section should include a support email, complaint channel, and process for reporting fraud, abuse, or suspicious listings.</p>
             <p class="legal-note">This is a product-ready starter policy set, not legal advice. A lawyer should review it before public launch.</p>
         </section>
 
         <section class="legal-card">
             <h3>Verified Company Term</h3>
-            <p>FarmYard may offer eligible company accounts a Verified Company subscription for $10 per month.</p>
-            <p>The subscription is intended to help businesses display an additional trust badge and clearer company identity, but it does not guarantee sales, ranking priority, or business performance.</p>
-            <p>The monthly fee renews every 30 days unless cancelled before the next renewal date. Access already paid for remains active until the end of the current billing period.</p>
-            <p>FarmYard may remove or suspend the Verified Company badge if a company violates marketplace rules, provides misleading information, or fails verification review.</p>
-            <p>Subscription fees should generally be treated as non-refundable once a billing period has started, except where local law requires otherwise.</p>
+            <p>Only company profiles are eligible for the Verified Company badge. Individual profiles may still use FarmYard and may post on behalf of a company if the company has assigned them as sales representatives.</p>
+            <p>Each company may assign up to 4 individuals to sell on its behalf, and one assigned individual may act as the company admin with permission to appoint or remove the other representatives. A company may also operate with fewer than 4 assigned individuals.</p>
+            <p>Verification requires more than payment. FarmYard may require business registration documents, a verified company email, a verified company phone number, a confirmed business location, a complete company profile, a clean moderation history, and any permits or certifications required for the goods or services being sold.</p>
+            <p>A monthly Verified Company subscription of $10 may apply after the company passes review. The subscription supports the verified badge and company trust features, but it does not guarantee sales, ranking priority, or business performance.</p>
+            <p>FarmYard may remove or suspend the Verified Company badge if a company fails review, submits misleading information, loses required compliance status, violates marketplace rules, or allows unauthorized individuals to operate its listings.</p>
         </section>
     </div>
 
     <!-- CARD DETAIL MODAL -->
-    <div id="card-detail" class="tab">
+    <div id="card-detail" class="tab" hidden>
         <button id="close-detail">← Back</button>
         <img id="detail-image" src="" alt="Listing Image">
         <h2 id="detail-title"></h2>
@@ -228,6 +237,7 @@
         <p id="detail-minOrder"></p>
         <p id="detail-location"></p>
         <p id="detail-negotiable"></p>
+        <p class="payment-warning">Payments cannot be made through FarmYard. Use the app only to connect, discuss terms, and arrange the transaction directly with the other party.</p>
         <div class="detail-actions">
             <button id="detail-message">Message Seller</button>
             <button id="detail-call">Call Seller</button>
@@ -258,7 +268,7 @@
         </div>
     </div>
 
-    <div id="profile-tab" class="tab">
+    <div id="profile-tab" class="tab" hidden>
         <button id="close-profile">← Back</button>
         <section class="profile-hero">
             <div>
@@ -283,6 +293,7 @@
             <h3>Trust</h3>
             <p id="profile-verification"></p>
             <p id="profile-stats"></p>
+            <div id="profile-admin-tools" class="profile-summary-actions"></div>
         </section>
     </div>
 
@@ -303,6 +314,7 @@
 
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="script.js"></script>
 </body>
 </html>
