@@ -25,6 +25,20 @@ This project is configured as a static site.
 - Build command: leave blank
 - Publish directory: `.`
 
+## Supabase Persistence Setup
+
+To make profile edits and user-created listings persist after refresh:
+
+1. Open the Supabase SQL editor.
+2. Run the SQL in `supabase-schema.sql`.
+3. Make sure the authenticated user can access the `profiles` and `listings` tables through the included RLS policies.
+
+After the schema is created, the app will:
+
+- save signed-in user profile edits to `profiles`
+- save created and edited listings to `listings`
+- reload both on refresh after login
+
 ## Local Preview
 
 Open `index.html` in a browser, or serve the folder with any static file server.

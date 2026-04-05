@@ -10,6 +10,10 @@ const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_mOsnuYtcElQ0Qj9HzqV5rA_dItzoREq
 const supabaseClient = window.supabase?.createClient
     ? window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY)
     : null;
+const SUPABASE_TABLES = {
+    profiles: 'profiles',
+    listings: 'listings',
+};
 
 const DEFAULT_SECURITY = {
     passwordUpdated: '30 days ago',
@@ -274,6 +278,7 @@ let isInvitingSalesRep = false;
 let showCompanyTeamMembers = false;
 let showCompanyPendingInvites = false;
 let editingListingIndex = null;
+let hasWarnedAboutPersistenceSetup = false;
 
 const app = document.getElementById('app');
 
@@ -342,6 +347,250 @@ function setElementVisibility(element, isVisible, displayMode = 'block'){
     if (!element) return;
     element.hidden = !isVisible;
     element.style.display = isVisible ? displayMode : 'none';
+}
+
+function warnPersistenceSetup(message = 'Create the Supabase tables to enable saved profile and listing persistence.'){
+    if (hasWarnedAboutPersistenceSetup) return;
+    hasWarnedAboutPersistenceSetup = true;
+    showToast(message);
+}
+
+function isMissingSupabaseTableError(error){
+    return error?.code === '42P01' || /relation .* does not exist/i.test(error?.message || '');
+}
+
+function isMissingSupabaseColumnError(error){
+    return error?.code === 'PGRST204' || /column .* does not exist/i.test(error?.message || '');
+}
+
+function generateListingId(){
+    return window.crypto?.randomUUID?.() || `listing-${Date.now()}`;
+}
+
+function readFileAsDataUrl(file){
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () => reject(reader.error || new Error('Could not read the selected image'));
+        reader.readAsDataURL(file);
+    });
+}
+
+function buildProfileFieldsPayload(profile){
+    return Object.fromEntries(
+        Object.entries(profile.fields || {}).map(([key, value]) => [key, { ...value }])
+    );
+}
+
+function buildPersistedProfileRow(){
+    const profile = profiles[currentUser.id];
+    return {
+        id: currentUser.id,
+        email: currentUser.email,
+        full_name: currentUser.name,
+        role: currentUser.role,
+        account_type: currentUser.accountType,
+        location: currentUser.location,
+        phone: currentUser.phone,
+        verified: currentUser.verified,
+        community_rating: currentUser.communityRating,
+        rating_count: currentUser.ratingCount,
+        company_id: currentUser.companyId,
+        company_role: currentUser.companyRole,
+        access_status: currentUser.accessStatus,
+        about: profile?.about || '',
+        profile_fields: buildProfileFieldsPayload(profile),
+        security: { ...currentUser.security },
+        verification_plan: { ...currentUser.verificationPlan },
+    };
+}
+
+function applyPersistedProfileRow(profileRow){
+    if (!profileRow) return;
+    currentUser.name = profileRow.full_name || currentUser.name;
+    currentUser.role = profileRow.role || currentUser.role;
+    currentUser.accountType = profileRow.account_type || currentUser.accountType;
+    currentUser.location = profileRow.location || currentUser.location;
+    currentUser.phone = profileRow.phone || currentUser.phone;
+    currentUser.email = profileRow.email || currentUser.email;
+    currentUser.verified = typeof profileRow.verified === 'boolean' ? profileRow.verified : currentUser.verified;
+    currentUser.communityRating = Number(profileRow.community_rating ?? currentUser.communityRating);
+    currentUser.ratingCount = Number(profileRow.rating_count ?? currentUser.ratingCount);
+    currentUser.companyId = profileRow.company_id || currentUser.companyId;
+    currentUser.companyRole = profileRow.company_role || currentUser.companyRole;
+    currentUser.accessStatus = profileRow.access_status || currentUser.accessStatus;
+    currentUser.security = profileRow.security ? { ...currentUser.security, ...profileRow.security } : { ...currentUser.security };
+    currentUser.verificationPlan = profileRow.verification_plan
+        ? { ...currentUser.verificationPlan, ...profileRow.verification_plan }
+        : { ...currentUser.verificationPlan };
+    ensureProfileForAccount(currentUser);
+    const profile = profiles[currentUser.id];
+    profile.name = currentUser.name;
+    profile.about = profileRow.about || profile.about;
+    profile.verified = currentUser.verified;
+    profile.rating = currentUser.communityRating;
+    profile.ratingCount = currentUser.ratingCount;
+    profile.verificationPlan = { ...currentUser.verificationPlan };
+    if (profileRow.profile_fields && typeof profileRow.profile_fields === 'object') {
+        Object.entries(profileRow.profile_fields).forEach(([key, value]) => {
+            profile.fields[key] = {
+                label: value?.label || profile.fields[key]?.label || key,
+                value: value?.value ?? profile.fields[key]?.value ?? '',
+                visible: typeof value?.visible === 'boolean' ? value.visible : (profile.fields[key]?.visible ?? true),
+            };
+        });
+    }
+    persistCurrentUserAccount();
+}
+
+function buildPersistedListingRow(listing){
+    return {
+        id: listing.id,
+        owner_id: currentUser.id,
+        seller_id: listing.sellerId,
+        category: listing.category,
+        title: listing.title,
+        price: String(listing.price),
+        unit: listing.unit,
+        min_order: listing.minOrder || '',
+        location: listing.location,
+        description: listing.description || '',
+        image_url: listing.image,
+        negotiable: Boolean(listing.negotiable),
+        slug: listing.slug,
+        verified: Boolean(listing.verified),
+        posted_by_name: listing.postedByName || '',
+    };
+}
+
+function applyPersistedListings(rows){
+    userListings = (rows || []).map(row => ({
+        id: row.id,
+        category: row.category,
+        title: row.title,
+        price: row.price,
+        unit: row.unit,
+        minOrder: row.min_order || '',
+        location: row.location,
+        description: row.description || '',
+        image: row.image_url || 'https://via.placeholder.com/150',
+        negotiable: Boolean(row.negotiable),
+        slug: row.slug,
+        verified: Boolean(row.verified),
+        sellerId: row.seller_id || currentUser.id,
+        postedByName: row.posted_by_name || currentUser.name,
+    }));
+}
+
+async function loadPersistedProfile(){
+    if (!supabaseClient || !currentUser.id) return;
+    const { data, error } = await supabaseClient
+        .from(SUPABASE_TABLES.profiles)
+        .select('*')
+        .eq('id', currentUser.id)
+        .maybeSingle();
+
+    if (error) {
+        if (isMissingSupabaseTableError(error) || isMissingSupabaseColumnError(error)) {
+            warnPersistenceSetup();
+            return;
+        }
+        console.error('Failed to load profile', error);
+        showToast(error.message);
+        return;
+    }
+
+    if (data) {
+        applyPersistedProfileRow(data);
+    }
+}
+
+async function savePersistedProfile(){
+    if (!supabaseClient || !currentUser.id) return true;
+    const { error } = await supabaseClient
+        .from(SUPABASE_TABLES.profiles)
+        .upsert(buildPersistedProfileRow(), { onConflict: 'id' });
+
+    if (error) {
+        if (isMissingSupabaseTableError(error) || isMissingSupabaseColumnError(error)) {
+            warnPersistenceSetup();
+            return false;
+        }
+        console.error('Failed to save profile', error);
+        showToast(error.message);
+        return false;
+    }
+
+    return true;
+}
+
+async function loadPersistedListings(){
+    if (!supabaseClient || !currentUser.id) return;
+    const { data, error } = await supabaseClient
+        .from(SUPABASE_TABLES.listings)
+        .select('*')
+        .eq('owner_id', currentUser.id)
+        .order('created_at', { ascending: false });
+
+    if (error) {
+        if (isMissingSupabaseTableError(error) || isMissingSupabaseColumnError(error)) {
+            warnPersistenceSetup();
+            userListings = [];
+            return;
+        }
+        console.error('Failed to load listings', error);
+        showToast(error.message);
+        return;
+    }
+
+    applyPersistedListings(data);
+}
+
+async function savePersistedListing(listing){
+    if (!supabaseClient || !currentUser.id) return true;
+    const { error } = await supabaseClient
+        .from(SUPABASE_TABLES.listings)
+        .upsert(buildPersistedListingRow(listing), { onConflict: 'id' });
+
+    if (error) {
+        if (isMissingSupabaseTableError(error) || isMissingSupabaseColumnError(error)) {
+            warnPersistenceSetup();
+            return false;
+        }
+        console.error('Failed to save listing', error);
+        showToast(error.message);
+        return false;
+    }
+
+    return true;
+}
+
+async function deletePersistedListing(listingId){
+    if (!supabaseClient || !listingId) return true;
+    const { error } = await supabaseClient
+        .from(SUPABASE_TABLES.listings)
+        .delete()
+        .eq('id', listingId)
+        .eq('owner_id', currentUser.id);
+
+    if (error) {
+        if (isMissingSupabaseTableError(error) || isMissingSupabaseColumnError(error)) {
+            warnPersistenceSetup();
+            return false;
+        }
+        console.error('Failed to delete listing', error);
+        showToast(error.message);
+        return false;
+    }
+
+    return true;
+}
+
+async function loadPersistedAccountData(){
+    await loadPersistedProfile();
+    await loadPersistedListings();
+    refreshMarketplace();
+    renderUserListings();
 }
 
 // Bottom nav
@@ -492,6 +741,9 @@ async function signOutUser(){
         hydrateCurrentUser(userAccounts['guest@farmyard.app']);
         ensureProfileForAccount(userAccounts['guest@farmyard.app']);
         updateAuthButtons(false);
+        userListings = [];
+        refreshMarketplace();
+        renderUserListings();
         showToast('Signed out successfully');
         return;
     }
@@ -504,6 +756,9 @@ async function signOutUser(){
     hydrateCurrentUser(userAccounts['guest@farmyard.app']);
     ensureProfileForAccount(userAccounts['guest@farmyard.app']);
     updateAuthButtons(false);
+    userListings = [];
+    refreshMarketplace();
+    renderUserListings();
     showToast('Signed out successfully');
 }
 
@@ -518,7 +773,7 @@ function getActiveTabName(){
 }
 
 // Post listing
-document.getElementById('postBtn').onclick = () => {
+document.getElementById('postBtn').onclick = async () => {
     const canPostForLinkedCompany = currentUser.companyId && currentUser.permissions?.canPostForCompany;
     const existingListing = editingListingIndex !== null ? userListings[editingListingIndex] : null;
     const category = document.getElementById('category').value.trim();
@@ -528,16 +783,25 @@ document.getElementById('postBtn').onclick = () => {
     const minOrder = document.getElementById('minOrder').value.trim();
     const location = document.getElementById('location').value.trim();
     const description = document.getElementById('description').value.trim();
-    const image = document.getElementById('image').files[0]
-        ? URL.createObjectURL(document.getElementById('image').files[0])
-        : (existingListing?.image || 'https://via.placeholder.com/150');
+    const selectedImage = document.getElementById('image').files[0];
     const negotiable = document.getElementById('negotiable').checked;
     const isEditingListing = editingListingIndex !== null;
 
     if (!category || !title || !price || !unit || !location) { alert('Fill all required fields'); return; }
     if (description.length > 220) { alert('Keep the description under 220 characters for now.'); return; }
 
+    let image = existingListing?.image || 'https://via.placeholder.com/150';
+    if (selectedImage) {
+        try {
+            image = await readFileAsDataUrl(selectedImage);
+        } catch (error) {
+            showToast(error.message || 'Could not read the selected image');
+            return;
+        }
+    }
+
     const listingPayload = {
+        id: existingListing?.id || generateListingId(),
         category,
         title,
         price,
@@ -557,6 +821,18 @@ document.getElementById('postBtn').onclick = () => {
         userListings[editingListingIndex] = listingPayload;
     } else {
         userListings.push(listingPayload);
+    }
+
+    const saveSucceeded = await savePersistedListing(listingPayload);
+    if (!saveSucceeded) {
+        if (isEditingListing) {
+            userListings[editingListingIndex] = existingListing;
+        } else {
+            userListings.pop();
+        }
+        refreshMarketplace();
+        renderUserListings();
+        return;
     }
 
     refreshMarketplace();
@@ -965,6 +1241,7 @@ function handleSignedInSession(session, message, options = {}){
     updateAuthButtons(true);
     showTab(destination, { skipHistory: true });
     showToast(authContextMessage || message);
+    loadPersistedAccountData();
 }
 
 function syncCurrentUserFromSession(session, options = {}){
@@ -1196,6 +1473,8 @@ async function initializeAuth(){
     if (!supabaseClient) {
         hydrateCurrentUser(userAccounts['guest@farmyard.app']);
         ensureProfileForAccount(userAccounts['guest@farmyard.app']);
+        refreshMarketplace();
+        renderUserListings();
         return;
     }
     const { data, error } = await supabaseClient.auth.getSession();
@@ -1207,6 +1486,7 @@ async function initializeAuth(){
     if (data.session) {
         syncCurrentUserFromSession(data.session);
         updateAuthButtons(true);
+        await loadPersistedAccountData();
         const savedReturnTab = localStorage.getItem('farmyard-return-tab');
         if (savedReturnTab) {
             localStorage.removeItem('farmyard-return-tab');
@@ -1218,9 +1498,13 @@ async function initializeAuth(){
         if (event === 'SIGNED_IN' && session) {
             syncCurrentUserFromSession(session);
             updateAuthButtons(true);
+            loadPersistedAccountData();
         }
         if (event === 'SIGNED_OUT') {
             updateAuthButtons(false);
+            userListings = [];
+            refreshMarketplace();
+            renderUserListings();
         }
     });
 }
@@ -1694,7 +1978,18 @@ function renderUserListings(){
             <button class="btn btn-danger delete-btn" data-index="${i}">Delete</button>
         `;
         listingsGrid.appendChild(card);
-        card.querySelector('.delete-btn').onclick = ()=>{ userListings.splice(i,1); renderUserListings(); refreshMarketplace(); };
+        card.querySelector('.delete-btn').onclick = async ()=>{
+            const [removedListing] = userListings.splice(i,1);
+            const deleteSucceeded = await deletePersistedListing(removedListing?.id);
+            if (!deleteSucceeded) {
+                userListings.splice(i, 0, removedListing);
+                renderUserListings();
+                refreshMarketplace();
+                return;
+            }
+            renderUserListings();
+            refreshMarketplace();
+        };
         card.querySelector('.edit-btn').onclick = ()=>{
             editingListingIndex = i;
             document.getElementById('category').value=l.category || '';
@@ -1747,7 +2042,7 @@ function toggleProfileVisibility(fieldKey){
     renderUserListings();
 }
 
-function saveProfileEdits(){
+async function saveProfileEdits(){
     const profile = profiles[currentUser.id];
     if (!profile) return;
     const previousEmail = currentUser.email;
@@ -1787,6 +2082,10 @@ function saveProfileEdits(){
     }
 
     persistCurrentUserAccount(previousEmail);
+    const saveSucceeded = await savePersistedProfile();
+    if (!saveSucceeded) {
+        return;
+    }
     showToast('Profile updated successfully');
     isEditingProfile = false;
     renderUserListings();
