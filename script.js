@@ -8,7 +8,13 @@ function formatPrice(number) {
 const SUPABASE_URL = 'https://gekjlypawswkjmaamwme.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_mOsnuYtcElQ0Qj9HzqV5rA_dItzoREq';
 const supabaseClient = window.supabase?.createClient
-    ? window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY)
+    ? window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+        auth: {
+            persistSession: true,
+            autoRefreshToken: true,
+            detectSessionInUrl: true,
+        },
+    })
     : null;
 const SUPABASE_TABLES = {
     profiles: 'profiles',
@@ -353,6 +359,26 @@ function warnPersistenceSetup(message = 'Create the Supabase tables to enable sa
     if (hasWarnedAboutPersistenceSetup) return;
     hasWarnedAboutPersistenceSetup = true;
     showToast(message);
+}
+
+function getAuthRedirectUrl(){
+    return `${window.location.origin}${window.location.pathname}`;
+}
+
+async function restoreOAuthSessionFromUrl(){
+    if (!supabaseClient) return null;
+    const url = new URL(window.location.href);
+    if (!url.searchParams.has('code')) return null;
+
+    const { data, error } = await supabaseClient.auth.exchangeCodeForSession(window.location.href);
+    if (error) {
+        console.error('Failed to restore OAuth session', error);
+        showToast(error.message);
+        return null;
+    }
+
+    window.history.replaceState({}, document.title, getAuthRedirectUrl());
+    return data.session || null;
 }
 
 function isMissingSupabaseTableError(error){
@@ -728,7 +754,7 @@ async function signInWithGoogle(){
     const { error } = await supabaseClient.auth.signInWithOAuth({
         provider: 'google',
         options: {
-            redirectTo: window.location.href,
+            redirectTo: getAuthRedirectUrl(),
         },
     });
     if (error) {
@@ -1477,7 +1503,10 @@ async function initializeAuth(){
         renderUserListings();
         return;
     }
-    const { data, error } = await supabaseClient.auth.getSession();
+    const restoredSession = await restoreOAuthSessionFromUrl();
+    const { data, error } = restoredSession
+        ? { data: { session: restoredSession }, error: null }
+        : await supabaseClient.auth.getSession();
     if (error) {
         showToast(error.message);
         return;
@@ -1493,6 +1522,12 @@ async function initializeAuth(){
             showTab(savedReturnTab, { skipHistory: true });
         }
     }
+    if (!data.session) {
+        hydrateCurrentUser(userAccounts['guest@farmyard.app']);
+        ensureProfileForAccount(userAccounts['guest@farmyard.app']);
+        refreshMarketplace();
+        renderUserListings();
+    }
 
     supabaseClient.auth.onAuthStateChange((event, session) => {
         if (event === 'SIGNED_IN' && session) {
@@ -1501,6 +1536,8 @@ async function initializeAuth(){
             loadPersistedAccountData();
         }
         if (event === 'SIGNED_OUT') {
+            hydrateCurrentUser(userAccounts['guest@farmyard.app']);
+            ensureProfileForAccount(userAccounts['guest@farmyard.app']);
             updateAuthButtons(false);
             userListings = [];
             refreshMarketplace();
