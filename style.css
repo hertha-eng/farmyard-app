@@ -176,10 +176,6 @@ header input {
     background-color: rgba(255, 255, 255, 0.24);
 }
 
-#sign-out-btn {
-    display: none;
-}
-
 .app-tagline {
     max-width: 28rem;
     margin: 0 0 10px;
@@ -536,6 +532,21 @@ nav button.is-active {
     font-weight: 700;
     font-size: 1.15rem;
     flex-shrink: 0;
+    overflow: hidden;
+}
+
+.avatar-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.avatar-fallback {
+    display: grid;
+    width: 100%;
+    height: 100%;
+    place-items: center;
 }
 
 .account-grid,
@@ -677,6 +688,11 @@ nav button.is-active {
     border: 1px solid #d8dfe0;
     border-radius: 10px;
     background-color: #fff;
+}
+
+.account-card input[type="file"] {
+    padding: 12px;
+    background-color: #f8fbf8;
 }
 
 .account-card textarea {
@@ -884,6 +900,33 @@ nav button.is-active {
     color: #617069;
 }
 
+.image-upload-card {
+    display: grid;
+    gap: 10px;
+    padding: 14px;
+    border: 1px dashed #cfe0d1;
+    border-radius: 16px;
+    background-color: #f8fbf8;
+}
+
+.upload-note {
+    color: #617069;
+    font-size: 0.92rem;
+}
+
+.upload-preview {
+    width: 100%;
+    max-height: 220px;
+    object-fit: cover;
+    border-radius: 16px;
+    border: 1px solid #dbe6dc;
+    background-color: #eef5ef;
+}
+
+.inline-upload-preview {
+    margin-top: 10px;
+}
+
 /* --------------------
    LEGAL
 -------------------- */
@@ -948,6 +991,7 @@ nav button.is-active {
     place-items: center;
     background-color: rgba(255, 255, 255, 0.2);
     font-weight: 700;
+    overflow: hidden;
 }
 
 .profile-card {

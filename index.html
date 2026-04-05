@@ -11,27 +11,23 @@
 <!-- LOGIN SCREEN -->
 <div id="login-screen" class="tab" hidden>
     <h1>FarmYard Login</h1>
-    <p class="auth-tagline">Agriculture-only marketplace for products, raw materials, finished goods, and farm services.</p>
     <input type="email" id="login-email" placeholder="Email">
     <input type="password" id="login-password" placeholder="Password">
     <input type="text" id="login-invite-code" placeholder="Company invite code (optional)">
     <button id="login-btn">Login</button>
     <button id="login-google-btn" class="secondary-auth-btn" type="button">Continue with Google</button>
-    <p class="auth-help">Use the same email that received the company invitation. Add the invite code if you are claiming company access.</p>
     <p>Don't have an account? <span id="show-register">Register</span></p>
 </div>
 
 <!-- REGISTER SCREEN -->
 <div id="register-screen" class="tab" hidden>
     <h1>Register</h1>
-    <p class="auth-tagline">Join buyers, farmers, and agri-businesses trading within the agricultural value chain.</p>
     <input type="text" id="reg-name" placeholder="Full Name">
     <input type="email" id="reg-email" placeholder="Email">
     <input type="password" id="reg-password" placeholder="Password">
     <input type="text" id="reg-invite-code" placeholder="Company invite code (optional)">
     <button id="register-btn">Register</button>
     <button id="register-google-btn" class="secondary-auth-btn" type="button">Continue with Google</button>
-    <p class="auth-help">If a company admin invited you, register with that work email and the invite code so your access can be linked properly.</p>
     <p>Already have an account? <span id="show-login">Login</span></p>
 </div>
 
@@ -41,27 +37,22 @@
     <!-- HEADER -->
     <header>
         <h1>🌱 FarmYard</h1>
-        <p class="app-tagline">Produce, raw materials, finished agricultural goods, and farm services in one marketplace.</p>
         <div class="auth-actions">
             <button id="open-login" type="button">Login</button>
             <button id="open-register" type="button">Register</button>
-            <button id="sign-out-btn" type="button">Sign Out</button>
         </div>
-        <input type="text" id="search" placeholder="Search products...">
     </header>
 
     <!-- TABS -->
     <div id="home-tab" class="tab active">
         <section id="marketplace">
             <h2>Marketplace</h2>
-            <p class="section-intro">Trade only agriculture-related goods and services, from fresh produce to mechanized farm work.</p>
             <div id="marketplace-grid"></div>
         </section>
     </div>
 
     <div id="post-tab" class="tab" hidden>
         <h2>Post a Listing</h2>
-        <p class="form-intro">Create a clear agricultural listing buyers can trust at a glance.</p>
         <div class="post-form">
             <label for="category">Category</label>
             <select id="category">
@@ -110,7 +101,11 @@
             <textarea id="description" rows="4" placeholder="Add quality, quantity, availability, delivery, or service details."></textarea>
 
             <label for="image">Listing image</label>
-            <input type="file" id="image" accept="image/*" capture="environment">
+            <div class="image-upload-card">
+                <input type="file" id="image" accept="image/*">
+                <p class="upload-note">Choose a photo from your gallery or camera roll before posting.</p>
+                <img id="listing-image-preview" class="upload-preview" alt="Listing preview" hidden>
+            </div>
 
             <label class="checkbox-row"><input type="checkbox" id="negotiable"> Price negotiable</label>
         </div>
@@ -119,7 +114,6 @@
 
     <div id="messages-tab" class="tab" hidden>
         <h2>Messages</h2>
-        <p class="messages-intro">Follow up on produce, raw materials, finished goods, and farm service conversations.</p>
         <p class="payment-warning">FarmYard does not process or hold payments. Never send money inside the platform because payments are handled directly between buyer and seller.</p>
         <div class="messages-layout">
             <div class="messages-panel">
@@ -175,7 +169,6 @@
 
     <div id="legal-tab" class="tab" hidden>
         <h2>Privacy, Terms, and Marketplace Rules</h2>
-        <p class="legal-intro">Important information about how FarmYard handles user data, marketplace conduct, and listing requirements.</p>
 
         <section class="legal-card">
             <h3>Privacy Policy</h3>

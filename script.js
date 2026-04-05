@@ -20,6 +20,7 @@ const SUPABASE_TABLES = {
     profiles: 'profiles',
     listings: 'listings',
 };
+const LOCAL_STATE_KEY = 'farmyard-local-state-v1';
 
 const DEFAULT_SECURITY = {
     passwordUpdated: '30 days ago',
@@ -40,6 +41,7 @@ let userListings = [];
 const currentUser = {
     id: 'user-guest',
     name: 'Guest User',
+    avatarUrl: '',
     role: 'Sales Representative',
     accountType: 'Individual Profile',
     location: 'Kampala',
@@ -73,6 +75,7 @@ const profiles = {
     'user-guest': {
         id: 'user-guest',
         name: 'Guest User',
+        avatarUrl: '',
         type: 'Individual Profile',
         about: 'Agricultural sales representative handling listings and buyer communication on behalf of a registered company.',
         verified: false,
@@ -91,6 +94,7 @@ const profiles = {
     'company-farmyard-traders': {
         id: 'company-farmyard-traders',
         name: 'FarmYard Traders Ltd',
+        avatarUrl: '',
         type: 'Company Profile',
         about: 'Registered agricultural trading company supplying produce and farm inputs through a managed sales team.',
         verified: false,
@@ -110,6 +114,7 @@ const profiles = {
     'seller-amina': {
         id: 'seller-amina',
         name: 'Amina Farm Supplies',
+        avatarUrl: '',
         type: 'Company Profile',
         about: 'Bulk produce supplier focused on maize, grains, and consistent farm-to-buyer fulfillment.',
         verified: true,
@@ -127,6 +132,7 @@ const profiles = {
     'seller-kato': {
         id: 'seller-kato',
         name: 'Kato Mechanics',
+        avatarUrl: '',
         type: 'Service Provider',
         about: 'Farm mechanization team offering ploughing, harrowing, and field preparation services.',
         verified: true,
@@ -144,6 +150,7 @@ const profiles = {
     'seller-manure': {
         id: 'seller-manure',
         name: 'Green Soil Inputs',
+        avatarUrl: '',
         type: 'Seller Profile',
         about: 'Organic input supplier serving small and medium-sized farms.',
         verified: false,
@@ -161,6 +168,7 @@ const profiles = {
     'seller-feed': {
         id: 'seller-feed',
         name: 'LayerPro Feed Mill',
+        avatarUrl: '',
         type: 'Company Profile',
         about: 'Finished agricultural feed producer supplying poultry operations across the region.',
         verified: true,
@@ -217,6 +225,7 @@ const userAccounts = {
     'guest@farmyard.app': {
         id: 'user-guest',
         name: 'Guest User',
+        avatarUrl: '',
         role: 'Sales Representative',
         accountType: 'Individual Profile',
         location: 'Kampala',
@@ -237,6 +246,9 @@ const userAccounts = {
         verificationPlan: { ...DEFAULT_VERIFICATION_PLAN },
     },
 };
+
+loadLocalAppState();
+
 let savedListings = [];
 let orderRequests = [];
 let reportedListings = [];
@@ -280,6 +292,7 @@ let returnTabAfterAuth = 'home';
 let tabHistory = [];
 let isEditingProfile = false;
 let isEditingCompanyProfile = false;
+let isCreatingCompanyProfile = false;
 let isInvitingSalesRep = false;
 let showCompanyTeamMembers = false;
 let showCompanyPendingInvites = false;
@@ -340,7 +353,6 @@ const chatFeedbackNote = document.getElementById('chat-feedback-note');
 const toast = document.getElementById('toast');
 const openLoginBtn = document.getElementById('open-login');
 const openRegisterBtn = document.getElementById('open-register');
-const signOutBtn = document.getElementById('sign-out-btn');
 const navButtons = {
     home: document.getElementById('nav-home'),
     post: document.getElementById('nav-post'),
@@ -402,10 +414,85 @@ function readFileAsDataUrl(file){
     });
 }
 
+function getInitials(name){
+    return (name || 'FarmYard User')
+        .split(/\s+/)
+        .filter(Boolean)
+        .slice(0, 2)
+        .map(part => part[0].toUpperCase())
+        .join('');
+}
+
+function loadLocalAppState(){
+    try {
+        const parsed = JSON.parse(localStorage.getItem(LOCAL_STATE_KEY) || '{}');
+        if (parsed.profiles && typeof parsed.profiles === 'object') {
+            Object.assign(profiles, parsed.profiles);
+        }
+        if (parsed.companyAccounts && typeof parsed.companyAccounts === 'object') {
+            Object.assign(companyAccounts, parsed.companyAccounts);
+        }
+        if (parsed.userAccounts && typeof parsed.userAccounts === 'object') {
+            Object.assign(userAccounts, parsed.userAccounts);
+        }
+    } catch (error) {
+        console.warn('Failed to load local state', error);
+    }
+}
+
+function persistLocalAppState(){
+    try {
+        localStorage.setItem(LOCAL_STATE_KEY, JSON.stringify({
+            profiles,
+            companyAccounts,
+            userAccounts,
+        }));
+    } catch (error) {
+        console.warn('Failed to persist local state', error);
+    }
+}
+
+function getAvatarUrl(profileId){
+    return profiles[profileId]?.avatarUrl || '';
+}
+
+function renderAvatarMarkup({ name, avatarUrl, imageClassName = 'avatar-image', fallbackClassName = 'avatar-fallback' }){
+    if (avatarUrl) {
+        return `<img class="${imageClassName}" src="${avatarUrl}" alt="${name} profile photo">`;
+    }
+    return `<span class="${fallbackClassName}">${getInitials(name)}</span>`;
+}
+
+function setPreviewImage(imageElement, imageUrl, altText){
+    if (!imageElement) return;
+    if (imageUrl) {
+        imageElement.src = imageUrl;
+        imageElement.alt = altText;
+        imageElement.hidden = false;
+        return;
+    }
+    imageElement.src = '';
+    imageElement.hidden = true;
+}
+
+async function previewSelectedImage(inputElement, previewElement, fallbackUrl = '', altText = 'Selected image preview'){
+    const file = inputElement?.files?.[0];
+    if (file) {
+        const previewUrl = await readFileAsDataUrl(file);
+        setPreviewImage(previewElement, previewUrl, altText);
+        return previewUrl;
+    }
+    setPreviewImage(previewElement, fallbackUrl, altText);
+    return fallbackUrl;
+}
+
 function buildProfileFieldsPayload(profile){
-    return Object.fromEntries(
-        Object.entries(profile.fields || {}).map(([key, value]) => [key, { ...value }])
-    );
+    return {
+        ...Object.fromEntries(
+            Object.entries(profile.fields || {}).map(([key, value]) => [key, { ...value }])
+        ),
+        _avatar_url: profile?.avatarUrl || '',
+    };
 }
 
 function buildPersistedProfileRow(){
@@ -426,7 +513,7 @@ function buildPersistedProfileRow(){
         access_status: currentUser.accessStatus,
         about: profile?.about || '',
         profile_fields: buildProfileFieldsPayload(profile),
-        security: { ...currentUser.security },
+        security: { ...currentUser.security, profile_photo: currentUser.avatarUrl || '' },
         verification_plan: { ...currentUser.verificationPlan },
     };
 }
@@ -446,6 +533,7 @@ function applyPersistedProfileRow(profileRow){
     currentUser.companyRole = profileRow.company_role || currentUser.companyRole;
     currentUser.accessStatus = profileRow.access_status || currentUser.accessStatus;
     currentUser.security = profileRow.security ? { ...currentUser.security, ...profileRow.security } : { ...currentUser.security };
+    currentUser.avatarUrl = profileRow.security?.profile_photo || currentUser.avatarUrl || '';
     currentUser.verificationPlan = profileRow.verification_plan
         ? { ...currentUser.verificationPlan, ...profileRow.verification_plan }
         : { ...currentUser.verificationPlan };
@@ -456,9 +544,11 @@ function applyPersistedProfileRow(profileRow){
     profile.verified = currentUser.verified;
     profile.rating = currentUser.communityRating;
     profile.ratingCount = currentUser.ratingCount;
+    profile.avatarUrl = profileRow.profile_fields?._avatar_url || currentUser.avatarUrl || profile.avatarUrl || '';
     profile.verificationPlan = { ...currentUser.verificationPlan };
     if (profileRow.profile_fields && typeof profileRow.profile_fields === 'object') {
         Object.entries(profileRow.profile_fields).forEach(([key, value]) => {
+            if (key === '_avatar_url') return;
             profile.fields[key] = {
                 label: value?.label || profile.fields[key]?.label || key,
                 value: value?.value ?? profile.fields[key]?.value ?? '',
@@ -637,7 +727,6 @@ document.getElementById('login-btn').onclick = () => signInWithEmail();
 document.getElementById('register-btn').onclick = () => signUpWithEmail();
 document.getElementById('login-google-btn').onclick = () => signInWithGoogle();
 document.getElementById('register-google-btn').onclick = () => signInWithGoogle();
-signOutBtn.onclick = () => signOutUser();
 document.getElementById('close-detail').onclick = () => goBack();
 document.getElementById('detail-message').onclick = () => startConversationFromDetail();
 document.getElementById('detail-call').onclick = () => showToast('Seller call action opened');
@@ -648,6 +737,18 @@ document.getElementById('detail-schedule').onclick = () => toggleSchedulePanel(t
 document.getElementById('detail-report').onclick = () => reportCurrentListing();
 document.getElementById('schedule-confirm').onclick = () => scheduleCurrentOrder();
 document.getElementById('schedule-cancel').onclick = () => toggleSchedulePanel(false);
+document.getElementById('image').onchange = async () => {
+    try {
+        await previewSelectedImage(
+            document.getElementById('image'),
+            document.getElementById('listing-image-preview'),
+            '',
+            'Listing photo preview'
+        );
+    } catch (error) {
+        showToast(error.message || 'Could not preview the selected image');
+    }
+};
 document.getElementById('message-send').onclick = () => sendMessage();
 chatRateUserBtn.onclick = () => openChatFeedback('rate');
 chatReportUserBtn.onclick = () => openChatFeedback('report');
@@ -870,6 +971,7 @@ document.getElementById('postBtn').onclick = async () => {
 function clearPostForm(){
     ['category','title','price','unit','minOrder','location','description','image'].forEach(id => document.getElementById(id).value='');
     document.getElementById('negotiable').checked = false;
+    setPreviewImage(document.getElementById('listing-image-preview'), '', 'Listing photo preview');
     editingListingIndex = null;
 }
 
@@ -1044,7 +1146,13 @@ function openProfile(profileId){
     profileType.textContent = profile.type;
     profileName.textContent = profile.name;
     profileRating.textContent = `${profile.rating.toFixed(1)} stars from ${profile.ratingCount} ratings`;
-    profileAvatar.textContent = getInitials(profile.name);
+    profileAvatar.innerHTML = renderAvatarMarkup({
+        name: profile.name,
+        avatarUrl: profile.avatarUrl || '',
+        className: 'profile-avatar',
+        imageClassName: 'avatar-image',
+        fallbackClassName: 'avatar-fallback',
+    });
     profileAbout.textContent = profile.about;
     profileVerification.textContent = profile.type === 'Company Profile'
         ? (profile.verificationPlan?.subscribed
@@ -1091,6 +1199,9 @@ function openProfile(profileId){
                 <input id="company-certification-edit" type="text" value="${profile.fields.certification?.value || ''}">
                 <label for="company-about-edit"><strong>About company</strong></label>
                 <textarea id="company-about-edit" rows="4">${profile.about}</textarea>
+                <label for="company-photo-edit"><strong>Company photo or logo</strong></label>
+                <input id="company-photo-edit" type="file" accept="image/*">
+                <img id="company-photo-preview" class="upload-preview inline-upload-preview" alt="Company photo preview" ${profile.avatarUrl ? '' : 'hidden'}>
                 <div class="company-verification-editor">
                     <strong>Internal verification checklist</strong>
                     <p class="card-summary">${countCompletedRequirements(companyAccounts[currentUser.companyId].verificationRequirements)} of ${Object.keys(companyAccounts[currentUser.companyId].verificationRequirements).length} requirements completed.</p>
@@ -1117,6 +1228,19 @@ function openProfile(profileId){
     if (canManageCompanyProfile && isEditingCompanyProfile) {
         document.getElementById('save-company-profile-btn').onclick = () => saveCompanyProfileEdits();
         document.getElementById('cancel-company-profile-btn').onclick = () => toggleCompanyProfileEditor(false);
+        setPreviewImage(document.getElementById('company-photo-preview'), profile.avatarUrl || '', 'Company photo preview');
+        document.getElementById('company-photo-edit').onchange = async () => {
+            try {
+                await previewSelectedImage(
+                    document.getElementById('company-photo-edit'),
+                    document.getElementById('company-photo-preview'),
+                    profile.avatarUrl || '',
+                    'Company photo preview'
+                );
+            } catch (error) {
+                showToast(error.message || 'Could not preview the company photo');
+            }
+        };
         document.querySelectorAll('.verification-toggle').forEach(toggle => {
             toggle.onchange = (event) => updateVerificationRequirement(event.target.dataset.requirement, event.target.checked, false);
         });
@@ -1328,6 +1452,7 @@ function buildIndividualProfile(account){
     return {
         id: account.id,
         name: account.name,
+        avatarUrl: account.avatarUrl || '',
         type: 'Individual Profile',
         about: 'FarmYard member account used for agricultural trading and marketplace communication.',
         verified: false,
@@ -1350,6 +1475,7 @@ function ensureProfileForAccount(account){
         profiles[account.id] = buildIndividualProfile(account);
     }
     profiles[account.id].name = account.name;
+    profiles[account.id].avatarUrl = account.avatarUrl || profiles[account.id].avatarUrl || '';
     profiles[account.id].fields.location.value = account.location;
     profiles[account.id].fields.phone.value = account.phone;
     profiles[account.id].fields.email.value = account.email;
@@ -1363,6 +1489,7 @@ function buildBaseUserAccount(email, fullName, userId){
     return {
         id: userId || `user-${slugifyValue(email)}`,
         name: fullName || 'FarmYard User',
+        avatarUrl: '',
         role: 'Buyer and Seller',
         accountType: 'Individual Profile',
         location: 'Set your trading location',
@@ -1393,12 +1520,14 @@ function getOrCreateUserAccount(email, fullName, userId){
     account.email = normalizedEmail;
     account.name = fullName || account.name;
     account.id = userId || account.id;
+    account.avatarUrl = account.avatarUrl || '';
     return account;
 }
 
 function hydrateCurrentUser(account){
     currentUser.id = account.id;
     currentUser.name = account.name;
+    currentUser.avatarUrl = account.avatarUrl || '';
     currentUser.role = account.role;
     currentUser.accountType = account.accountType;
     currentUser.location = account.location;
@@ -1424,6 +1553,7 @@ function persistCurrentUserAccount(previousEmail = currentUser.email){
     userAccounts[normalizedCurrentEmail] = {
         id: currentUser.id,
         name: currentUser.name,
+        avatarUrl: currentUser.avatarUrl || '',
         role: currentUser.role,
         accountType: currentUser.accountType,
         location: currentUser.location,
@@ -1439,6 +1569,7 @@ function persistCurrentUserAccount(previousEmail = currentUser.email){
         security: { ...currentUser.security },
         verificationPlan: { ...currentUser.verificationPlan },
     };
+    persistLocalAppState();
 }
 
 function findPendingInviteByEmail(email){
@@ -1491,7 +1622,6 @@ function claimCompanyInvite(email, inviteCode, fullName, userId){
 function updateAuthButtons(isAuthenticated){
     openLoginBtn.style.display = isAuthenticated ? 'none' : 'inline-flex';
     openRegisterBtn.style.display = isAuthenticated ? 'none' : 'inline-flex';
-    signOutBtn.style.display = isAuthenticated ? 'inline-flex' : 'none';
 }
 
 async function initializeAuth(){
@@ -1679,6 +1809,42 @@ function renderUserListings(){
             </div>
         `).join('')
         : '<p class="card-summary">No pending rep invitations.</p>';
+    const companyCreationMarkup = companyProfile
+        ? ''
+        : `
+        <section class="account-section account-card">
+            <div class="section-heading">
+                <p class="section-eyebrow">Company</p>
+                <h3>Create Company Profile</h3>
+            </div>
+            <div class="security-actions">
+                <button id="open-company-creation-btn" class="btn btn-primary" type="button">${isCreatingCompanyProfile ? 'Close Company Form' : 'Create Company Profile'}</button>
+            </div>
+            <div class="team-invite-form ${isCreatingCompanyProfile ? 'is-visible' : ''}">
+                <label for="create-company-name">Company name</label>
+                <input id="create-company-name" type="text" placeholder="FarmYard Traders Ltd">
+                <label for="create-company-location">Head office</label>
+                <input id="create-company-location" type="text" placeholder="Town, district, or industrial area">
+                <label for="create-company-phone">Company phone</label>
+                <input id="create-company-phone" type="text" placeholder="+256...">
+                <label for="create-company-email">Company email</label>
+                <input id="create-company-email" type="email" placeholder="sales@company.com">
+                <label for="create-company-registration">Registration</label>
+                <input id="create-company-registration" type="text" placeholder="Registration number">
+                <label for="create-company-certification">Permits or certifications</label>
+                <input id="create-company-certification" type="text" placeholder="Optional permits or quality marks">
+                <label for="create-company-about">About company</label>
+                <textarea id="create-company-about" rows="4" placeholder="Describe what your company sells and where it operates."></textarea>
+                <label for="create-company-photo">Company photo or logo</label>
+                <input id="create-company-photo" type="file" accept="image/*">
+                <img id="create-company-photo-preview" class="upload-preview inline-upload-preview" alt="Company photo preview" hidden>
+                <div class="profile-edit-actions">
+                    <button id="submit-company-creation-btn" class="btn btn-primary" type="button">Create Company</button>
+                    <button id="cancel-company-creation-btn" class="btn btn-secondary" type="button">Cancel</button>
+                </div>
+            </div>
+        </section>
+        `;
 
     acc.innerHTML = `
         <section class="account-section account-hero">
@@ -1699,7 +1865,7 @@ function renderUserListings(){
                     <button id="view-profile-btn" class="btn btn-secondary" type="button">View Public Profile</button>
                 </div>
             </div>
-            <div class="account-avatar">${getInitials(currentUser.name)}</div>
+            <div class="account-avatar">${renderAvatarMarkup({ name: currentUser.name, avatarUrl: currentUser.avatarUrl || '', className: 'account-avatar', imageClassName: 'avatar-image', fallbackClassName: 'avatar-fallback' })}</div>
         </section>
 
         <section class="account-section account-grid">
@@ -1752,7 +1918,7 @@ function renderUserListings(){
                 </div>
                 <div class="profile-summary-actions">
                     <button id="open-profile-editor" class="btn btn-primary" type="button">${isEditingProfile ? 'Close Editor' : 'Edit Profile'}</button>
-                    <button id="view-company-profile-btn" class="btn btn-secondary" type="button">View Company Profile</button>
+                    <button id="view-company-profile-btn" class="btn btn-secondary" type="button">${companyProfile ? 'View Company Profile' : 'Create Company Profile'}</button>
                 </div>
             </div>
 
@@ -1767,14 +1933,14 @@ function renderUserListings(){
                     <p><strong>Subscription</strong><span>$${currentUser.verificationPlan.price}/${currentUser.verificationPlan.billing}</span></p>
                     <p><strong>Renewal</strong><span>${companyProfile?.verificationPlan?.renewalDate || 'No renewal date set'}</span></p>
                 </div>
-                <p class="account-card-note">Only company profiles can become verified. Individual profiles can still post and manage listings, but the trust badge belongs to the company account they represent.</p>
-                <p class="account-card-note">Add registration, permits, location, company email, and company phone inside <strong>View Company Profile</strong> then <strong>Edit Company Profile</strong>.</p>
                 <div class="security-actions">
                     <button id="subscribe-verification-btn" class="btn btn-primary" type="button">${companyProfile?.verificationPlan?.subscribed ? 'Review Verification' : 'Apply For Verification'}</button>
                     <button id="view-verification-term-btn" class="btn btn-secondary" type="button">View Verification Rules</button>
                 </div>
             </div>
         </section>
+
+        ${companyCreationMarkup}
 
         <details class="account-section account-card account-accordion"${showCompanyTeamMembers || showCompanyPendingInvites || isInvitingSalesRep ? ' open' : ''}>
             <summary>
@@ -1785,7 +1951,6 @@ function renderUserListings(){
                 <span class="accordion-meta">${seatUsage} seats used</span>
             </summary>
             <p class="account-card-note"><strong>Company access:</strong> ${currentUser.companyRole || 'No company role assigned'}</p>
-            <p class="account-card-note">Each company can assign up to 4 individuals to sell on its behalf, and one of them can act as the admin who appoints or removes the others.</p>
             <div class="security-actions">
                 <button id="toggle-team-members-btn" class="btn btn-secondary" type="button">${showCompanyTeamMembers ? 'Hide Team Members' : 'Show Team Members'}</button>
                 <button id="toggle-pending-invites-btn" class="btn btn-secondary" type="button">${showCompanyPendingInvites ? 'Hide Pending Invites' : 'Show Pending Invites'}</button>
@@ -1852,6 +2017,9 @@ function renderUserListings(){
             </div>
             <label for="edit-about">About</label>
             <textarea id="edit-about" rows="4">${profiles[currentUser.id].about}</textarea>
+            <label for="edit-profile-photo">Profile photo</label>
+            <input id="edit-profile-photo" type="file" accept="image/*">
+            <img id="edit-profile-photo-preview" class="upload-preview inline-upload-preview" alt="Profile photo preview" ${currentUser.avatarUrl ? '' : 'hidden'}>
             <div class="profile-edit-actions">
                 <button id="save-profile-btn" class="btn btn-primary" type="button">Save Profile</button>
                 <button id="cancel-profile-edit" class="btn btn-secondary" type="button">Cancel</button>
@@ -1892,6 +2060,7 @@ function renderUserListings(){
             </div>
             <div class="account-actions">
                 <button id="account-legal-btn" class="btn btn-secondary" type="button">Privacy & Terms</button>
+                <button id="account-signout-btn" class="btn btn-danger" type="button">Sign Out</button>
             </div>
         </section>
 
@@ -1952,14 +2121,38 @@ function renderUserListings(){
     document.getElementById('account-post-btn').onclick = () => showTab('post');
     document.getElementById('account-home-btn').onclick = () => showTab('home');
     document.getElementById('account-legal-btn').onclick = () => showTab('legal');
+    document.getElementById('account-signout-btn').onclick = () => signOutUser();
     document.getElementById('open-profile-editor').onclick = () => toggleProfileEditor();
     document.getElementById('save-profile-btn').onclick = () => saveProfileEdits();
     document.getElementById('view-profile-btn').onclick = () => openProfile(currentUser.id);
-    document.getElementById('view-company-profile-btn').onclick = () => openProfile(currentUser.companyId || currentUser.id);
+    document.getElementById('view-company-profile-btn').onclick = () => {
+        if (currentUser.companyId) {
+            openProfile(currentUser.companyId);
+            return;
+        }
+        toggleCompanyCreationForm(true);
+    };
     document.getElementById('subscribe-verification-btn').onclick = () => toggleCompanyVerification();
     document.getElementById('view-verification-term-btn').onclick = () => showTab('legal');
-    document.getElementById('toggle-team-members-btn').onclick = () => toggleCompanyTeamSection('members');
-    document.getElementById('toggle-pending-invites-btn').onclick = () => toggleCompanyTeamSection('invites');
+    if (document.getElementById('open-company-creation-btn')) {
+        document.getElementById('open-company-creation-btn').onclick = () => toggleCompanyCreationForm();
+        document.getElementById('submit-company-creation-btn').onclick = () => createCompanyProfile();
+        document.getElementById('cancel-company-creation-btn').onclick = () => toggleCompanyCreationForm(false);
+        document.getElementById('create-company-photo').onchange = async () => {
+            try {
+                await previewSelectedImage(
+                    document.getElementById('create-company-photo'),
+                    document.getElementById('create-company-photo-preview'),
+                    '',
+                    'Company photo preview'
+                );
+            } catch (error) {
+                showToast(error.message || 'Could not preview the company photo');
+            }
+        };
+    }
+    document.getElementById('toggle-team-members-btn')?.addEventListener('click', () => toggleCompanyTeamSection('members'));
+    document.getElementById('toggle-pending-invites-btn')?.addEventListener('click', () => toggleCompanyTeamSection('invites'));
     if (isCompanyAdmin) {
         document.getElementById('open-sales-invite-btn').onclick = () => toggleSalesInviteForm();
         document.getElementById('submit-sales-invite-btn').onclick = () => inviteSalesRep();
@@ -1978,6 +2171,19 @@ function renderUserListings(){
         });
     }
     document.getElementById('cancel-profile-edit').onclick = () => toggleProfileEditor(false);
+    setPreviewImage(document.getElementById('edit-profile-photo-preview'), currentUser.avatarUrl || '', 'Profile photo preview');
+    document.getElementById('edit-profile-photo').onchange = async () => {
+        try {
+            await previewSelectedImage(
+                document.getElementById('edit-profile-photo'),
+                document.getElementById('edit-profile-photo-preview'),
+                currentUser.avatarUrl || '',
+                'Profile photo preview'
+            );
+        } catch (error) {
+            showToast(error.message || 'Could not preview the selected profile photo');
+        }
+    };
     document.getElementById('toggle-location-visibility').onclick = () => toggleProfileVisibility('location');
     document.getElementById('toggle-phone-visibility').onclick = () => toggleProfileVisibility('phone');
     document.getElementById('toggle-email-visibility').onclick = () => toggleProfileVisibility('email');
@@ -2037,6 +2243,7 @@ function renderUserListings(){
             document.getElementById('location').value=l.location;
             document.getElementById('description').value=l.description || '';
             document.getElementById('negotiable').checked=l.negotiable;
+            setPreviewImage(document.getElementById('listing-image-preview'), l.image || '', 'Listing photo preview');
             showTab('post');
             showToast(`Editing ${l.title}`);
         };
@@ -2091,6 +2298,7 @@ async function saveProfileEdits(){
     const email = document.getElementById('edit-email').value.trim();
     const companyRole = document.getElementById('edit-company-role').value.trim();
     const about = document.getElementById('edit-about').value.trim();
+    const profilePhotoInput = document.getElementById('edit-profile-photo');
 
     if (!name || !role || !location || !phone || !email) {
         showToast('Fill in the main profile details first');
@@ -2102,9 +2310,13 @@ async function saveProfileEdits(){
     currentUser.location = location;
     currentUser.phone = phone;
     currentUser.email = email;
+    if (profilePhotoInput?.files?.[0]) {
+        currentUser.avatarUrl = await readFileAsDataUrl(profilePhotoInput.files[0]);
+    }
 
     profile.name = name;
     profile.about = about || profile.about;
+    profile.avatarUrl = currentUser.avatarUrl || profile.avatarUrl || '';
     profile.fields.location.value = location;
     profile.fields.phone.value = phone;
     profile.fields.email.value = email;
@@ -2133,12 +2345,108 @@ function toggleProfileEditor(forceState){
     renderUserListings();
 }
 
+function toggleCompanyCreationForm(forceState){
+    isCreatingCompanyProfile = typeof forceState === 'boolean' ? forceState : !isCreatingCompanyProfile;
+    renderUserListings();
+}
+
 function toggleCompanyProfileEditor(forceState){
     isEditingCompanyProfile = typeof forceState === 'boolean' ? forceState : !isEditingCompanyProfile;
     openProfile(currentUser.companyId || currentUser.id);
 }
 
-function saveCompanyProfileEdits(){
+async function createCompanyProfile(){
+    if (currentUser.companyId) {
+        showToast('A company profile is already linked to this account');
+        return;
+    }
+
+    const companyName = document.getElementById('create-company-name').value.trim();
+    const companyLocation = document.getElementById('create-company-location').value.trim();
+    const companyPhone = document.getElementById('create-company-phone').value.trim();
+    const companyEmail = document.getElementById('create-company-email').value.trim();
+    const companyRegistration = document.getElementById('create-company-registration').value.trim();
+    const companyCertification = document.getElementById('create-company-certification').value.trim();
+    const companyAbout = document.getElementById('create-company-about').value.trim();
+    const companyPhotoInput = document.getElementById('create-company-photo');
+
+    if (!companyName || !companyLocation || !companyPhone || !companyEmail) {
+        showToast('Fill in the main company details first');
+        return;
+    }
+
+    const companyId = `company-${slugifyValue(companyName)}`;
+    const companyAvatarUrl = companyPhotoInput?.files?.[0]
+        ? await readFileAsDataUrl(companyPhotoInput.files[0])
+        : '';
+
+    companyAccounts[companyId] = {
+        id: companyId,
+        name: companyName,
+        maxSalesMembers: 4,
+        members: [
+            {
+                id: currentUser.id,
+                name: currentUser.name,
+                email: currentUser.email,
+                phone: currentUser.phone,
+                nationalId: '',
+                role: 'Admin',
+                status: 'Active',
+            },
+        ],
+        pendingInvites: [],
+        verificationRequirements: {
+            businessRegistration: Boolean(companyRegistration),
+            companyEmail: Boolean(companyEmail),
+            companyPhone: Boolean(companyPhone),
+            businessLocation: Boolean(companyLocation),
+            completeProfile: Boolean(companyName && companyAbout && companyEmail && companyPhone && companyLocation),
+            goodStanding: true,
+            permits: Boolean(companyCertification),
+        },
+    };
+
+    profiles[companyId] = {
+        id: companyId,
+        name: companyName,
+        avatarUrl: companyAvatarUrl,
+        type: 'Company Profile',
+        about: companyAbout || 'New company profile on FarmYard.',
+        verified: false,
+        verificationPlan: { subscribed: false, price: 10, billing: 'monthly', renewalDate: null },
+        rating: 5,
+        ratingCount: 1,
+        completedDeals: 0,
+        fields: {
+            location: { label: 'Head Office', value: companyLocation, visible: true },
+            phone: { label: 'Company Phone', value: companyPhone, visible: true },
+            email: { label: 'Company Email', value: companyEmail, visible: true },
+            registration: { label: 'Registration', value: companyRegistration || 'Pending', visible: true },
+            certification: { label: 'Permits or Certifications', value: companyCertification || '', visible: true },
+            team: { label: 'Sales Team', value: '1 active representative', visible: true },
+        },
+    };
+
+    currentUser.companyId = companyId;
+    currentUser.companyRole = 'Admin';
+    currentUser.accessStatus = 'Active company access';
+    currentUser.permissions = {
+        canPostForCompany: true,
+        canManageCompany: true,
+        canApproveInvites: true,
+    };
+    profiles[currentUser.id].fields.companyName.value = companyName;
+    profiles[currentUser.id].fields.companyRole.value = 'Admin';
+    persistCurrentUserAccount();
+    persistLocalAppState();
+
+    isCreatingCompanyProfile = false;
+    showToast(`${companyName} is ready for company selling`);
+    renderUserListings();
+}
+
+async function saveCompanyProfileEdits(){
     const companyProfile = currentUser.companyId ? profiles[currentUser.companyId] : null;
     if (!companyProfile || currentUser.companyRole !== 'Admin') {
         showToast('Only the company admin can edit this profile');
@@ -2152,6 +2460,7 @@ function saveCompanyProfileEdits(){
     const companyRegistration = document.getElementById('company-registration-edit').value.trim();
     const companyCertification = document.getElementById('company-certification-edit').value.trim();
     const companyAbout = document.getElementById('company-about-edit').value.trim();
+    const companyPhotoInput = document.getElementById('company-photo-edit');
 
     if (!companyName || !companyLocation || !companyPhone || !companyEmail) {
         showToast('Fill in the main company details first');
@@ -2160,6 +2469,9 @@ function saveCompanyProfileEdits(){
 
     companyProfile.name = companyName;
     companyProfile.about = companyAbout || companyProfile.about;
+    if (companyPhotoInput?.files?.[0]) {
+        companyProfile.avatarUrl = await readFileAsDataUrl(companyPhotoInput.files[0]);
+    }
     companyProfile.fields.location.value = companyLocation;
     companyProfile.fields.phone.value = companyPhone;
     companyProfile.fields.email.value = companyEmail;
@@ -2174,6 +2486,7 @@ function saveCompanyProfileEdits(){
     companyAccounts[currentUser.companyId].name = companyName;
     profiles[currentUser.id].fields.companyName.value = companyName;
     syncVerificationRequirementsFromCompanyProfile(companyProfile, companyAccounts[currentUser.companyId]);
+    persistLocalAppState();
 
     isEditingCompanyProfile = false;
     showToast('Company profile updated successfully');
@@ -2211,6 +2524,7 @@ function toggleCompanyVerification(){
         showToast('Verified Company is already active for this company profile');
     }
     persistCurrentUserAccount();
+    persistLocalAppState();
     renderUserListings();
     openProfile(currentUser.companyId);
 }
@@ -2332,6 +2646,7 @@ function approveSalesInvite(inviteId){
         ensureProfileForAccount(account);
     }
     profiles[currentUser.companyId].fields.team.value = `${companyAccount.members.length} active representatives`;
+    persistLocalAppState();
     showToast(`${invite.name} is now an active sales rep`);
     renderUserListings();
 }
@@ -2367,6 +2682,7 @@ function revokeSalesInvite(inviteId){
         };
         ensureProfileForAccount(account);
     }
+    persistLocalAppState();
     showToast(`Invite revoked for ${invite.name}`);
     renderUserListings();
 }
@@ -2404,6 +2720,7 @@ function removeSalesMember(memberId){
         ensureProfileForAccount(account);
     }
     profiles[currentUser.companyId].fields.team.value = `${companyAccount.members.length} active representatives`;
+    persistLocalAppState();
     showToast(`${member.name} removed from company access`);
     renderUserListings();
 }
@@ -2431,6 +2748,7 @@ function updateVerificationRequirement(requirementKey, isComplete, rerenderProfi
     }
 
     showToast(`${formatRequirementLabel(requirementKey)} marked as ${isComplete ? 'complete' : 'pending'}`);
+    persistLocalAppState();
     renderUserListings();
     if (rerenderProfile && currentProfileId === currentUser.companyId && isEditingCompanyProfile) {
         openProfile(currentUser.companyId);
@@ -2517,15 +2835,6 @@ function generateInviteCode(companyName){
     const companyKey = slugifyValue(companyName).split('-').slice(0, 2).join('-').toUpperCase() || 'FARMYARD';
     const randomDigits = `${Math.floor(1000 + Math.random() * 9000)}`;
     return `${companyKey}-${randomDigits}`;
-}
-
-function getInitials(name){
-    return name
-        .split(' ')
-        .filter(Boolean)
-        .slice(0, 2)
-        .map(part => part[0].toUpperCase())
-        .join('') || 'GU';
 }
 
 // Initial
