@@ -446,7 +446,7 @@ function applyPersistedProfileRow(profileRow){
 function buildPersistedListingRow(listing){
     return {
         id: listing.id,
-        owner_id: currentUser.id,
+        user_id: currentUser.id,
         seller_id: listing.sellerId,
         category: listing.category,
         title: listing.title,
@@ -529,7 +529,7 @@ async function loadPersistedListings(){
     const { data, error } = await supabaseClient
         .from(SUPABASE_TABLES.listings)
         .select('*')
-        .eq('owner_id', currentUser.id)
+        .eq('user_id', currentUser.id)
         .order('created_at', { ascending: false });
 
     if (error) {
@@ -571,7 +571,7 @@ async function deletePersistedListing(listingId){
         .from(SUPABASE_TABLES.listings)
         .delete()
         .eq('id', listingId)
-        .eq('owner_id', currentUser.id);
+        .eq('user_id', currentUser.id);
 
     if (error) {
         if (isMissingSupabaseTableError(error) || isMissingSupabaseColumnError(error)) {

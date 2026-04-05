@@ -24,7 +24,7 @@ create table if not exists public.profiles (
 
 create table if not exists public.listings (
     id uuid primary key default gen_random_uuid(),
-    owner_id uuid not null references auth.users (id) on delete cascade,
+    user_id uuid not null references auth.users (id) on delete cascade,
     seller_id text not null,
     category text not null,
     title text not null,
@@ -94,26 +94,26 @@ create policy "Users can read their own listings"
 on public.listings
 for select
 to authenticated
-using (auth.uid() = owner_id);
+using (auth.uid() = user_id);
 
 drop policy if exists "Users can insert their own listings" on public.listings;
 create policy "Users can insert their own listings"
 on public.listings
 for insert
 to authenticated
-with check (auth.uid() = owner_id);
+with check (auth.uid() = user_id);
 
 drop policy if exists "Users can update their own listings" on public.listings;
 create policy "Users can update their own listings"
 on public.listings
 for update
 to authenticated
-using (auth.uid() = owner_id)
-with check (auth.uid() = owner_id);
+using (auth.uid() = user_id)
+with check (auth.uid() = user_id);
 
 drop policy if exists "Users can delete their own listings" on public.listings;
 create policy "Users can delete their own listings"
 on public.listings
 for delete
 to authenticated
-using (auth.uid() = owner_id);
+using (auth.uid() = user_id);
