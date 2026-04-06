@@ -163,6 +163,31 @@ header {
     box-shadow: 0 14px 28px rgba(34, 53, 31, 0.14);
 }
 
+.header-search-panel {
+    position: relative;
+    width: min(100%, 540px);
+    margin: 0 0 14px;
+    padding: 14px;
+    background: rgba(255, 255, 255, 0.14);
+    border-color: rgba(255, 255, 255, 0.18);
+    backdrop-filter: blur(10px);
+}
+
+.header-search-panel .search-label,
+.header-search-panel .market-results-copy,
+.header-search-panel .search-icon {
+    color: rgba(255, 255, 255, 0.92);
+}
+
+.header-search-panel .search-shell {
+    background: rgba(255, 255, 255, 0.95);
+    border-color: rgba(255, 255, 255, 0.22);
+}
+
+.header-search-panel #market-search::placeholder {
+    color: #7a857d;
+}
+
 header::after {
     content: "";
     position: absolute;
@@ -853,20 +878,46 @@ nav button.is-active {
 
 @media (max-width: 720px) {
     .market-hero {
-        grid-template-columns: 1fr;
-        padding: 16px;
+        display: none;
     }
 
-    .market-hero-copy h2 {
-        max-width: none;
+    .home-header {
+        padding-bottom: 18px;
     }
 
-    .market-search-panel {
-        padding: 14px;
+    .header-search-panel {
+        width: 100%;
+        margin-bottom: 12px;
+        padding: 12px;
     }
 
     #marketplace-grid {
-        grid-template-columns: 1fr;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+    }
+
+    .card {
+        padding: 10px;
+        border-radius: 18px;
+    }
+
+    .card img {
+        height: 112px;
+        border-radius: 14px;
+    }
+
+    .card h3 {
+        font-size: 0.95rem;
+        margin: 8px 0 4px;
+    }
+
+    .card p {
+        font-size: 0.8rem;
+    }
+
+    .card button {
+        font-size: 0.74rem;
+        padding: 8px 10px;
     }
 }
 
