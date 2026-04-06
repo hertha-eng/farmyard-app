@@ -269,6 +269,8 @@ let conversations = [
         sellerId: 'seller-amina',
         role: 'Seller',
         location: 'Farm A',
+        online: true,
+        lastSeen: 'now',
         lastUpdated: 'Today, 10:24',
         messages: [
             { author: 'Amina Farm Supplies', text: 'Fresh maize grain is available this week.', time: '10:12', mine: false },
@@ -282,6 +284,8 @@ let conversations = [
         sellerId: 'seller-kato',
         role: 'Service Provider',
         location: 'Farm B',
+        online: false,
+        lastSeen: '2 hours ago',
         lastUpdated: 'Yesterday',
         messages: [
             { author: 'Kato Mechanics', text: 'We cover ploughing and harrowing in nearby districts.', time: '17:45', mine: false },
@@ -359,6 +363,7 @@ const chatFeedbackPanel = document.getElementById('chat-feedback-panel');
 const chatFeedbackTitle = document.getElementById('chat-feedback-title');
 const chatRatingInput = document.getElementById('chat-rating');
 const chatFeedbackNote = document.getElementById('chat-feedback-note');
+const messagesProfileAvatar = document.getElementById('messages-profile-avatar');
 const toast = document.getElementById('toast');
 const openLoginBtn = document.getElementById('open-login');
 const openRegisterBtn = document.getElementById('open-register');
@@ -1450,11 +1455,19 @@ function startConversation(listing){
 
 function renderMessagesTab(){
     conversationList.innerHTML = '';
+    if (messagesProfileAvatar) {
+        messagesProfileAvatar.innerHTML = renderAvatarMarkup({
+            name: currentUser.name,
+            avatarUrl: currentUser.avatarUrl || '',
+            imageClassName: 'avatar-image',
+            fallbackClassName: 'avatar-fallback',
+        });
+    }
     const activeConversation = conversations.find(conversation => conversation.id === activeConversationId) || conversations[0];
 
     if (!activeConversation && !conversations.length) {
-        activeChatTitle.textContent = 'No conversations yet';
-        activeChatMeta.textContent = 'Message a seller from any listing to start chatting here.';
+        activeChatTitle.textContent = 'No conversations';
+        activeChatMeta.textContent = 'Start from a listing.';
         messagesEmpty.style.display = 'block';
         chatThread.innerHTML = '';
         clearMessageComposer();
@@ -1474,8 +1487,7 @@ function renderMessagesTab(){
             imageClassName: 'avatar-image',
             fallbackClassName: 'avatar-fallback',
         });
-        const card = document.createElement('button');
-        card.type = 'button';
+        const card = document.createElement('div');
         card.className = `conversation-card${conversation.id === activeConversationId ? ' active' : ''}`;
         card.innerHTML = `
             <span class="conversation-avatar">${conversationAvatar}</span>
@@ -1485,12 +1497,18 @@ function renderMessagesTab(){
                 <p class="conversation-meta">${conversation.role} • ${conversation.location}</p>
                 <p class="conversation-updated">Updated ${conversation.lastUpdated}</p>
             </span>
+            <button type="button" class="conversation-delete-btn" aria-label="Delete conversation with ${conversation.contact}">Delete</button>
         `;
         card.onclick = () => {
             activeConversationId = conversation.id;
             mobileMessagesView = 'chat';
             clearMessageComposer();
             renderMessagesTab();
+        };
+        const deleteButton = card.querySelector('.conversation-delete-btn');
+        deleteButton.onclick = (event) => {
+            event.stopPropagation();
+            deleteConversation(conversation.id);
         };
         conversationList.appendChild(card);
     });
@@ -1502,11 +1520,10 @@ function renderMessagesTab(){
 function renderActiveConversation(){
     const conversation = conversations.find(item => item.id === activeConversationId);
     if (!conversation) return;
-    const profile = getCounterpartyProfile(conversation.contact);
     const conversationProfile = getConversationProfile(conversation);
 
     activeChatTitle.textContent = conversation.contact;
-    activeChatMeta.textContent = `${conversation.listingTitle} • ${conversation.role} • ${conversation.location} • ${profile.rating.toFixed(1)} star rating`;
+    activeChatMeta.textContent = getConversationPresenceLabel(conversation);
     messagesEmpty.style.display = 'none';
     chatThread.innerHTML = '';
 
@@ -1547,6 +1564,16 @@ function renderActiveConversation(){
     chatThread.scrollTop = chatThread.scrollHeight;
 }
 
+function getConversationPresenceLabel(conversation){
+    if (conversation.online) {
+        return 'Online';
+    }
+    if (conversation.lastSeen) {
+        return `Last seen ${conversation.lastSeen}`;
+    }
+    return 'Offline';
+}
+
 function sendMessage(){
     const text = messageInput.value.trim();
     const conversation = conversations.find(item => item.id === activeConversationId);
@@ -1563,6 +1590,23 @@ function sendMessage(){
     clearMessageComposer();
     renderMessagesTab();
     showToast('Message sent');
+}
+
+function deleteConversation(conversationId){
+    const targetConversation = conversations.find(item => item.id === conversationId);
+    if (!targetConversation) return;
+    conversations = conversations.filter(item => item.id !== conversationId);
+
+    if (activeConversationId === conversationId) {
+        activeConversationId = conversations[0]?.id || null;
+        if (!conversations.length) {
+            mobileMessagesView = 'inbox';
+        }
+    }
+
+    clearMessageComposer();
+    renderMessagesTab();
+    showToast(`Deleted chat with ${targetConversation.contact} from your inbox`);
 }
 
 function syncMessagesView(){

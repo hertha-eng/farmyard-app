@@ -139,33 +139,36 @@
     </div>
 
     <div id="messages-tab" class="tab" hidden>
-        <div class="page-heading">
-            <p class="page-brand">FarmYard</p>
-            <div class="page-heading-row">
-                <h2>Messages</h2>
-                <p class="page-heading-note">Communication Center</p>
+        <div class="page-heading messages-page-heading">
+            <div>
+                <p class="page-brand">FarmYard</p>
+                <div class="page-heading-row">
+                    <h2>Messages</h2>
+                    <p class="page-heading-note">Inbox</p>
+                </div>
             </div>
+            <div id="messages-profile-avatar" class="messages-profile-avatar" aria-label="Your profile photo"></div>
         </div>
-        <p class="payment-warning">FarmYard does not process or hold payments. Never send money inside the platform because payments are handled directly between buyer and seller.</p>
+        <p class="payment-warning">Payments happen directly between buyer and seller.</p>
         <div class="messages-layout">
             <div class="messages-panel">
                 <div class="messages-panel-header">
                     <p class="messages-panel-kicker">Inbox</p>
                     <h3>Conversations</h3>
-                    <p>Open a chat from any listing to continue the discussion here.</p>
+                    <p>Your recent chats.</p>
                 </div>
                 <div id="conversation-list" class="conversation-list"></div>
             </div>
             <div class="messages-panel active-chat">
                 <div class="messages-panel-header">
                     <button id="messages-back" class="messages-back" type="button">Back to Inbox</button>
-                    <p class="messages-panel-kicker">Active Conversation</p>
+                    <p class="messages-panel-kicker">Chat</p>
                     <h3 id="active-chat-title">Select a conversation</h3>
-                    <p id="active-chat-meta">Select a buyer or seller conversation to review the thread.</p>
+                    <p id="active-chat-meta">Open a chat to view messages.</p>
                 </div>
                 <div class="chat-trust-actions">
-                    <button id="chat-rate-user" type="button">Rate Counterparty</button>
-                    <button id="chat-report-user" type="button">Report Issue</button>
+                    <button id="chat-rate-user" type="button">Rate</button>
+                    <button id="chat-report-user" type="button">Report</button>
                 </div>
                 <div id="chat-feedback-panel" class="chat-feedback-panel">
                     <h4 id="chat-feedback-title">Rate User</h4>
@@ -186,17 +189,17 @@
                     </div>
                 </div>
                 <div id="messages-empty" class="messages-empty">
-                    <p>No conversation selected yet.</p>
+                    <p>No chat selected.</p>
                 </div>
                 <div id="chat-thread" class="chat-thread"></div>
                 <div id="message-media-preview" class="message-media-preview" hidden></div>
                 <div class="chat-composer">
                     <input type="file" id="message-media-input" accept="image/*,video/*" multiple hidden>
-                    <button id="message-attach" class="message-attach-btn" type="button">Add Media</button>
-                    <input type="text" id="message-input" placeholder="Write a clear message about delivery, price, quantity, or availability">
-                    <button id="message-send" type="button">Send</button>
+                    <button id="message-attach" class="message-attach-btn" type="button" aria-label="Add media">&#128206;</button>
+                    <input type="text" id="message-input" placeholder="Write a message">
+                    <button id="message-send" class="message-send-btn" type="button" aria-label="Send message">&#10148;</button>
                 </div>
-                <p class="message-help-text">Share up to 5 images or videos in one message.</p>
+                <p class="message-help-text">Up to 5 images or videos.</p>
             </div>
         </div>
     </div>
