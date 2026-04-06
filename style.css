@@ -158,6 +158,11 @@ header {
     box-shadow: 0 20px 36px rgba(34, 53, 31, 0.18);
 }
 
+.home-header {
+    padding: 24px 16px 20px;
+    box-shadow: 0 14px 28px rgba(34, 53, 31, 0.14);
+}
+
 header::after {
     content: "";
     position: absolute;
@@ -211,10 +216,10 @@ header h1 {
 
 .app-tagline {
     position: relative;
-    max-width: 28rem;
-    margin: 0 0 16px;
+    max-width: 24rem;
+    margin: 0 0 14px;
     text-align: center;
-    font-size: 1rem;
+    font-size: 0.96rem;
     color: rgba(255, 255, 255, 0.92);
 }
 
@@ -322,8 +327,11 @@ nav button.is-active {
 }
 
 .market-hero {
-    grid-template-columns: 1.2fr 0.9fr;
-    align-items: end;
+    grid-template-columns: 1fr 0.95fr;
+    align-items: center;
+    gap: 18px;
+    padding: 18px 20px;
+    margin-top: 6px;
 }
 
 .market-hero::after,
@@ -383,19 +391,39 @@ nav button.is-active {
     color: var(--muted);
 }
 
+.market-hero-copy h2 {
+    font-size: clamp(1.5rem, 3vw, 1.9rem);
+    line-height: 1.15;
+    max-width: 14ch;
+}
+
+.market-hero-text {
+    max-width: 24rem;
+    font-size: 0.95rem;
+}
+
+.market-search-panel {
+    padding: 16px;
+    border: 1px solid rgba(103, 119, 96, 0.12);
+    border-radius: 20px;
+    background: rgba(255, 255, 255, 0.64);
+}
+
 .search-label {
     display: block;
-    margin-bottom: 8px;
-    font-size: 0.9rem;
+    margin-bottom: 6px;
+    font-size: 0.82rem;
     font-weight: 700;
     color: var(--brand-strong);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
 }
 
 .search-shell {
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 10px 14px;
+    padding: 11px 14px;
     border-radius: 999px;
     border: 1px solid rgba(103, 119, 96, 0.16);
     background: rgba(255, 255, 255, 0.9);
@@ -428,40 +456,39 @@ nav button.is-active {
 #marketplace {
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 10px;
 }
 
 #marketplace-grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 14px;
+    gap: 16px;
 }
 
 .card {
-    background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(249, 246, 238, 0.94));
-    border-radius: 24px;
-    box-shadow: var(--shadow-card);
+    background: rgba(255, 255, 255, 0.9);
+    border-radius: 20px;
+    box-shadow: 0 10px 22px rgba(49, 57, 38, 0.07);
     padding: 12px;
     cursor: pointer;
-    border: 1px solid rgba(103, 119, 96, 0.14);
+    border: 1px solid rgba(103, 119, 96, 0.12);
 }
 
 .card:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 18px 32px rgba(24, 42, 28, 0.12);
+    transform: translateY(-2px);
+    box-shadow: 0 14px 28px rgba(24, 42, 28, 0.1);
 }
 
 .card img {
     width: 100%;
-    height: 146px;
+    height: 138px;
     object-fit: cover;
-    border-radius: 18px;
+    border-radius: 16px;
 }
 
 .card h3 {
-    font-size: 1.05rem;
-    margin: 10px 0 6px;
+    font-size: 1rem;
+    margin: 10px 0 5px;
     line-height: 1.35;
 }
 
@@ -520,11 +547,15 @@ nav button.is-active {
     margin-top: 4px;
 }
 
+.card-summary:first-of-type {
+    margin-top: 0;
+}
+
 /* Buttons inside cards */
 .card button {
     font-size: 0.78rem;
-    margin: 10px 6px 0 0;
-    padding: 9px 12px;
+    margin: 12px 6px 0 0;
+    padding: 8px 12px;
     border-radius: 999px;
     border: none;
     cursor: pointer;
@@ -803,7 +834,8 @@ nav button.is-active {
 .section-heading {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 2px;
+    margin-top: 4px;
 }
 
 .section-heading.compact {
@@ -817,6 +849,25 @@ nav button.is-active {
 .section-heading p {
     margin: 0;
     color: #617069;
+}
+
+@media (max-width: 720px) {
+    .market-hero {
+        grid-template-columns: 1fr;
+        padding: 16px;
+    }
+
+    .market-hero-copy h2 {
+        max-width: none;
+    }
+
+    .market-search-panel {
+        padding: 14px;
+    }
+
+    #marketplace-grid {
+        grid-template-columns: 1fr;
+    }
 }
 
 .section-eyebrow {
