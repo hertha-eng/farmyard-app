@@ -191,9 +191,9 @@ const companyAccounts = {
         name: 'FarmYard Traders Ltd',
         maxSalesMembers: 4,
         members: [
-            { id: 'user-guest', name: 'Guest User', email: 'guest@farmyard.app', phone: '+256 700 000000', nationalId: 'UG-000111', role: 'Admin', status: 'Active' },
-            { id: 'rep-1', name: 'Sarah Namusoke', email: 'sarah@farmyardtraders.example', phone: '+256 711 222444', nationalId: 'UG-222444', role: 'Sales Representative', status: 'Active' },
-            { id: 'rep-2', name: 'Joel Kato', email: 'joel@farmyardtraders.example', phone: '+256 712 333555', nationalId: 'UG-333555', role: 'Sales Representative', status: 'Active' },
+            { id: 'user-guest', name: 'Guest User', email: 'guest@farmyard.app', phone: '+256 700 000000', nationalId: 'UG-000111', role: 'Admin', status: 'Active', joinedAt: '2026-04-01' },
+            { id: 'rep-1', name: 'Sarah Namusoke', email: 'sarah@farmyardtraders.example', phone: '+256 711 222444', nationalId: 'UG-222444', role: 'Sales Representative', status: 'Active', joinedAt: '2026-04-02' },
+            { id: 'rep-2', name: 'Joel Kato', email: 'joel@farmyardtraders.example', phone: '+256 712 333555', nationalId: 'UG-333555', role: 'Sales Representative', status: 'Active', joinedAt: '2026-04-03' },
         ],
         pendingInvites: [
             {
@@ -1459,8 +1459,13 @@ function openProfile(profileId){
 
         if (isEditingCompanyProfile) {
             const editor = document.createElement('div');
-            editor.className = 'profile-field';
+            editor.className = 'profile-field company-profile-editor';
             editor.innerHTML = `
+                <div class="company-form-intro">
+                    <p class="section-eyebrow">Company Editor</p>
+                    <h4>Update public company details</h4>
+                    <p>Keep your company profile accurate for buyers, verification review, and team operations.</p>
+                </div>
                 <label for="company-name-edit"><strong>Company name</strong></label>
                 <input id="company-name-edit" type="text" value="${profile.name}">
                 <label for="company-location-edit"><strong>Head office</strong></label>
@@ -2298,8 +2303,15 @@ function renderUserListings(){
                 <p><strong>${member.name}</strong> • ${member.role}</p>
                 <p>${member.email || 'No email on file'} • ${member.phone || 'No phone on file'}</p>
                 <p>${member.status}${member.nationalId ? ` • ID: ${member.nationalId}` : ''}</p>
-                ${isCompanyAdmin && member.role !== 'Admin'
-                    ? `<div class="security-actions"><button class="btn btn-danger remove-member-btn" type="button" data-member-id="${member.id}">Remove Access</button></div>`
+                ${(isCompanyAdmin && member.role !== 'Admin') || (member.id === currentUser.id && currentUser.companyRole !== 'Admin')
+                    ? `<div class="security-actions">
+                        ${isCompanyAdmin && member.role !== 'Admin'
+                            ? `<button class="btn btn-danger remove-member-btn" type="button" data-member-id="${member.id}">Remove Access</button>`
+                            : ''}
+                        ${member.id === currentUser.id && currentUser.companyRole !== 'Admin'
+                            ? `<button class="btn btn-secondary leave-team-btn" type="button">Leave Company Team</button>`
+                            : ''}
+                    </div>`
                     : ''}
             </div>
         `).join('')
@@ -2331,7 +2343,12 @@ function renderUserListings(){
             <div class="security-actions">
                 <button id="open-company-creation-btn" class="btn btn-primary" type="button">${isCreatingCompanyProfile ? 'Close Company Form' : 'Create Company Profile'}</button>
             </div>
-            <div class="team-invite-form ${isCreatingCompanyProfile ? 'is-visible' : ''}">
+            <div class="team-invite-form company-form-card ${isCreatingCompanyProfile ? 'is-visible' : ''}">
+                <div class="company-form-intro">
+                    <p class="section-eyebrow">Business Setup</p>
+                    <h4>Set up your company profile</h4>
+                    <p>Add the core details buyers, verification review, and your sales team will rely on.</p>
+                </div>
                 <label for="create-company-name">Company name</label>
                 <input id="create-company-name" type="text" placeholder="FarmYard Traders Ltd">
                 <label for="create-company-location">Head office</label>
@@ -2680,6 +2697,9 @@ function renderUserListings(){
             button.onclick = () => removeSalesMember(button.dataset.memberId);
         });
     }
+    document.querySelectorAll('.leave-team-btn').forEach(button => {
+        button.onclick = () => leaveCompanyTeam();
+    });
     if (isEditingProfile) {
         document.getElementById('save-profile-btn').onclick = () => saveProfileEdits();
         document.getElementById('cancel-profile-edit').onclick = () => toggleProfileEditor(false);
@@ -2906,6 +2926,7 @@ async function createCompanyProfile(){
                 nationalId: '',
                 role: 'Admin',
                 status: 'Active',
+                joinedAt: '2026-04-06',
             },
         ],
         pendingInvites: [],
@@ -3171,6 +3192,7 @@ function approveSalesInvite(inviteId){
         nationalId: invite.nationalId,
         role: invite.role,
         status: 'Active',
+        joinedAt: invite.createdAt || '2026-04-05',
     });
     if (account) {
         account.companyId = currentUser.companyId;
@@ -3261,6 +3283,80 @@ function removeSalesMember(memberId){
     profiles[currentUser.companyId].fields.team.value = `${companyAccount.members.length} active representatives`;
     persistLocalAppState();
     showToast(`${member.name} removed from company access`);
+    renderUserListings();
+}
+
+function leaveCompanyTeam(){
+    const companyId = currentUser.companyId;
+    const companyAccount = companyId ? companyAccounts[companyId] : null;
+    if (!companyAccount) return;
+
+    const memberIndex = companyAccount.members.findIndex(member => member.id === currentUser.id);
+    if (memberIndex === -1) return;
+    const [member] = companyAccount.members.splice(memberIndex, 1);
+
+    if (member.role === 'Admin') {
+        const nextAdmin = [...companyAccount.members]
+            .sort((a, b) => String(a.joinedAt || '').localeCompare(String(b.joinedAt || '')))[0];
+        if (!nextAdmin) {
+            companyAccount.members.splice(memberIndex, 0, member);
+            showToast('Add or assign another team member before the admin can leave');
+            return;
+        }
+        nextAdmin.role = 'Admin';
+        const promotedAccount = userAccounts[normalizeEmail(nextAdmin.email)];
+        if (promotedAccount) {
+            promotedAccount.companyRole = 'Admin';
+            promotedAccount.role = 'Admin';
+            promotedAccount.permissions = {
+                canPostForCompany: true,
+                canManageCompany: true,
+                canApproveInvites: true,
+            };
+            ensureProfileForAccount(promotedAccount);
+            if (profiles[promotedAccount.id]?.fields?.companyRole) {
+                profiles[promotedAccount.id].fields.companyRole.value = 'Admin';
+            }
+        }
+    }
+
+    currentUser.companyId = null;
+    currentUser.companyRole = null;
+    currentUser.role = 'Buyer and Seller';
+    currentUser.accessStatus = 'Independent account';
+    currentUser.permissions = {
+        canPostForCompany: false,
+        canManageCompany: false,
+        canApproveInvites: false,
+    };
+    profiles[currentUser.id].fields.companyName.value = 'Independent';
+    profiles[currentUser.id].fields.companyRole.value = 'Independent seller';
+
+    const account = userAccounts[normalizeEmail(currentUser.email)];
+    if (account) {
+        account.companyId = null;
+        account.companyRole = null;
+        account.role = 'Buyer and Seller';
+        account.accessStatus = 'Independent account';
+        account.permissions = {
+            canPostForCompany: false,
+            canManageCompany: false,
+            canApproveInvites: false,
+        };
+        ensureProfileForAccount(account);
+    }
+
+    if (profiles[companyId]?.fields?.team) {
+        profiles[companyId].fields.team.value = `${companyAccount.members.length} active representatives`;
+    }
+
+    showCompanyTeamMembers = false;
+    showCompanyPendingInvites = false;
+    persistCurrentUserAccount();
+    persistLocalAppState();
+    showToast(member.role === 'Admin'
+        ? `${member.name} left the company team. Admin rights moved to the earliest hired member`
+        : `${member.name} left the company team`);
     renderUserListings();
 }
 
