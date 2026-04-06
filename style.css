@@ -1527,6 +1527,59 @@ nav button.is-active {
     background: #efeae2;
 }
 
+.active-chat-person {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.active-chat-topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.active-chat-avatar {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    overflow: hidden;
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+    background: rgba(255, 255, 255, 0.18);
+}
+
+.active-chat-person-copy {
+    min-width: 0;
+}
+
+.active-chat-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.chat-top-action {
+    width: 38px;
+    height: 38px;
+    border: none;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.14);
+    color: #f4fbf6;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    cursor: pointer;
+}
+
+.chat-top-action:hover {
+    background: rgba(255, 255, 255, 0.22);
+}
+
 .messages-panel {
     background: #f8faf7;
     padding: 20px;
@@ -1550,6 +1603,7 @@ nav button.is-active {
 
 .messages-panel-header h3 {
     line-height: 1.2;
+    margin: 0;
 }
 
 .messages-panel-header p {
@@ -1580,7 +1634,7 @@ nav button.is-active {
 
 .active-chat .messages-panel-header {
     margin: -20px -20px 0;
-    padding: 16px 18px 14px;
+    padding: 16px 18px;
     background: linear-gradient(135deg, #1f6c5c 0%, #286e62 100%);
     border-bottom: none;
 }
@@ -1702,7 +1756,7 @@ nav button.is-active {
 .chat-thread {
     flex: 1;
     min-height: 320px;
-    margin-top: 16px;
+    margin-top: 12px;
     padding: 8px 4px;
     overflow-y: auto;
 }
@@ -2036,8 +2090,8 @@ nav button.is-active {
         gap: 8px;
         padding: 8px 10px;
     }
-    .messages-page-heading { align-items: center; }
     .conversation-card { grid-template-columns: auto 1fr auto; }
+    .active-chat-topbar { align-items: flex-start; }
     .message-row,
     .message-row.mine { align-items: flex-start; }
     .message-attachments { grid-template-columns: 1fr; }

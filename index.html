@@ -139,17 +139,6 @@
     </div>
 
     <div id="messages-tab" class="tab" hidden>
-        <div class="page-heading messages-page-heading">
-            <div>
-                <p class="page-brand">FarmYard</p>
-                <div class="page-heading-row">
-                    <h2>Messages</h2>
-                    <p class="page-heading-note">Inbox</p>
-                </div>
-            </div>
-            <div id="messages-profile-avatar" class="messages-profile-avatar" aria-label="Your profile photo"></div>
-        </div>
-        <p class="payment-warning">Payments happen directly between buyer and seller.</p>
         <div class="messages-layout">
             <div class="messages-panel">
                 <div class="messages-panel-header">
@@ -161,14 +150,19 @@
             </div>
             <div class="messages-panel active-chat">
                 <div class="messages-panel-header">
-                    <button id="messages-back" class="messages-back" type="button">Back to Inbox</button>
-                    <p class="messages-panel-kicker">Chat</p>
-                    <h3 id="active-chat-title">Select a conversation</h3>
-                    <p id="active-chat-meta">Open a chat to view messages.</p>
-                </div>
-                <div class="chat-trust-actions">
-                    <button id="chat-rate-user" type="button">Rate</button>
-                    <button id="chat-report-user" type="button">Report</button>
+                    <div class="active-chat-topbar">
+                        <div class="active-chat-person">
+                            <div id="active-chat-avatar" class="active-chat-avatar" aria-label="Conversation profile photo"></div>
+                            <div class="active-chat-person-copy">
+                                <h3 id="active-chat-title">Select a conversation</h3>
+                                <p id="active-chat-meta">Open a chat to view messages.</p>
+                            </div>
+                        </div>
+                        <div class="active-chat-actions">
+                            <button id="chat-call-btn" class="chat-top-action" type="button" aria-label="Call">&#128222;</button>
+                            <button id="chat-options-btn" class="chat-top-action" type="button" aria-label="More options">&#8942;</button>
+                        </div>
+                    </div>
                 </div>
                 <div id="chat-feedback-panel" class="chat-feedback-panel">
                     <h4 id="chat-feedback-title">Rate User</h4>
@@ -199,7 +193,6 @@
                     <input type="text" id="message-input" placeholder="Write a message">
                     <button id="message-send" class="message-send-btn" type="button" aria-label="Send message">&#10148;</button>
                 </div>
-                <p class="message-help-text">Up to 5 images or videos.</p>
             </div>
         </div>
     </div>

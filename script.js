@@ -348,6 +348,7 @@ const profileVerification = document.getElementById('profile-verification');
 const profileStats = document.getElementById('profile-stats');
 const profileAdminTools = document.getElementById('profile-admin-tools');
 const conversationList = document.getElementById('conversation-list');
+const activeChatAvatar = document.getElementById('active-chat-avatar');
 const activeChatTitle = document.getElementById('active-chat-title');
 const activeChatMeta = document.getElementById('active-chat-meta');
 const messagesEmpty = document.getElementById('messages-empty');
@@ -356,6 +357,8 @@ const messageInput = document.getElementById('message-input');
 const messageMediaInput = document.getElementById('message-media-input');
 const messageMediaPreview = document.getElementById('message-media-preview');
 const messageAttachButton = document.getElementById('message-attach');
+const chatCallButton = document.getElementById('chat-call-btn');
+const chatOptionsButton = document.getElementById('chat-options-btn');
 const messagesLayout = document.querySelector('.messages-layout');
 const chatRateUserBtn = document.getElementById('chat-rate-user');
 const chatReportUserBtn = document.getElementById('chat-report-user');
@@ -363,7 +366,6 @@ const chatFeedbackPanel = document.getElementById('chat-feedback-panel');
 const chatFeedbackTitle = document.getElementById('chat-feedback-title');
 const chatRatingInput = document.getElementById('chat-rating');
 const chatFeedbackNote = document.getElementById('chat-feedback-note');
-const messagesProfileAvatar = document.getElementById('messages-profile-avatar');
 const toast = document.getElementById('toast');
 const openLoginBtn = document.getElementById('open-login');
 const openRegisterBtn = document.getElementById('open-register');
@@ -878,14 +880,27 @@ messageInput.addEventListener('keydown', (event) => {
         sendMessage();
     }
 });
-chatRateUserBtn.onclick = () => openChatFeedback('rate');
-chatReportUserBtn.onclick = () => openChatFeedback('report');
+if (chatRateUserBtn) {
+    chatRateUserBtn.onclick = () => openChatFeedback('rate');
+}
+if (chatReportUserBtn) {
+    chatReportUserBtn.onclick = () => openChatFeedback('report');
+}
+if (chatCallButton) {
+    chatCallButton.onclick = () => callActiveConversation();
+}
+if (chatOptionsButton) {
+    chatOptionsButton.onclick = () => openChatOptions();
+}
 document.getElementById('chat-feedback-confirm').onclick = () => submitChatFeedback();
 document.getElementById('chat-feedback-cancel').onclick = () => closeChatFeedback();
-document.getElementById('messages-back').onclick = () => {
-    mobileMessagesView = 'inbox';
-    renderMessagesTab();
-};
+const messagesBackButton = document.getElementById('messages-back');
+if (messagesBackButton) {
+    messagesBackButton.onclick = () => {
+        mobileMessagesView = 'inbox';
+        renderMessagesTab();
+    };
+}
 document.getElementById('close-profile').onclick = () => goBack();
 
 // Show tab
@@ -1455,17 +1470,12 @@ function startConversation(listing){
 
 function renderMessagesTab(){
     conversationList.innerHTML = '';
-    if (messagesProfileAvatar) {
-        messagesProfileAvatar.innerHTML = renderAvatarMarkup({
-            name: currentUser.name,
-            avatarUrl: currentUser.avatarUrl || '',
-            imageClassName: 'avatar-image',
-            fallbackClassName: 'avatar-fallback',
-        });
-    }
     const activeConversation = conversations.find(conversation => conversation.id === activeConversationId) || conversations[0];
 
     if (!activeConversation && !conversations.length) {
+        if (activeChatAvatar) {
+            activeChatAvatar.innerHTML = '';
+        }
         activeChatTitle.textContent = 'No conversations';
         activeChatMeta.textContent = 'Start from a listing.';
         messagesEmpty.style.display = 'block';
@@ -1522,6 +1532,14 @@ function renderActiveConversation(){
     if (!conversation) return;
     const conversationProfile = getConversationProfile(conversation);
 
+    if (activeChatAvatar) {
+        activeChatAvatar.innerHTML = renderAvatarMarkup({
+            name: conversation.contact,
+            avatarUrl: conversationProfile?.avatarUrl || '',
+            imageClassName: 'avatar-image',
+            fallbackClassName: 'avatar-fallback',
+        });
+    }
     activeChatTitle.textContent = conversation.contact;
     activeChatMeta.textContent = getConversationPresenceLabel(conversation);
     messagesEmpty.style.display = 'none';
@@ -1607,6 +1625,23 @@ function deleteConversation(conversationId){
     clearMessageComposer();
     renderMessagesTab();
     showToast(`Deleted chat with ${targetConversation.contact} from your inbox`);
+}
+
+function callActiveConversation(){
+    const conversation = conversations.find(item => item.id === activeConversationId);
+    if (!conversation) return;
+    showToast(`Calling ${conversation.contact}`);
+}
+
+function openChatOptions(){
+    const conversation = conversations.find(item => item.id === activeConversationId);
+    if (!conversation) return;
+    activeFeedbackMode = 'report';
+    chatFeedbackPanel.style.display = 'block';
+    chatFeedbackTitle.textContent = `Options for ${conversation.contact}`;
+    chatRatingInput.style.display = 'none';
+    document.querySelector('label[for="chat-rating"]').style.display = 'none';
+    chatFeedbackNote.placeholder = 'Add a note or report an issue';
 }
 
 function syncMessagesView(){
