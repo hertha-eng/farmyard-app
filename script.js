@@ -273,8 +273,8 @@ let conversations = [
         lastSeen: 'now',
         lastUpdated: 'Today, 10:24',
         messages: [
-            { author: 'Amina Farm Supplies', text: 'Fresh maize grain is available this week.', time: '10:12', mine: false },
-            { author: 'You', text: 'Can you supply 100kg by Friday?', time: '10:24', mine: true },
+            { author: 'Amina Farm Supplies', text: 'Fresh maize grain is available this week.', time: '10:12', sentAt: '2026-04-06T10:12:00', mine: false },
+            { author: 'You', text: 'Can you supply 100kg by Friday?', time: '10:24', sentAt: '2026-04-06T10:24:00', mine: true },
         ],
     },
     {
@@ -288,7 +288,7 @@ let conversations = [
         lastSeen: '2 hours ago',
         lastUpdated: 'Yesterday',
         messages: [
-            { author: 'Kato Mechanics', text: 'We cover ploughing and harrowing in nearby districts.', time: '17:45', mine: false },
+            { author: 'Kato Mechanics', text: 'We cover ploughing and harrowing in nearby districts.', time: '17:45', sentAt: '2026-04-05T17:45:00', mine: false },
         ],
     },
 ];
@@ -359,6 +359,12 @@ const messageMediaPreview = document.getElementById('message-media-preview');
 const messageAttachButton = document.getElementById('message-attach');
 const chatCallButton = document.getElementById('chat-call-btn');
 const chatOptionsButton = document.getElementById('chat-options-btn');
+const chatOptionsMenu = document.getElementById('chat-options-menu');
+const chatOptionProfileButton = document.getElementById('chat-option-profile');
+const chatOptionCallButton = document.getElementById('chat-option-call');
+const chatOptionRateButton = document.getElementById('chat-option-rate');
+const chatOptionReportButton = document.getElementById('chat-option-report');
+const chatOptionDeleteButton = document.getElementById('chat-option-delete');
 const messagesLayout = document.querySelector('.messages-layout');
 const chatRateUserBtn = document.getElementById('chat-rate-user');
 const chatReportUserBtn = document.getElementById('chat-report-user');
@@ -536,6 +542,36 @@ function getConversationProfile(conversation){
 
 function getCurrentTimeLabel(){
     return new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+}
+
+function formatMessageTimestamp(sentAt, fallbackTime = ''){
+    if (!sentAt) return fallbackTime;
+    const parsedDate = new Date(sentAt);
+    if (Number.isNaN(parsedDate.getTime())) return fallbackTime;
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const yesterday = new Date(today);
+    yesterday.setDate(today.getDate() - 1);
+    const messageDay = new Date(parsedDate.getFullYear(), parsedDate.getMonth(), parsedDate.getDate());
+    const timeLabel = parsedDate.toLocaleTimeString([], {
+        hour: 'numeric',
+        minute: '2-digit',
+    });
+
+    if (messageDay.getTime() === today.getTime()) {
+        return `Today, ${timeLabel}`;
+    }
+
+    if (messageDay.getTime() === yesterday.getTime()) {
+        return `Yesterday, ${timeLabel}`;
+    }
+
+    return parsedDate.toLocaleString([], {
+        month: 'short',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+    });
 }
 
 function renderMessageMediaPreview(){
@@ -890,7 +926,43 @@ if (chatCallButton) {
     chatCallButton.onclick = () => callActiveConversation();
 }
 if (chatOptionsButton) {
-    chatOptionsButton.onclick = () => openChatOptions();
+    chatOptionsButton.onclick = (event) => {
+        event.stopPropagation();
+        toggleChatOptionsMenu();
+    };
+}
+if (chatOptionProfileButton) {
+    chatOptionProfileButton.onclick = () => {
+        closeChatOptionsMenu();
+        openActiveConversationProfile();
+    };
+}
+if (chatOptionCallButton) {
+    chatOptionCallButton.onclick = () => {
+        closeChatOptionsMenu();
+        callActiveConversation();
+    };
+}
+if (chatOptionRateButton) {
+    chatOptionRateButton.onclick = () => {
+        closeChatOptionsMenu();
+        openChatFeedback('rate');
+    };
+}
+if (chatOptionReportButton) {
+    chatOptionReportButton.onclick = () => {
+        closeChatOptionsMenu();
+        openChatFeedback('report');
+    };
+}
+if (chatOptionDeleteButton) {
+    chatOptionDeleteButton.onclick = () => {
+        const conversation = conversations.find(item => item.id === activeConversationId);
+        closeChatOptionsMenu();
+        if (conversation) {
+            deleteConversation(conversation.id);
+        }
+    };
 }
 document.getElementById('chat-feedback-confirm').onclick = () => submitChatFeedback();
 document.getElementById('chat-feedback-cancel').onclick = () => closeChatFeedback();
@@ -1499,13 +1571,14 @@ function renderMessagesTab(){
         });
         const card = document.createElement('div');
         card.className = `conversation-card${conversation.id === activeConversationId ? ' active' : ''}`;
+        const lastMessage = [...conversation.messages].reverse().find(message => message.text?.trim() || message.attachments?.length);
+        const conversationPreview = lastMessage?.text?.trim()
+            || (lastMessage?.attachments?.length ? 'Media attachment' : getConversationPresenceLabel(conversation));
         card.innerHTML = `
             <span class="conversation-avatar">${conversationAvatar}</span>
             <span class="conversation-content">
                 <strong>${conversation.contact}</strong>
-                <p class="conversation-title">${conversation.listingTitle}</p>
-                <p class="conversation-meta">${conversation.role} • ${conversation.location}</p>
-                <p class="conversation-updated">Updated ${conversation.lastUpdated}</p>
+                <p class="conversation-subtitle">${conversationPreview}</p>
             </span>
             <button type="button" class="conversation-delete-btn" aria-label="Delete conversation with ${conversation.contact}">Delete</button>
         `;
@@ -1531,6 +1604,7 @@ function renderActiveConversation(){
     const conversation = conversations.find(item => item.id === activeConversationId);
     if (!conversation) return;
     const conversationProfile = getConversationProfile(conversation);
+    currentProfileId = conversation.sellerId || null;
 
     if (activeChatAvatar) {
         activeChatAvatar.innerHTML = renderAvatarMarkup({
@@ -1573,7 +1647,7 @@ function renderActiveConversation(){
                         ).join('')}
                     </div>
                 ` : ''}
-                <span class="message-meta">${message.author} • ${message.time}</span>
+                <span class="message-meta">${message.author} • ${formatMessageTimestamp(message.sentAt, message.time)}</span>
             </div>
         `;
         chatThread.appendChild(bubble);
@@ -1601,6 +1675,7 @@ function sendMessage(){
         author: 'You',
         text,
         time: getCurrentTimeLabel(),
+        sentAt: new Date().toISOString(),
         mine: true,
         attachments: selectedMessageMedia.map(file => ({ ...file })),
     });
@@ -1633,15 +1708,20 @@ function callActiveConversation(){
     showToast(`Calling ${conversation.contact}`);
 }
 
-function openChatOptions(){
+function openActiveConversationProfile(){
     const conversation = conversations.find(item => item.id === activeConversationId);
-    if (!conversation) return;
-    activeFeedbackMode = 'report';
-    chatFeedbackPanel.style.display = 'block';
-    chatFeedbackTitle.textContent = `Options for ${conversation.contact}`;
-    chatRatingInput.style.display = 'none';
-    document.querySelector('label[for="chat-rating"]').style.display = 'none';
-    chatFeedbackNote.placeholder = 'Add a note or report an issue';
+    if (!conversation?.sellerId) return;
+    openProfile(conversation.sellerId);
+}
+
+function toggleChatOptionsMenu(){
+    if (!chatOptionsMenu) return;
+    chatOptionsMenu.hidden = !chatOptionsMenu.hidden;
+}
+
+function closeChatOptionsMenu(){
+    if (!chatOptionsMenu) return;
+    chatOptionsMenu.hidden = true;
 }
 
 function syncMessagesView(){
@@ -1966,6 +2046,7 @@ function updateNavState(activeTab){
 function openChatFeedback(mode){
     const conversation = conversations.find(item => item.id === activeConversationId);
     if (!conversation) return;
+    closeChatOptionsMenu();
     activeFeedbackMode = mode;
     chatFeedbackPanel.style.display = 'block';
     chatFeedbackTitle.textContent = mode === 'rate' ? `Rate ${conversation.contact}` : `Report ${conversation.contact}`;
@@ -1979,6 +2060,12 @@ function closeChatFeedback(){
     chatRatingInput.value = '';
     chatFeedbackNote.value = '';
 }
+
+document.addEventListener('click', (event) => {
+    if (!chatOptionsMenu || chatOptionsMenu.hidden) return;
+    if (chatOptionsMenu.contains(event.target) || chatOptionsButton?.contains(event.target)) return;
+    closeChatOptionsMenu();
+});
 
 function submitChatFeedback(){
     const conversation = conversations.find(item => item.id === activeConversationId);

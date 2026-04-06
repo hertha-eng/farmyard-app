@@ -1560,6 +1560,7 @@ nav button.is-active {
     align-items: center;
     gap: 8px;
     flex-shrink: 0;
+    position: relative;
 }
 
 .chat-top-action {
@@ -1578,6 +1579,39 @@ nav button.is-active {
 
 .chat-top-action:hover {
     background: rgba(255, 255, 255, 0.22);
+}
+
+.chat-options-menu {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    min-width: 168px;
+    padding: 8px;
+    border-radius: 16px;
+    background: #ffffff;
+    border: 1px solid rgba(103, 119, 96, 0.12);
+    box-shadow: 0 16px 32px rgba(30, 49, 35, 0.14);
+    z-index: 5;
+}
+
+.chat-options-menu button {
+    width: 100%;
+    padding: 10px 12px;
+    border: none;
+    border-radius: 10px;
+    background: transparent;
+    color: #30463a;
+    text-align: left;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.chat-options-menu button:hover {
+    background: #eef5f0;
+}
+
+#chat-option-delete {
+    color: #9b433b;
 }
 
 .messages-panel {
@@ -1673,11 +1707,11 @@ nav button.is-active {
     width: 100%;
     display: grid;
     grid-template-columns: auto 1fr auto;
-    align-items: start;
+    align-items: center;
     gap: 12px;
     padding: 12px 14px;
     border: none;
-    border-radius: 16px;
+    border-radius: 14px;
     background: #ffffff;
     cursor: pointer;
     text-align: left;
@@ -1698,6 +1732,9 @@ nav button.is-active {
 
 .conversation-content {
     min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
 }
 
 .conversation-delete-btn {
@@ -1716,25 +1753,20 @@ nav button.is-active {
 }
 
 .conversation-card strong {
-    font-size: 0.98rem;
-    color: var(--brand-strong);
-}
-
-.conversation-card .conversation-title {
+    display: block;
+    font-size: 0.95rem;
+    color: #21372d;
     font-weight: 700;
-    color: var(--text);
+    line-height: 1.2;
 }
 
-.conversation-card .conversation-meta {
-    font-size: 0.83rem;
-    color: var(--muted);
-}
-
-.conversation-card .conversation-updated {
-    margin-top: 2px;
-    font-size: 0.78rem;
-    font-weight: 700;
-    color: #7b8f80;
+.conversation-subtitle {
+    margin: 0;
+    font-size: 0.82rem;
+    color: #708174;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .conversation-card:hover {
@@ -2092,6 +2124,10 @@ nav button.is-active {
     }
     .conversation-card { grid-template-columns: auto 1fr auto; }
     .active-chat-topbar { align-items: flex-start; }
+    .chat-options-menu {
+        right: 0;
+        min-width: 156px;
+    }
     .message-row,
     .message-row.mine { align-items: flex-start; }
     .message-attachments { grid-template-columns: 1fr; }
