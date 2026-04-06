@@ -21,6 +21,7 @@ const SUPABASE_TABLES = {
     listings: 'listings',
 };
 const LOCAL_STATE_KEY = 'farmyard-local-state-v1';
+const LAST_ACTIVE_TAB_KEY = 'farmyard-last-active-tab';
 
 const DEFAULT_SECURITY = {
     passwordUpdated: '30 days ago',
@@ -1010,6 +1011,7 @@ function showTab(name, options = {}){
     Object.values(tabs).forEach(t => setElementVisibility(t, false));
     setElementVisibility(tabs[name], true);
     returnTabAfterAuth = name;
+    localStorage.setItem(LAST_ACTIVE_TAB_KEY, name);
     updateNavState(name);
     if (name === 'messages') {
         renderMessagesTab();
@@ -3335,7 +3337,7 @@ function generateInviteCode(companyName){
 }
 
 // Initial
-showTab('home');
+showTab(localStorage.getItem(LAST_ACTIVE_TAB_KEY) || 'home');
 refreshMarketplace();
 renderMessagesTab();
 initializeAuth();
