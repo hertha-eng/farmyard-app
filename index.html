@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <title>FarmYard - Marketplace</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -36,7 +39,9 @@
 
     <!-- HEADER -->
     <header>
-        <h1>🌱 FarmYard</h1>
+        <p class="header-kicker">Farm Marketplace</p>
+        <h1>FarmYard</h1>
+        <p class="app-tagline">Buy, sell, and coordinate produce, farm inputs, and services in one cleaner marketplace.</p>
         <div class="auth-actions">
             <button id="open-login" type="button">Login</button>
             <button id="open-register" type="button">Register</button>
@@ -45,14 +50,37 @@
 
     <!-- TABS -->
     <div id="home-tab" class="tab active">
+        <section class="market-hero">
+            <div class="market-hero-copy">
+                <p class="section-eyebrow">Marketplace</p>
+                <h2>Find trusted farm offers faster</h2>
+                <p class="market-hero-text">Search produce, inputs, and field services by name, category, or location, then open any listing to compare terms and contact the seller directly.</p>
+            </div>
+            <div class="market-search-panel">
+                <label for="market-search" class="search-label">Search listings</label>
+                <div class="search-shell">
+                    <span class="search-icon" aria-hidden="true">Search</span>
+                    <input type="search" id="market-search" placeholder="Try maize, ploughing, Kampala, manure">
+                </div>
+                <p id="market-results-copy" class="market-results-copy">Browse current produce, goods, and service listings.</p>
+            </div>
+        </section>
+
         <section id="marketplace">
-            <h2>Marketplace</h2>
+            <div class="section-heading">
+                <p class="section-eyebrow">Live Listings</p>
+                <h3>Fresh opportunities from across the market</h3>
+            </div>
             <div id="marketplace-grid"></div>
         </section>
     </div>
 
     <div id="post-tab" class="tab" hidden>
-        <h2>Post a Listing</h2>
+        <div class="page-hero">
+            <p class="section-eyebrow">Sell</p>
+            <h2>Post a Listing</h2>
+            <p class="section-intro">Create a clearer listing with the details buyers need first: what you offer, how pricing works, and where fulfillment happens.</p>
+        </div>
         <div class="post-form">
             <label for="category">Category</label>
             <select id="category">
@@ -113,7 +141,11 @@
     </div>
 
     <div id="messages-tab" class="tab" hidden>
-        <h2>Messages</h2>
+        <div class="page-hero">
+            <p class="section-eyebrow">Inbox</p>
+            <h2>Messages</h2>
+            <p class="section-intro">Keep buyer and seller conversations organized, then use trust tools when you need to rate or report a counterparty.</p>
+        </div>
         <p class="payment-warning">FarmYard does not process or hold payments. Never send money inside the platform because payments are handled directly between buyer and seller.</p>
         <div class="messages-layout">
             <div class="messages-panel">
@@ -164,11 +196,19 @@
     </div>
 
     <div id="account-tab" class="tab" hidden>
-        <h2>My Listings</h2>
+        <div class="page-hero">
+            <p class="section-eyebrow">Account</p>
+            <h2>My Listings</h2>
+            <p class="section-intro">Track your activity, update your profile, and manage the listings and trust details buyers see.</p>
+        </div>
     </div>
 
     <div id="legal-tab" class="tab" hidden>
-        <h2>Privacy, Terms, and Marketplace Rules</h2>
+        <div class="page-hero">
+            <p class="section-eyebrow">Policy</p>
+            <h2>Privacy, Terms, and Marketplace Rules</h2>
+            <p class="section-intro">Review the operating rules, seller expectations, and safety boundaries that shape how FarmYard is used.</p>
+        </div>
 
         <section class="legal-card">
             <h3>Privacy Policy</h3>

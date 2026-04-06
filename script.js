@@ -298,6 +298,7 @@ let showCompanyTeamMembers = false;
 let showCompanyPendingInvites = false;
 let editingListingIndex = null;
 let hasWarnedAboutPersistenceSetup = false;
+let marketQuery = '';
 
 const app = document.getElementById('app');
 
@@ -316,6 +317,8 @@ const authScreens = {
     register: document.getElementById('register-screen'),
 };
 const marketplace = document.getElementById('marketplace-grid');
+const marketSearchInput = document.getElementById('market-search');
+const marketResultsCopy = document.getElementById('market-results-copy');
 const detailImage = document.getElementById('detail-image');
 const detailTitle = document.getElementById('detail-title');
 const detailVerification = document.getElementById('detail-verification');
@@ -980,7 +983,36 @@ function refreshMarketplace(){
     marketplace.innerHTML = '';
     const initialListings = getInitialListings();
     const all = [...initialListings, ...userListings];
-    all.forEach((listing)=>{
+    const normalizedQuery = marketQuery.trim().toLowerCase();
+    const filteredListings = normalizedQuery
+        ? all.filter(listing => [
+            listing.title,
+            listing.category,
+            listing.location,
+            listing.description,
+            listing.unit,
+            listing.minOrder,
+            listing.postedByName,
+        ].filter(Boolean).some(value => value.toLowerCase().includes(normalizedQuery)))
+        : all;
+
+    if (marketResultsCopy) {
+        marketResultsCopy.textContent = normalizedQuery
+            ? `${filteredListings.length} result${filteredListings.length === 1 ? '' : 's'} for "${marketQuery.trim()}".`
+            : 'Browse current produce, goods, and service listings.';
+    }
+
+    if (!filteredListings.length) {
+        marketplace.innerHTML = `
+            <div class="market-empty-state">
+                <strong>No listings match that search yet.</strong>
+                <p>Try another product, service, seller name, or location to widen the results.</p>
+            </div>
+        `;
+        return;
+    }
+
+    filteredListings.forEach((listing)=>{
         const isSaved = savedListings.some(item => item.slug === listing.slug);
         const sellerProfile = profiles[listing.sellerId];
         const isVerifiedCompany = sellerProfile?.type === 'Company Profile' && sellerProfile?.verificationPlan?.subscribed;
@@ -1015,6 +1047,13 @@ function refreshMarketplace(){
             event.stopPropagation();
             showToast(`Calling seller of ${listing.title}`);
         };
+    });
+}
+
+if (marketSearchInput) {
+    marketSearchInput.addEventListener('input', (event) => {
+        marketQuery = event.target.value;
+        refreshMarketplace();
     });
 }
 
