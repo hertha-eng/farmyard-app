@@ -354,6 +354,9 @@ const profileFields = document.getElementById('profile-fields');
 const profileVerification = document.getElementById('profile-verification');
 const profileStats = document.getElementById('profile-stats');
 const profileAdminTools = document.getElementById('profile-admin-tools');
+const profileAboutCard = profileAbout?.closest('.profile-card');
+const profileFieldsCard = profileFields?.closest('.profile-card');
+const profileTrustCard = profileVerification?.closest('.profile-card');
 const conversationList = document.getElementById('conversation-list');
 const activeChatAvatar = document.getElementById('active-chat-avatar');
 const activeChatTitle = document.getElementById('active-chat-title');
@@ -1418,10 +1421,13 @@ function openProfile(profileId){
     if (!profile) return;
     const isCurrentUsersCompany = profileId === currentUser.companyId;
     const canManageCompanyProfile = isCurrentUsersCompany && currentUser.companyRole === 'Admin';
+    const showCompanyEditorOnly = canManageCompanyProfile && isEditingCompanyProfile;
     currentProfileId = profileId;
-    profileType.textContent = profile.type;
-    profileName.textContent = profile.name;
-    profileRating.textContent = `${profile.rating.toFixed(1)} stars from ${profile.ratingCount} ratings`;
+    profileType.textContent = showCompanyEditorOnly ? 'Company Profile Editor' : profile.type;
+    profileName.textContent = showCompanyEditorOnly ? `Edit ${profile.name}` : profile.name;
+    profileRating.textContent = showCompanyEditorOnly
+        ? 'Update the public company profile and trust details.'
+        : `${profile.rating.toFixed(1)} stars from ${profile.ratingCount} ratings`;
     profileAvatar.innerHTML = renderAvatarMarkup({
         name: profile.name,
         avatarUrl: profile.avatarUrl || '',
@@ -1439,23 +1445,42 @@ function openProfile(profileId){
     profileStats.textContent = `${profile.completedDeals} completed marketplace interactions`;
     profileFields.innerHTML = '';
     profileAdminTools.innerHTML = '';
+    if (profileAboutCard) {
+        profileAboutCard.hidden = showCompanyEditorOnly;
+    }
+    if (profileTrustCard) {
+        profileTrustCard.hidden = showCompanyEditorOnly;
+    }
+    if (profileFieldsCard) {
+        profileFieldsCard.classList.toggle('company-edit-only-card', showCompanyEditorOnly);
+    }
 
-    Object.values(profile.fields).forEach(field => {
-        const item = document.createElement('div');
-        item.className = 'profile-field';
-        item.innerHTML = `
-            <strong>${field.label}</strong>
-            <p>${field.visible ? field.value : 'Hidden by seller'}</p>
-        `;
-        profileFields.appendChild(item);
-    });
+    if (showCompanyEditorOnly) {
+        profileFieldsCard?.querySelector('h3')?.replaceChildren(document.createTextNode('Company Profile Form'));
+    } else {
+        profileFieldsCard?.querySelector('h3')?.replaceChildren(document.createTextNode('Public Details'));
+    }
+
+    if (!showCompanyEditorOnly) {
+        Object.values(profile.fields).forEach(field => {
+            const item = document.createElement('div');
+            item.className = 'profile-field';
+            item.innerHTML = `
+                <strong>${field.label}</strong>
+                <p>${field.visible ? field.value : 'Hidden by seller'}</p>
+            `;
+            profileFields.appendChild(item);
+        });
+    }
 
     if (canManageCompanyProfile) {
         const manageButton = document.createElement('button');
         manageButton.type = 'button';
         manageButton.textContent = isEditingCompanyProfile ? 'Close Company Editor' : 'Edit Company Profile';
         manageButton.onclick = () => toggleCompanyProfileEditor();
-        profileAdminTools.appendChild(manageButton);
+        if (!showCompanyEditorOnly) {
+            profileAdminTools.appendChild(manageButton);
+        }
 
         if (isEditingCompanyProfile) {
             const editor = document.createElement('div');
@@ -1463,8 +1488,8 @@ function openProfile(profileId){
             editor.innerHTML = `
                 <div class="company-form-intro">
                     <p class="section-eyebrow">Company Editor</p>
-                    <h4>Update public company details</h4>
-                    <p>Keep your company profile accurate for buyers, verification review, and team operations.</p>
+                    <h4>Update company profile</h4>
+                    <p>Edit the public business information buyers and team members rely on.</p>
                 </div>
                 <label for="company-name-edit"><strong>Company name</strong></label>
                 <input id="company-name-edit" type="text" value="${profile.name}">
@@ -1484,7 +1509,7 @@ function openProfile(profileId){
                 <input id="company-photo-edit" type="file" accept="image/*">
                 <img id="company-photo-preview" class="upload-preview inline-upload-preview" alt="Company photo preview" ${profile.avatarUrl ? '' : 'hidden'}>
                 <div class="company-verification-editor">
-                    <strong>Internal verification checklist</strong>
+                    <strong>Verification checklist</strong>
                     <p class="card-summary">${countCompletedRequirements(companyAccounts[currentUser.companyId].verificationRequirements)} of ${Object.keys(companyAccounts[currentUser.companyId].verificationRequirements).length} requirements completed.</p>
                     ${Object.entries(companyAccounts[currentUser.companyId].verificationRequirements).map(([key, complete]) => `
                         <label class="verification-item">
