@@ -266,6 +266,7 @@ let conversations = [
         id: 'conv-1',
         listingTitle: 'Maize Grain',
         contact: 'Amina Farm Supplies',
+        sellerId: 'seller-amina',
         role: 'Seller',
         location: 'Farm A',
         lastUpdated: 'Today, 10:24',
@@ -278,6 +279,7 @@ let conversations = [
         id: 'conv-2',
         listingTitle: 'Tractor Ploughing',
         contact: 'Kato Mechanics',
+        sellerId: 'seller-kato',
         role: 'Service Provider',
         location: 'Farm B',
         lastUpdated: 'Yesterday',
@@ -299,6 +301,7 @@ let showCompanyPendingInvites = false;
 let editingListingIndex = null;
 let hasWarnedAboutPersistenceSetup = false;
 let marketQuery = '';
+let selectedMessageMedia = [];
 
 const app = document.getElementById('app');
 
@@ -346,6 +349,9 @@ const activeChatMeta = document.getElementById('active-chat-meta');
 const messagesEmpty = document.getElementById('messages-empty');
 const chatThread = document.getElementById('chat-thread');
 const messageInput = document.getElementById('message-input');
+const messageMediaInput = document.getElementById('message-media-input');
+const messageMediaPreview = document.getElementById('message-media-preview');
+const messageAttachButton = document.getElementById('message-attach');
 const messagesLayout = document.querySelector('.messages-layout');
 const chatRateUserBtn = document.getElementById('chat-rate-user');
 const chatReportUserBtn = document.getElementById('chat-report-user');
@@ -426,6 +432,31 @@ function getInitials(name){
         .join('');
 }
 
+function createGeneratedAvatar(name){
+    const initials = getInitials(name);
+    const palette = [
+        ['#2f6b3b', '#7cad63'],
+        ['#8d5a22', '#d2a05f'],
+        ['#365c68', '#7fb4bf'],
+        ['#5d4d7a', '#a894d1'],
+    ];
+    const index = (name || '').split('').reduce((sum, character) => sum + character.charCodeAt(0), 0) % palette.length;
+    const [start, end] = palette[index];
+    const svg = `
+        <svg xmlns="http://www.w3.org/2000/svg" width="160" height="160" viewBox="0 0 160 160">
+            <defs>
+                <linearGradient id="avatarGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="${start}" />
+                    <stop offset="100%" stop-color="${end}" />
+                </linearGradient>
+            </defs>
+            <rect width="160" height="160" rx="80" fill="url(#avatarGradient)" />
+            <text x="50%" y="54%" dominant-baseline="middle" text-anchor="middle" fill="#ffffff" font-family="Segoe UI, Arial, sans-serif" font-size="56" font-weight="700">${initials}</text>
+        </svg>
+    `;
+    return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
+}
+
 function loadLocalAppState(){
     try {
         const parsed = JSON.parse(localStorage.getItem(LOCAL_STATE_KEY) || '{}');
@@ -456,12 +487,13 @@ function persistLocalAppState(){
 }
 
 function getAvatarUrl(profileId){
-    return profiles[profileId]?.avatarUrl || '';
+    return profiles[profileId]?.avatarUrl || createGeneratedAvatar(profiles[profileId]?.name || 'FarmYard User');
 }
 
 function renderAvatarMarkup({ name, avatarUrl, imageClassName = 'avatar-image', fallbackClassName = 'avatar-fallback' }){
-    if (avatarUrl) {
-        return `<img class="${imageClassName}" src="${avatarUrl}" alt="${name} profile photo">`;
+    const resolvedAvatarUrl = avatarUrl || createGeneratedAvatar(name);
+    if (resolvedAvatarUrl) {
+        return `<img class="${imageClassName}" src="${resolvedAvatarUrl}" alt="${name} profile photo">`;
     }
     return `<span class="${fallbackClassName}">${getInitials(name)}</span>`;
 }
@@ -487,6 +519,80 @@ async function previewSelectedImage(inputElement, previewElement, fallbackUrl = 
     }
     setPreviewImage(previewElement, fallbackUrl, altText);
     return fallbackUrl;
+}
+
+function getConversationProfile(conversation){
+    const bySellerId = profiles[conversation.sellerId];
+    if (bySellerId) return bySellerId;
+    return Object.values(profiles).find(profile => profile.name === conversation.contact) || null;
+}
+
+function getCurrentTimeLabel(){
+    return new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+}
+
+function renderMessageMediaPreview(){
+    if (!messageMediaPreview) return;
+    if (!selectedMessageMedia.length) {
+        messageMediaPreview.innerHTML = '';
+        messageMediaPreview.hidden = true;
+        return;
+    }
+
+    messageMediaPreview.hidden = false;
+    messageMediaPreview.innerHTML = selectedMessageMedia.map((file, index) => `
+        <div class="message-media-chip">
+            ${file.type.startsWith('video/')
+                ? `<video src="${file.dataUrl}" muted playsinline></video>`
+                : `<img src="${file.dataUrl}" alt="${file.name}">`}
+            <button type="button" class="message-media-remove" data-index="${index}" aria-label="Remove ${file.name}">Remove</button>
+        </div>
+    `).join('');
+
+    messageMediaPreview.querySelectorAll('.message-media-remove').forEach(button => {
+        button.onclick = () => {
+            selectedMessageMedia.splice(Number(button.dataset.index), 1);
+            renderMessageMediaPreview();
+        };
+    });
+}
+
+function clearMessageComposer(){
+    messageInput.value = '';
+    selectedMessageMedia = [];
+    if (messageMediaInput) {
+        messageMediaInput.value = '';
+    }
+    renderMessageMediaPreview();
+}
+
+async function handleMessageMediaSelection(){
+    const files = Array.from(messageMediaInput?.files || []);
+    if (!files.length) return;
+    const availableSlots = Math.max(0, 5 - selectedMessageMedia.length);
+
+    if (!availableSlots) {
+        showToast('You can attach a maximum of 5 images or videos at once');
+        messageMediaInput.value = '';
+        return;
+    }
+
+    const acceptedFiles = files.filter(file => file.type.startsWith('image/') || file.type.startsWith('video/'));
+    const filesToAdd = acceptedFiles.slice(0, availableSlots);
+    const loadedFiles = await Promise.all(filesToAdd.map(async (file) => ({
+        name: file.name,
+        type: file.type,
+        dataUrl: await readFileAsDataUrl(file),
+    })));
+
+    selectedMessageMedia = [...selectedMessageMedia, ...loadedFiles].slice(0, 5);
+    renderMessageMediaPreview();
+
+    if (acceptedFiles.length < files.length || files.length > filesToAdd.length) {
+        showToast('Only image and video files are allowed, with a limit of 5 attachments');
+    }
+
+    messageMediaInput.value = '';
 }
 
 function buildProfileFieldsPayload(profile){
@@ -753,6 +859,20 @@ document.getElementById('image').onchange = async () => {
     }
 };
 document.getElementById('message-send').onclick = () => sendMessage();
+messageAttachButton.onclick = () => messageMediaInput?.click();
+messageMediaInput.onchange = async () => {
+    try {
+        await handleMessageMediaSelection();
+    } catch (error) {
+        showToast(error.message || 'Could not attach the selected media');
+    }
+};
+messageInput.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter' && !event.shiftKey) {
+        event.preventDefault();
+        sendMessage();
+    }
+});
 chatRateUserBtn.onclick = () => openChatFeedback('rate');
 chatReportUserBtn.onclick = () => openChatFeedback('report');
 document.getElementById('chat-feedback-confirm').onclick = () => submitChatFeedback();
@@ -1311,6 +1431,7 @@ function startConversation(listing){
             id: `conv-${Date.now()}`,
             listingTitle: listing.title,
             contact: contactName,
+            sellerId: listing.sellerId || null,
             role: sellerProfile?.type || (listing.category === 'Services' ? 'Service Provider' : 'Seller'),
             location: listing.location || 'Marketplace',
             lastUpdated: 'Just now',
@@ -1322,6 +1443,7 @@ function startConversation(listing){
         activeConversationId = newConversation.id;
     }
     mobileMessagesView = 'chat';
+    clearMessageComposer();
     showTab('messages');
     showToast(`Opened conversation for ${listing.title}`);
 }
@@ -1335,6 +1457,7 @@ function renderMessagesTab(){
         activeChatMeta.textContent = 'Message a seller from any listing to start chatting here.';
         messagesEmpty.style.display = 'block';
         chatThread.innerHTML = '';
+        clearMessageComposer();
         syncMessagesView();
         return;
     }
@@ -1344,18 +1467,29 @@ function renderMessagesTab(){
     }
 
     conversations.forEach(conversation => {
+        const conversationProfile = getConversationProfile(conversation);
+        const conversationAvatar = renderAvatarMarkup({
+            name: conversation.contact,
+            avatarUrl: conversationProfile?.avatarUrl || '',
+            imageClassName: 'avatar-image',
+            fallbackClassName: 'avatar-fallback',
+        });
         const card = document.createElement('button');
         card.type = 'button';
         card.className = `conversation-card${conversation.id === activeConversationId ? ' active' : ''}`;
         card.innerHTML = `
-            <strong>${conversation.contact}</strong>
-            <p>${conversation.listingTitle}</p>
-            <p>${conversation.role} • ${conversation.location}</p>
-            <p>${conversation.lastUpdated}</p>
+            <span class="conversation-avatar">${conversationAvatar}</span>
+            <span class="conversation-content">
+                <strong>${conversation.contact}</strong>
+                <p class="conversation-title">${conversation.listingTitle}</p>
+                <p class="conversation-meta">${conversation.role} • ${conversation.location}</p>
+                <p class="conversation-updated">Updated ${conversation.lastUpdated}</p>
+            </span>
         `;
         card.onclick = () => {
             activeConversationId = conversation.id;
             mobileMessagesView = 'chat';
+            clearMessageComposer();
             renderMessagesTab();
         };
         conversationList.appendChild(card);
@@ -1369,36 +1503,64 @@ function renderActiveConversation(){
     const conversation = conversations.find(item => item.id === activeConversationId);
     if (!conversation) return;
     const profile = getCounterpartyProfile(conversation.contact);
+    const conversationProfile = getConversationProfile(conversation);
 
     activeChatTitle.textContent = conversation.contact;
-    activeChatMeta.textContent = `${conversation.listingTitle} • ${conversation.role} • ${conversation.location} • ${profile.rating.toFixed(1)} stars`;
+    activeChatMeta.textContent = `${conversation.listingTitle} • ${conversation.role} • ${conversation.location} • ${profile.rating.toFixed(1)} star rating`;
     messagesEmpty.style.display = 'none';
     chatThread.innerHTML = '';
 
     conversation.messages.forEach(message => {
         const bubble = document.createElement('div');
-        bubble.className = `message-bubble${message.mine ? ' mine' : ''}`;
+        bubble.className = `message-row${message.mine ? ' mine' : ''}`;
+        const authorAvatar = message.mine
+            ? renderAvatarMarkup({
+                name: currentUser.name,
+                avatarUrl: currentUser.avatarUrl || '',
+                imageClassName: 'avatar-image',
+                fallbackClassName: 'avatar-fallback',
+            })
+            : renderAvatarMarkup({
+                name: conversation.contact,
+                avatarUrl: conversationProfile?.avatarUrl || '',
+                imageClassName: 'avatar-image',
+                fallbackClassName: 'avatar-fallback',
+            });
         bubble.innerHTML = `
-            <p>${message.text}</p>
-            <span class="message-meta">${message.author} • ${message.time}</span>
+            <span class="message-author-avatar">${authorAvatar}</span>
+            <div class="message-bubble${message.mine ? ' mine' : ''}">
+                ${message.text ? `<p>${message.text}</p>` : ''}
+                ${message.attachments?.length ? `
+                    <div class="message-attachments">
+                        ${message.attachments.map((attachment, index) => attachment.type.startsWith('video/')
+                            ? `<video controls preload="metadata" src="${attachment.dataUrl}" aria-label="Video attachment ${index + 1}"></video>`
+                            : `<img src="${attachment.dataUrl}" alt="${attachment.name || `Image attachment ${index + 1}`}">`
+                        ).join('')}
+                    </div>
+                ` : ''}
+                <span class="message-meta">${message.author} • ${message.time}</span>
+            </div>
         `;
         chatThread.appendChild(bubble);
     });
+
+    chatThread.scrollTop = chatThread.scrollHeight;
 }
 
 function sendMessage(){
     const text = messageInput.value.trim();
     const conversation = conversations.find(item => item.id === activeConversationId);
-    if (!text || !conversation) return;
+    if ((!text && !selectedMessageMedia.length) || !conversation) return;
 
     conversation.messages.push({
         author: 'You',
         text,
-        time: 'Now',
+        time: getCurrentTimeLabel(),
         mine: true,
+        attachments: selectedMessageMedia.map(file => ({ ...file })),
     });
     conversation.lastUpdated = 'Just now';
-    messageInput.value = '';
+    clearMessageComposer();
     renderMessagesTab();
     showToast('Message sent');
 }

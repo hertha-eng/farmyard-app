@@ -4,9 +4,6 @@
     <meta charset="UTF-8">
     <title>FarmYard - Marketplace</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -150,20 +147,22 @@
         <div class="messages-layout">
             <div class="messages-panel">
                 <div class="messages-panel-header">
+                    <p class="messages-panel-kicker">Inbox</p>
                     <h3>Conversations</h3>
-                    <p>Open a chat from any listing to continue here.</p>
+                    <p>Open a chat from any listing to continue the discussion here.</p>
                 </div>
                 <div id="conversation-list" class="conversation-list"></div>
             </div>
             <div class="messages-panel active-chat">
                 <div class="messages-panel-header">
                     <button id="messages-back" class="messages-back" type="button">Back to Inbox</button>
+                    <p class="messages-panel-kicker">Active Conversation</p>
                     <h3 id="active-chat-title">Select a conversation</h3>
-                    <p id="active-chat-meta">Tap a buyer or seller conversation to view messages.</p>
+                    <p id="active-chat-meta">Select a buyer or seller conversation to review the thread.</p>
                 </div>
                 <div class="chat-trust-actions">
-                    <button id="chat-rate-user" type="button">Rate User</button>
-                    <button id="chat-report-user" type="button">Report User</button>
+                    <button id="chat-rate-user" type="button">Rate Counterparty</button>
+                    <button id="chat-report-user" type="button">Report Issue</button>
                 </div>
                 <div id="chat-feedback-panel" class="chat-feedback-panel">
                     <h4 id="chat-feedback-title">Rate User</h4>
@@ -187,10 +186,14 @@
                     <p>No conversation selected yet.</p>
                 </div>
                 <div id="chat-thread" class="chat-thread"></div>
+                <div id="message-media-preview" class="message-media-preview" hidden></div>
                 <div class="chat-composer">
-                    <input type="text" id="message-input" placeholder="Type a message about delivery, price, or availability">
+                    <input type="file" id="message-media-input" accept="image/*,video/*" multiple hidden>
+                    <button id="message-attach" class="message-attach-btn" type="button">Add Media</button>
+                    <input type="text" id="message-input" placeholder="Write a clear message about delivery, price, quantity, or availability">
                     <button id="message-send" type="button">Send</button>
                 </div>
+                <p class="message-help-text">Share up to 5 images or videos in one message.</p>
             </div>
         </div>
     </div>
