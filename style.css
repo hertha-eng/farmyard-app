@@ -1706,7 +1706,7 @@ nav button.is-active {
 .conversation-card {
     width: 100%;
     display: grid;
-    grid-template-columns: auto 1fr auto;
+    grid-template-columns: auto 1fr;
     align-items: center;
     gap: 12px;
     padding: 12px 14px;
@@ -1735,21 +1735,6 @@ nav button.is-active {
     display: flex;
     flex-direction: column;
     gap: 3px;
-}
-
-.conversation-delete-btn {
-    padding: 7px 10px;
-    border: none;
-    border-radius: 999px;
-    background: #f5f1eb;
-    color: #7f6c5b;
-    font-size: 0.74rem;
-    font-weight: 700;
-    cursor: pointer;
-}
-
-.conversation-delete-btn:hover {
-    background: #ece4d9;
 }
 
 .conversation-card strong {
@@ -2026,6 +2011,101 @@ nav button.is-active {
     font-size: 0.8rem;
 }
 
+.call-screen {
+    position: fixed;
+    inset: 0;
+    z-index: 1100;
+    display: grid;
+    place-items: center;
+    padding: 24px;
+    background:
+        radial-gradient(circle at top, rgba(219, 241, 223, 0.14), transparent 32%),
+        linear-gradient(180deg, rgba(19, 49, 34, 0.72), rgba(15, 31, 24, 0.88));
+    backdrop-filter: blur(12px);
+}
+
+.call-shell {
+    width: min(100%, 360px);
+    padding: 28px 24px 24px;
+    border-radius: 30px;
+    text-align: center;
+    background:
+        radial-gradient(circle at top, rgba(255, 255, 255, 0.14), transparent 36%),
+        linear-gradient(180deg, #1c5d42 0%, #184937 100%);
+    color: #f5fcf7;
+    box-shadow: 0 26px 56px rgba(0, 0, 0, 0.28);
+}
+
+.call-kicker {
+    font-size: 0.78rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: rgba(235, 247, 238, 0.76);
+}
+
+.call-avatar {
+    width: 104px;
+    height: 104px;
+    margin: 20px auto 16px;
+    border-radius: 50%;
+    overflow: hidden;
+    display: grid;
+    place-items: center;
+    background: rgba(255, 255, 255, 0.18);
+    border: 2px solid rgba(255, 255, 255, 0.16);
+}
+
+.call-shell h2 {
+    margin: 0;
+    font-size: 1.5rem;
+    color: #ffffff;
+}
+
+.call-status,
+.call-duration {
+    margin-top: 8px;
+    color: rgba(234, 245, 237, 0.88);
+}
+
+.call-duration {
+    font-weight: 700;
+    letter-spacing: 0.04em;
+}
+
+.call-actions {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+    margin-top: 28px;
+}
+
+.call-action-btn {
+    min-width: 88px;
+    padding: 12px 14px;
+    border: none;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.14);
+    color: #f6fcf7;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.call-action-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.call-action-btn.is-active {
+    background: rgba(226, 242, 230, 0.28);
+}
+
+.call-end-btn {
+    background: #dc5b58;
+}
+
+.call-end-btn:hover {
+    background: #cf4845;
+}
+
 /* --------------------
    LOGIN / REGISTER
 -------------------- */
@@ -2122,11 +2202,19 @@ nav button.is-active {
         gap: 8px;
         padding: 8px 10px;
     }
-    .conversation-card { grid-template-columns: auto 1fr auto; }
+    .conversation-card { grid-template-columns: auto 1fr; }
     .active-chat-topbar { align-items: flex-start; }
     .chat-options-menu {
         right: 0;
         min-width: 156px;
+    }
+    .call-shell {
+        width: 100%;
+        max-width: 360px;
+        padding: 24px 18px 20px;
+    }
+    .call-actions {
+        flex-wrap: wrap;
     }
     .message-row,
     .message-row.mine { align-items: flex-start; }

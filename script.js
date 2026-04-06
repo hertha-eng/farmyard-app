@@ -306,6 +306,12 @@ let editingListingIndex = null;
 let hasWarnedAboutPersistenceSetup = false;
 let marketQuery = '';
 let selectedMessageMedia = [];
+let activeCallConversationId = null;
+let activeCallStream = null;
+let activeCallStartedAt = null;
+let activeCallTimerId = null;
+let isCallMuted = false;
+let isSpeakerMode = false;
 
 const app = document.getElementById('app');
 
@@ -365,6 +371,14 @@ const chatOptionCallButton = document.getElementById('chat-option-call');
 const chatOptionRateButton = document.getElementById('chat-option-rate');
 const chatOptionReportButton = document.getElementById('chat-option-report');
 const chatOptionDeleteButton = document.getElementById('chat-option-delete');
+const callScreen = document.getElementById('call-screen');
+const callAvatar = document.getElementById('call-avatar');
+const callName = document.getElementById('call-name');
+const callStatus = document.getElementById('call-status');
+const callDuration = document.getElementById('call-duration');
+const callMuteButton = document.getElementById('call-mute-btn');
+const callSpeakerButton = document.getElementById('call-speaker-btn');
+const callEndButton = document.getElementById('call-end-btn');
 const messagesLayout = document.querySelector('.messages-layout');
 const chatRateUserBtn = document.getElementById('chat-rate-user');
 const chatReportUserBtn = document.getElementById('chat-report-user');
@@ -963,6 +977,15 @@ if (chatOptionDeleteButton) {
             deleteConversation(conversation.id);
         }
     };
+}
+if (callMuteButton) {
+    callMuteButton.onclick = () => toggleCallMute();
+}
+if (callSpeakerButton) {
+    callSpeakerButton.onclick = () => toggleSpeakerMode();
+}
+if (callEndButton) {
+    callEndButton.onclick = () => endActiveCall(true);
 }
 document.getElementById('chat-feedback-confirm').onclick = () => submitChatFeedback();
 document.getElementById('chat-feedback-cancel').onclick = () => closeChatFeedback();
@@ -1580,18 +1603,12 @@ function renderMessagesTab(){
                 <strong>${conversation.contact}</strong>
                 <p class="conversation-subtitle">${conversationPreview}</p>
             </span>
-            <button type="button" class="conversation-delete-btn" aria-label="Delete conversation with ${conversation.contact}">Delete</button>
         `;
         card.onclick = () => {
             activeConversationId = conversation.id;
             mobileMessagesView = 'chat';
             clearMessageComposer();
             renderMessagesTab();
-        };
-        const deleteButton = card.querySelector('.conversation-delete-btn');
-        deleteButton.onclick = (event) => {
-            event.stopPropagation();
-            deleteConversation(conversation.id);
         };
         conversationList.appendChild(card);
     });
@@ -1705,7 +1722,7 @@ function deleteConversation(conversationId){
 function callActiveConversation(){
     const conversation = conversations.find(item => item.id === activeConversationId);
     if (!conversation) return;
-    showToast(`Calling ${conversation.contact}`);
+    openInAppCall(conversation);
 }
 
 function openActiveConversationProfile(){
@@ -1722,6 +1739,115 @@ function toggleChatOptionsMenu(){
 function closeChatOptionsMenu(){
     if (!chatOptionsMenu) return;
     chatOptionsMenu.hidden = true;
+}
+
+async function openInAppCall(conversation){
+    if (!conversation || !callScreen) return;
+    closeChatOptionsMenu();
+    activeCallConversationId = conversation.id;
+    isCallMuted = false;
+    isSpeakerMode = false;
+    updateCallControlState();
+    callName.textContent = conversation.contact;
+    callStatus.textContent = 'Calling...';
+    callDuration.hidden = true;
+    callDuration.textContent = '00:00';
+
+    const conversationProfile = getConversationProfile(conversation);
+    if (callAvatar) {
+        callAvatar.innerHTML = renderAvatarMarkup({
+            name: conversation.contact,
+            avatarUrl: conversationProfile?.avatarUrl || '',
+            imageClassName: 'avatar-image',
+            fallbackClassName: 'avatar-fallback',
+        });
+    }
+
+    callScreen.hidden = false;
+
+    if (!navigator.mediaDevices?.getUserMedia) {
+        callStatus.textContent = 'Audio calling is not supported on this device';
+        return;
+    }
+
+    try {
+        activeCallStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+        activeCallStartedAt = Date.now();
+        callStatus.textContent = 'Connected';
+        callDuration.hidden = false;
+        startCallTimer();
+        showToast(`Call started with ${conversation.contact}`);
+    } catch (error) {
+        console.error('Failed to start call', error);
+        callStatus.textContent = 'Microphone permission needed';
+    }
+}
+
+function startCallTimer(){
+    stopCallTimer();
+    updateCallDuration();
+    activeCallTimerId = window.setInterval(() => {
+        updateCallDuration();
+    }, 1000);
+}
+
+function stopCallTimer(){
+    if (!activeCallTimerId) return;
+    window.clearInterval(activeCallTimerId);
+    activeCallTimerId = null;
+}
+
+function updateCallDuration(){
+    if (!activeCallStartedAt || !callDuration) return;
+    const elapsedSeconds = Math.max(0, Math.floor((Date.now() - activeCallStartedAt) / 1000));
+    const minutes = String(Math.floor(elapsedSeconds / 60)).padStart(2, '0');
+    const seconds = String(elapsedSeconds % 60).padStart(2, '0');
+    callDuration.textContent = `${minutes}:${seconds}`;
+}
+
+function toggleCallMute(){
+    if (!activeCallStream) return;
+    isCallMuted = !isCallMuted;
+    activeCallStream.getAudioTracks().forEach(track => {
+        track.enabled = !isCallMuted;
+    });
+    updateCallControlState();
+}
+
+function toggleSpeakerMode(){
+    isSpeakerMode = !isSpeakerMode;
+    updateCallControlState();
+    showToast(isSpeakerMode ? 'Speaker enabled' : 'Speaker disabled');
+}
+
+function updateCallControlState(){
+    if (callMuteButton) {
+        callMuteButton.classList.toggle('is-active', isCallMuted);
+        callMuteButton.textContent = isCallMuted ? 'Muted' : 'Mute';
+    }
+    if (callSpeakerButton) {
+        callSpeakerButton.classList.toggle('is-active', isSpeakerMode);
+        callSpeakerButton.textContent = isSpeakerMode ? 'Speaker On' : 'Speaker';
+    }
+}
+
+function endActiveCall(showEndedToast = false){
+    if (activeCallStream) {
+        activeCallStream.getTracks().forEach(track => track.stop());
+        activeCallStream = null;
+    }
+    stopCallTimer();
+    activeCallStartedAt = null;
+    activeCallConversationId = null;
+    isCallMuted = false;
+    isSpeakerMode = false;
+    updateCallControlState();
+    if (callScreen) {
+        callScreen.hidden = true;
+    }
+    if (showEndedToast) {
+        showToast('Call ended');
+    }
 }
 
 function syncMessagesView(){
@@ -2065,6 +2191,10 @@ document.addEventListener('click', (event) => {
     if (!chatOptionsMenu || chatOptionsMenu.hidden) return;
     if (chatOptionsMenu.contains(event.target) || chatOptionsButton?.contains(event.target)) return;
     closeChatOptionsMenu();
+});
+
+window.addEventListener('beforeunload', () => {
+    endActiveCall(false);
 });
 
 function submitChatFeedback(){

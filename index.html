@@ -358,6 +358,21 @@
 
 </div>
 
+<div id="call-screen" class="call-screen" hidden>
+    <div class="call-shell">
+        <p class="call-kicker">FarmYard Call</p>
+        <div id="call-avatar" class="call-avatar" aria-label="Call profile photo"></div>
+        <h2 id="call-name">Contact</h2>
+        <p id="call-status" class="call-status">Calling...</p>
+        <p id="call-duration" class="call-duration" hidden>00:00</p>
+        <div class="call-actions">
+            <button id="call-mute-btn" class="call-action-btn" type="button">Mute</button>
+            <button id="call-speaker-btn" class="call-action-btn" type="button">Speaker</button>
+            <button id="call-end-btn" class="call-action-btn call-end-btn" type="button">End</button>
+        </div>
+    </div>
+</div>
+
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
