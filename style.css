@@ -294,6 +294,7 @@ nav button.is-active {
 /* --------------------
    CARDS
 -------------------- */
+.page-heading,
 .page-hero,
 .market-hero {
     position: relative;
@@ -308,6 +309,16 @@ nav button.is-active {
         linear-gradient(135deg, rgba(255, 252, 246, 0.98), rgba(244, 239, 226, 0.92)),
         var(--surface);
     box-shadow: var(--shadow-soft);
+}
+
+.page-heading {
+    gap: 6px;
+    padding: 14px 4px 6px;
+    margin-bottom: 12px;
+    border: none;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
 }
 
 .market-hero {
@@ -327,10 +338,43 @@ nav button.is-active {
     background: radial-gradient(circle, rgba(217, 141, 63, 0.16), transparent 70%);
 }
 
+.page-heading::after {
+    display: none;
+}
+
 .market-hero-copy,
 .market-search-panel,
+.page-heading > *,
 .page-hero > * {
     position: relative;
+}
+
+.page-brand {
+    font-size: 0.76rem;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--brand);
+}
+
+.page-heading-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid rgba(103, 119, 96, 0.14);
+}
+
+.page-heading-row h2 {
+    font-size: 1.35rem;
+}
+
+.page-heading-note {
+    color: var(--muted);
+    font-size: 0.88rem;
+    font-weight: 600;
+    white-space: nowrap;
 }
 
 .market-hero-text,
@@ -1719,6 +1763,7 @@ nav button.is-active {
     .auth-actions { width: 90%; }
     .auth-actions button { flex: 1; }
     .market-hero { grid-template-columns: 1fr; }
+    .page-heading-row { flex-direction: column; align-items: flex-start; }
     .page-hero,
     .market-hero { padding: 18px; border-radius: 24px; }
     .form-row { grid-template-columns: 1fr; }
