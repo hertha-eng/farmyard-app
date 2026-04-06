@@ -2344,6 +2344,74 @@ function renderUserListings(){
             </div>
         </section>
         `;
+    const profileEditorMarkup = isEditingProfile
+        ? `
+                <div class="inline-form-panel">
+                    <div class="profile-edit-grid">
+                        <div>
+                            <label for="edit-name">Display name</label>
+                            <input id="edit-name" type="text" value="${currentUser.name}">
+                        </div>
+                        <div>
+                            <label for="edit-role">Role</label>
+                            <input id="edit-role" type="text" value="${currentUser.role}">
+                        </div>
+                        <div>
+                            <label for="edit-location">Location</label>
+                            <input id="edit-location" type="text" value="${profiles[currentUser.id].fields.location.value}">
+                        </div>
+                        <div>
+                            <label for="edit-phone">Phone</label>
+                            <input id="edit-phone" type="text" value="${currentUser.phone}">
+                        </div>
+                        <div>
+                            <label for="edit-email">Email</label>
+                            <input id="edit-email" type="email" value="${currentUser.email}">
+                        </div>
+                        <div>
+                            <label for="edit-company-role">Company role</label>
+                            <input id="edit-company-role" type="text" value="${profiles[currentUser.id].fields.companyRole?.value || ''}">
+                        </div>
+                    </div>
+                    <label for="edit-about">About</label>
+                    <textarea id="edit-about" rows="4">${profiles[currentUser.id].about}</textarea>
+                    <label for="edit-profile-photo">Profile photo</label>
+                    <input id="edit-profile-photo" type="file" accept="image/*">
+                    <img id="edit-profile-photo-preview" class="upload-preview inline-upload-preview" alt="Profile photo preview" ${currentUser.avatarUrl ? '' : 'hidden'}>
+                    <div class="profile-edit-actions">
+                        <button id="save-profile-btn" class="btn btn-primary" type="button">Save Profile</button>
+                        <button id="cancel-profile-edit" class="btn btn-secondary" type="button">Cancel</button>
+                    </div>
+                    <div class="section-divider"></div>
+                    <div class="section-heading compact">
+                        <h3>Profile Privacy</h3>
+                        <p>Choose what buyers and other sellers can see on your public profile.</p>
+                    </div>
+                    <div class="privacy-controls">
+                        <button id="toggle-location-visibility" class="btn btn-secondary" type="button">${profiles[currentUser.id].fields.location.visible ? 'Hide' : 'Show'} Location</button>
+                        <button id="toggle-phone-visibility" class="btn btn-secondary" type="button">${profiles[currentUser.id].fields.phone.visible ? 'Hide' : 'Show'} Phone</button>
+                        <button id="toggle-email-visibility" class="btn btn-secondary" type="button">${profiles[currentUser.id].fields.email.visible ? 'Hide' : 'Show'} Email</button>
+                    </div>
+                    <div class="section-divider"></div>
+                    <div class="section-heading compact">
+                        <h3>Account Security</h3>
+                        <p>Keep your seller access secure across shared devices and team logins.</p>
+                    </div>
+                    <div class="detail-list">
+                        <p><strong>Password updated</strong><span>${currentUser.security.passwordUpdated}</span></p>
+                        <p><strong>Two-factor authentication</strong><span>${currentUser.security.twoFactorEnabled ? 'Enabled' : 'Not enabled'}</span></p>
+                        <p><strong>Active sessions</strong><span>${currentUser.security.activeSessions}</span></p>
+                        <p><strong>Login alerts</strong><span>${currentUser.security.loginAlerts ? 'Enabled' : 'Disabled'}</span></p>
+                    </div>
+                    <div class="security-actions">
+                        <button id="change-password-btn" class="btn btn-primary" type="button">Change Password</button>
+                        <button id="toggle-2fa-btn" class="btn btn-secondary" type="button">${currentUser.security.twoFactorEnabled ? 'Disable' : 'Enable'} 2FA</button>
+                        <button id="toggle-alerts-btn" class="btn btn-secondary" type="button">${currentUser.security.loginAlerts ? 'Disable' : 'Enable'} Alerts</button>
+                        <button id="signout-sessions-btn" class="btn btn-secondary" type="button">Sign Out Other Sessions</button>
+                    </div>
+                </div>
+            `
+        : '';
 
     acc.innerHTML = `
         <section class="account-section account-hero">
@@ -2416,9 +2484,10 @@ function renderUserListings(){
                     <p><strong>Trading focus</strong><span>Agriculture products, raw materials, finished goods, and services</span></p>
                 </div>
                 <div class="profile-summary-actions">
-                    <button id="open-profile-editor" class="btn btn-primary" type="button">${isEditingProfile ? 'Close Editor' : 'Edit Profile'}</button>
+                    <button id="open-profile-editor" class="btn btn-primary" type="button">${isEditingProfile ? 'Close Profile Form' : 'Edit Profile'}</button>
                     <button id="view-company-profile-btn" class="btn btn-secondary" type="button">${companyProfile ? 'View Company Profile' : 'Create Company Profile'}</button>
                 </div>
+                ${profileEditorMarkup}
             </div>
 
             <div class="account-card">
@@ -2478,78 +2547,6 @@ function renderUserListings(){
                 </div>
             </div>
             ` : ''}
-        </details>
-
-        <details class="account-section account-card account-accordion"${isEditingProfile ? ' open' : ''}>
-            <summary>
-                <div class="section-heading">
-                    <p class="section-eyebrow">Settings</p>
-                    <h3>Edit Profile</h3>
-                </div>
-                <span class="accordion-meta">${isEditingProfile ? 'Editing now' : 'Profile fields and privacy'}</span>
-            </summary>
-            <div class="profile-edit-grid">
-                <div>
-                    <label for="edit-name">Display name</label>
-                    <input id="edit-name" type="text" value="${currentUser.name}">
-                </div>
-                <div>
-                    <label for="edit-role">Role</label>
-                    <input id="edit-role" type="text" value="${currentUser.role}">
-                </div>
-                <div>
-                    <label for="edit-location">Location</label>
-                    <input id="edit-location" type="text" value="${profiles[currentUser.id].fields.location.value}">
-                </div>
-                <div>
-                    <label for="edit-phone">Phone</label>
-                    <input id="edit-phone" type="text" value="${currentUser.phone}">
-                </div>
-                <div>
-                    <label for="edit-email">Email</label>
-                    <input id="edit-email" type="email" value="${currentUser.email}">
-                </div>
-                <div>
-                    <label for="edit-company-role">Company role</label>
-                    <input id="edit-company-role" type="text" value="${profiles[currentUser.id].fields.companyRole?.value || ''}">
-                </div>
-            </div>
-            <label for="edit-about">About</label>
-            <textarea id="edit-about" rows="4">${profiles[currentUser.id].about}</textarea>
-            <label for="edit-profile-photo">Profile photo</label>
-            <input id="edit-profile-photo" type="file" accept="image/*">
-            <img id="edit-profile-photo-preview" class="upload-preview inline-upload-preview" alt="Profile photo preview" ${currentUser.avatarUrl ? '' : 'hidden'}>
-            <div class="profile-edit-actions">
-                <button id="save-profile-btn" class="btn btn-primary" type="button">Save Profile</button>
-                <button id="cancel-profile-edit" class="btn btn-secondary" type="button">Cancel</button>
-            </div>
-            <div class="section-divider"></div>
-            <div class="section-heading compact">
-                <h3>Profile Privacy</h3>
-                <p>Choose what buyers and other sellers can see on your public profile.</p>
-            </div>
-            <div class="privacy-controls">
-                <button id="toggle-location-visibility" class="btn btn-secondary" type="button">${profiles[currentUser.id].fields.location.visible ? 'Hide' : 'Show'} Location</button>
-                <button id="toggle-phone-visibility" class="btn btn-secondary" type="button">${profiles[currentUser.id].fields.phone.visible ? 'Hide' : 'Show'} Phone</button>
-                <button id="toggle-email-visibility" class="btn btn-secondary" type="button">${profiles[currentUser.id].fields.email.visible ? 'Hide' : 'Show'} Email</button>
-            </div>
-            <div class="section-divider"></div>
-            <div class="section-heading compact">
-                <h3>Account Security</h3>
-                <p>Keep your seller access secure across shared devices and team logins.</p>
-            </div>
-            <div class="detail-list">
-                <p><strong>Password updated</strong><span>${currentUser.security.passwordUpdated}</span></p>
-                <p><strong>Two-factor authentication</strong><span>${currentUser.security.twoFactorEnabled ? 'Enabled' : 'Not enabled'}</span></p>
-                <p><strong>Active sessions</strong><span>${currentUser.security.activeSessions}</span></p>
-                <p><strong>Login alerts</strong><span>${currentUser.security.loginAlerts ? 'Enabled' : 'Disabled'}</span></p>
-            </div>
-            <div class="security-actions">
-                <button id="change-password-btn" class="btn btn-primary" type="button">Change Password</button>
-                <button id="toggle-2fa-btn" class="btn btn-secondary" type="button">${currentUser.security.twoFactorEnabled ? 'Disable' : 'Enable'} 2FA</button>
-                <button id="toggle-alerts-btn" class="btn btn-secondary" type="button">${currentUser.security.loginAlerts ? 'Disable' : 'Enable'} Alerts</button>
-                <button id="signout-sessions-btn" class="btn btn-secondary" type="button">Sign Out Other Sessions</button>
-            </div>
         </details>
 
         <section class="account-section account-card">
@@ -2622,7 +2619,6 @@ function renderUserListings(){
     document.getElementById('account-legal-btn').onclick = () => showTab('legal');
     document.getElementById('account-signout-btn').onclick = () => signOutUser();
     document.getElementById('open-profile-editor').onclick = () => toggleProfileEditor();
-    document.getElementById('save-profile-btn').onclick = () => saveProfileEdits();
     document.getElementById('view-profile-btn').onclick = () => openProfile(currentUser.id);
     document.getElementById('view-company-profile-btn').onclick = () => {
         if (currentUser.companyId) {
@@ -2669,27 +2665,30 @@ function renderUserListings(){
             button.onclick = () => removeSalesMember(button.dataset.memberId);
         });
     }
-    document.getElementById('cancel-profile-edit').onclick = () => toggleProfileEditor(false);
-    setPreviewImage(document.getElementById('edit-profile-photo-preview'), currentUser.avatarUrl || '', 'Profile photo preview');
-    document.getElementById('edit-profile-photo').onchange = async () => {
-        try {
-            await previewSelectedImage(
-                document.getElementById('edit-profile-photo'),
-                document.getElementById('edit-profile-photo-preview'),
-                currentUser.avatarUrl || '',
-                'Profile photo preview'
-            );
-        } catch (error) {
-            showToast(error.message || 'Could not preview the selected profile photo');
-        }
-    };
-    document.getElementById('toggle-location-visibility').onclick = () => toggleProfileVisibility('location');
-    document.getElementById('toggle-phone-visibility').onclick = () => toggleProfileVisibility('phone');
-    document.getElementById('toggle-email-visibility').onclick = () => toggleProfileVisibility('email');
-    document.getElementById('change-password-btn').onclick = () => changePassword();
-    document.getElementById('toggle-2fa-btn').onclick = () => toggleTwoFactor();
-    document.getElementById('toggle-alerts-btn').onclick = () => toggleLoginAlerts();
-    document.getElementById('signout-sessions-btn').onclick = () => signOutOtherSessions();
+    if (isEditingProfile) {
+        document.getElementById('save-profile-btn').onclick = () => saveProfileEdits();
+        document.getElementById('cancel-profile-edit').onclick = () => toggleProfileEditor(false);
+        setPreviewImage(document.getElementById('edit-profile-photo-preview'), currentUser.avatarUrl || '', 'Profile photo preview');
+        document.getElementById('edit-profile-photo').onchange = async () => {
+            try {
+                await previewSelectedImage(
+                    document.getElementById('edit-profile-photo'),
+                    document.getElementById('edit-profile-photo-preview'),
+                    currentUser.avatarUrl || '',
+                    'Profile photo preview'
+                );
+            } catch (error) {
+                showToast(error.message || 'Could not preview the selected profile photo');
+            }
+        };
+        document.getElementById('toggle-location-visibility').onclick = () => toggleProfileVisibility('location');
+        document.getElementById('toggle-phone-visibility').onclick = () => toggleProfileVisibility('phone');
+        document.getElementById('toggle-email-visibility').onclick = () => toggleProfileVisibility('email');
+        document.getElementById('change-password-btn').onclick = () => changePassword();
+        document.getElementById('toggle-2fa-btn').onclick = () => toggleTwoFactor();
+        document.getElementById('toggle-alerts-btn').onclick = () => toggleLoginAlerts();
+        document.getElementById('signout-sessions-btn').onclick = () => signOutOtherSessions();
+    }
     renderAccountExtras();
 
     const listingsGrid = document.getElementById('account-listings-grid');
