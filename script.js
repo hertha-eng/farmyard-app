@@ -2067,8 +2067,20 @@ function findPendingInviteByEmail(email){
     ).find(({ invite }) => normalizeEmail(invite.email) === normalizedEmail);
 }
 
+function findCompanyMembershipByEmail(email){
+    const normalizedEmail = normalizeEmail(email);
+    return Object.values(companyAccounts).find(company =>
+        company.members.some(member => normalizeEmail(member.email) === normalizedEmail)
+    ) || null;
+}
+
 function claimCompanyInvite(email, inviteCode, fullName, userId){
     const normalizedEmail = normalizeEmail(email);
+    const existingAccount = userAccounts[normalizedEmail];
+    if (existingAccount?.companyId) {
+        const existingCompany = companyAccounts[existingAccount.companyId];
+        return `This user is already assigned to ${existingCompany?.name || 'another company'} and cannot join a second sales team`;
+    }
     const match = Object.values(companyAccounts).flatMap(company =>
         company.pendingInvites.map(invite => ({ company, invite }))
     ).find(({ invite }) =>
@@ -2485,7 +2497,7 @@ function renderUserListings(){
                 </div>
                 <div class="profile-summary-actions">
                     <button id="open-profile-editor" class="btn btn-primary" type="button">${isEditingProfile ? 'Close Profile Form' : 'Edit Profile'}</button>
-                    <button id="view-company-profile-btn" class="btn btn-secondary" type="button">${companyProfile ? 'View Company Profile' : 'Create Company Profile'}</button>
+                    <button id="view-company-profile-btn" class="btn btn-secondary" type="button">${companyProfile ? (isCompanyAdmin ? 'Edit Company Profile' : 'View Company Profile') : 'Create Company Profile'}</button>
                 </div>
                 ${profileEditorMarkup}
             </div>
@@ -2622,6 +2634,9 @@ function renderUserListings(){
     document.getElementById('view-profile-btn').onclick = () => openProfile(currentUser.id);
     document.getElementById('view-company-profile-btn').onclick = () => {
         if (currentUser.companyId) {
+            if (isCompanyAdmin) {
+                isEditingCompanyProfile = true;
+            }
             openProfile(currentUser.companyId);
             return;
         }
@@ -2833,8 +2848,8 @@ async function saveProfileEdits(){
     if (!saveSucceeded) {
         return;
     }
-    showToast('Profile updated successfully');
     isEditingProfile = false;
+    showToast('Profile updated successfully');
     renderUserListings();
 }
 
@@ -2855,7 +2870,7 @@ function toggleCompanyProfileEditor(forceState){
 
 async function createCompanyProfile(){
     if (currentUser.companyId) {
-        showToast('A company profile is already linked to this account');
+        showToast('You can only belong to one company sales team at a time');
         return;
     }
 
@@ -2940,6 +2955,8 @@ async function createCompanyProfile(){
     persistLocalAppState();
 
     isCreatingCompanyProfile = false;
+    showCompanyTeamMembers = false;
+    showCompanyPendingInvites = false;
     showToast(`${companyName} is ready for company selling`);
     renderUserListings();
 }
@@ -3072,6 +3089,17 @@ function inviteSalesRep(){
         showToast('That rep already exists or already has a pending invite');
         return;
     }
+    const existingTeam = findCompanyMembershipByEmail(email);
+    if (existingTeam && existingTeam.id !== currentUser.companyId) {
+        showToast(`That user is already in ${existingTeam.name} and cannot join a second sales team`);
+        return;
+    }
+    const existingAccount = userAccounts[normalizeEmail(email)];
+    if (existingAccount?.companyId && existingAccount.companyId !== currentUser.companyId) {
+        const linkedCompany = companyAccounts[existingAccount.companyId];
+        showToast(`That user is already linked to ${linkedCompany?.name || 'another company'}`);
+        return;
+    }
 
     companyAccount.pendingInvites.unshift({
         id: `invite-${Date.now()}`,
@@ -3089,6 +3117,7 @@ function inviteSalesRep(){
     });
     clearSalesInviteForm();
     isInvitingSalesRep = false;
+    showCompanyPendingInvites = true;
     showToast('Sales rep invite created. Share the email and invite code with the rep');
     renderUserListings();
 }
@@ -3121,6 +3150,19 @@ function approveSalesInvite(inviteId){
         showToast('The invited user must claim the invite before access can be activated');
         return;
     }
+    const account = userAccounts[normalizeEmail(invite.email)];
+    if (account?.companyId && account.companyId !== currentUser.companyId) {
+        companyAccount.pendingInvites.splice(inviteIndex === -1 ? 0 : inviteIndex, 0, invite);
+        const linkedCompany = companyAccounts[account.companyId];
+        showToast(`This user already belongs to ${linkedCompany?.name || 'another company'}`);
+        return;
+    }
+    const existingTeam = findCompanyMembershipByEmail(invite.email);
+    if (existingTeam && existingTeam.id !== currentUser.companyId) {
+        companyAccount.pendingInvites.splice(inviteIndex === -1 ? 0 : inviteIndex, 0, invite);
+        showToast(`This user is already active in ${existingTeam.name}`);
+        return;
+    }
     companyAccount.members.push({
         id: invite.linkedUserId,
         name: invite.name,
@@ -3130,7 +3172,6 @@ function approveSalesInvite(inviteId){
         role: invite.role,
         status: 'Active',
     });
-    const account = userAccounts[normalizeEmail(invite.email)];
     if (account) {
         account.companyId = currentUser.companyId;
         account.companyRole = invite.role;
