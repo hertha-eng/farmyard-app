@@ -269,8 +269,6 @@ const userAccounts = {
     },
 };
 
-loadLocalAppState();
-
 let savedListings = [];
 let orderRequests = [];
 let reportedListings = [];
@@ -314,6 +312,8 @@ let selectedMessageId = null;
 let selectedMessageConversationId = null;
 let audioContext = null;
 let hasUnlockedAudio = false;
+
+loadLocalAppState();
 
 const app = document.getElementById('app');
 
@@ -564,6 +564,15 @@ function loadLocalAppState(){
         if (parsed.userAccounts && typeof parsed.userAccounts === 'object') {
             Object.assign(userAccounts, parsed.userAccounts);
         }
+        if (Array.isArray(parsed.reportedListings)) {
+            reportedListings = parsed.reportedListings;
+        }
+        if (Array.isArray(parsed.ratingsGiven)) {
+            ratingsGiven = parsed.ratingsGiven;
+        }
+        if (Array.isArray(parsed.userReports)) {
+            userReports = parsed.userReports;
+        }
     } catch (error) {
         console.warn('Failed to load local state', error);
     }
@@ -575,6 +584,9 @@ function persistLocalAppState(){
             profiles,
             companyAccounts,
             userAccounts,
+            reportedListings,
+            ratingsGiven,
+            userReports,
         }));
     } catch (error) {
         console.warn('Failed to persist local state', error);
@@ -595,6 +607,35 @@ function renderAvatarMarkup({ name, avatarUrl, imageClassName = 'avatar-image', 
 
 function isUuidLike(value){
     return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value || '');
+}
+
+function resolveListingProfileId(listing){
+    if (!listing) return currentUser.id;
+    if (listing.sellerId && profiles[listing.sellerId]) return listing.sellerId;
+    if (listing.userId && profiles[listing.userId]) return listing.userId;
+    return listing.sellerId || listing.userId || currentUser.id;
+}
+
+function formatActivityDateLabel(dateString){
+    const parsedDate = new Date(dateString || Date.now());
+    if (Number.isNaN(parsedDate.getTime())) return 'Just now';
+    return parsedDate.toLocaleString([], {
+        month: 'short',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+    });
+}
+
+function formatFeedbackEntry(entry, kind){
+    const when = entry?.createdAt ? formatActivityDateLabel(entry.createdAt) : 'Just now';
+    if (kind === 'rating') {
+        return `${entry.contact} • ${entry.rating}/5${entry.note ? ` • ${entry.note}` : ''} • ${when}`;
+    }
+    if (kind === 'userReport') {
+        return `${entry.contact} • ${entry.status} • ${entry.note} • ${when}`;
+    }
+    return `${entry.title} • ${entry.status} • ${when}`;
 }
 
 function setPreviewImage(imageElement, imageUrl, altText){
@@ -2508,11 +2549,13 @@ function reportCurrentListing(){
             slug: currentDetailListing.slug,
             title: currentDetailListing.title,
             status: 'Under review',
+            createdAt: new Date().toISOString(),
         });
         showToast(`Report submitted for ${currentDetailListing.title}`);
     } else {
         showToast(`A report already exists for ${currentDetailListing.title}`);
     }
+    persistLocalAppState();
     renderUserListings();
 }
 
@@ -2552,7 +2595,7 @@ function scheduleCurrentOrder(){
 
 function openListingDetail(listing){
     currentDetailListing = listing;
-    currentProfileId = listing.sellerId || currentUser.id;
+    currentProfileId = resolveListingProfileId(listing);
     const sellerProfile = profiles[currentProfileId];
     const sellerName = sellerProfile?.name || `${listing.title} Seller`;
     const isVerifiedCompany = sellerProfile?.type === 'Company Profile' && sellerProfile?.verificationPlan?.subscribed;
@@ -2565,6 +2608,7 @@ function openListingDetail(listing){
         location: listing.location,
         category: listing.category,
         sellerId: currentProfileId,
+        userId: listing.userId || null,
         contact: sellerName,
     });
     detailImage.src = listing.image;
@@ -2587,16 +2631,21 @@ function openCurrentProfile(){
 }
 
 function openProfile(profileId){
-    const profile = profiles[profileId];
+    const resolvedProfileId = profiles[profileId]
+        ? profileId
+        : Object.keys(profiles).find(id => id === profileId)
+            || null;
+    const profile = profiles[resolvedProfileId || profileId];
     if (!profile) return;
-    const isCurrentUsersCompany = profileId === currentUser.companyId;
-    const isCurrentUsersProfile = profileId === currentUser.id;
+    const activeProfileId = resolvedProfileId || profileId;
+    const isCurrentUsersCompany = activeProfileId === currentUser.companyId;
+    const isCurrentUsersProfile = activeProfileId === currentUser.id;
     const canManageCompanyProfile = isCurrentUsersCompany && currentUser.companyRole === 'Admin';
     const showCompanyEditorOnly = canManageCompanyProfile && isEditingCompanyProfile;
     if (!isCurrentUsersProfile) {
         isEditingOwnProfilePhoto = false;
     }
-    currentProfileId = profileId;
+    currentProfileId = activeProfileId;
     profileType.textContent = showCompanyEditorOnly ? 'Company Profile Editor' : profile.type;
     profileName.textContent = showCompanyEditorOnly ? `Edit ${profile.name}` : profile.name;
     profileRating.textContent = showCompanyEditorOnly
@@ -2640,24 +2689,24 @@ function openProfile(profileId){
     }
 
     if (!isCurrentUsersProfile) {
-        const blockState = getBlockStateForProfile(profileId);
+        const blockState = getBlockStateForProfile(activeProfileId);
         const messageButton = document.createElement('button');
         messageButton.type = 'button';
         messageButton.textContent = blockState.blockedMe ? `${profile.name} Blocked You` : `Message ${profile.name}`;
         messageButton.disabled = blockState.blockedByMe || blockState.blockedMe;
-        messageButton.onclick = () => startDirectConversation(profileId);
+        messageButton.onclick = () => startDirectConversation(activeProfileId);
         profileAdminTools.appendChild(messageButton);
 
         const listingsButton = document.createElement('button');
         listingsButton.type = 'button';
         listingsButton.textContent = `View ${profile.name}'s Listings`;
-        listingsButton.onclick = () => viewListingsForProfile(profileId);
+        listingsButton.onclick = () => viewListingsForProfile(activeProfileId);
         profileAdminTools.appendChild(listingsButton);
 
         const blockButton = document.createElement('button');
         blockButton.type = 'button';
         blockButton.textContent = blockState.blockedByMe ? `Unblock ${profile.name}` : `Block ${profile.name}`;
-        blockButton.onclick = () => toggleBlockProfile(profileId);
+        blockButton.onclick = () => toggleBlockProfile(activeProfileId);
         profileAdminTools.appendChild(blockButton);
     }
 
@@ -2808,8 +2857,8 @@ function startConversationFromDetail(){
         location: listing.location || 'Marketplace',
         category: listing.category,
         sellerId: listing.sellerId,
+        userId: currentDetailListing?.userId || listing.userId || null,
         contact: listing.contact,
-        userId: currentDetailListing?.userId || null,
         postedByName: currentDetailListing?.postedByName || listing.contact,
     });
 }
@@ -3053,22 +3102,8 @@ function renderActiveConversation(){
     conversation.messages.forEach(message => {
         const bubble = document.createElement('div');
         bubble.className = `message-row${message.mine ? ' mine' : ''}`;
-        const authorAvatar = message.mine
-            ? renderAvatarMarkup({
-                name: currentUser.name,
-                avatarUrl: currentUser.avatarUrl || '',
-                imageClassName: 'avatar-image',
-                fallbackClassName: 'avatar-fallback',
-            })
-            : renderAvatarMarkup({
-                name: conversation.contact,
-                avatarUrl: conversationProfile?.avatarUrl || '',
-                imageClassName: 'avatar-image',
-                fallbackClassName: 'avatar-fallback',
-            });
         const reactionSummary = getReactionSummary(message.reactions);
         bubble.innerHTML = `
-            <span class="message-author-avatar">${authorAvatar}</span>
             <div class="message-bubble${message.mine ? ' mine' : ''}${selectedMessageId === message.id && selectedMessageConversationId === conversation.id ? ' is-selected' : ''}" data-message-id="${message.id}">
                 ${message.text ? `<p>${message.text}</p>` : ''}
                 ${message.attachments?.length ? `
@@ -3723,7 +3758,12 @@ function submitChatFeedback(){
         }
         profile.rating = ((profile.rating * profile.ratingCount) + rating) / (profile.ratingCount + 1);
         profile.ratingCount += 1;
-        ratingsGiven.unshift({ contact: conversation.contact, rating, note: note || 'No note' });
+        ratingsGiven.unshift({
+            contact: conversation.contact,
+            rating,
+            note: note || 'No note',
+            createdAt: new Date().toISOString(),
+        });
         showToast(`You rated ${conversation.contact}`);
     } else {
         if (!note) {
@@ -3731,11 +3771,17 @@ function submitChatFeedback(){
             return;
         }
         profile.reports += 1;
-        userReports.unshift({ contact: conversation.contact, note, status: 'Submitted' });
+        userReports.unshift({
+            contact: conversation.contact,
+            note,
+            status: 'Submitted',
+            createdAt: new Date().toISOString(),
+        });
         showToast(`Report sent for ${conversation.contact}`);
     }
 
     closeChatFeedback();
+    persistLocalAppState();
     renderMessagesTab();
     renderUserListings();
 }
@@ -3782,13 +3828,13 @@ function renderUserListings(){
         ? orderRequests.map(item => `<p>${item.title} • ${item.type}: ${item.status}${item.note ? ` • ${item.note}` : ''}</p>`).join('')
         : '<div class="mini-empty-state"><strong>No order requests yet</strong><p>Incoming requests and schedules will appear here.</p></div>';
     const ratingsMarkup = ratingsGiven.length
-        ? ratingsGiven.map(item => `<p>${item.contact} • ${item.rating}/5${item.note ? ` • ${item.note}` : ''}</p>`).join('')
+        ? ratingsGiven.map(item => `<p>${formatFeedbackEntry(item, 'rating')}</p>`).join('')
         : '<div class="mini-empty-state"><strong>No ratings submitted</strong><p>Ratings you leave for buyers or sellers will show here.</p></div>';
     const userReportsMarkup = userReports.length
-        ? userReports.map(item => `<p>${item.contact} • ${item.status} • ${item.note}</p>`).join('')
+        ? userReports.map(item => `<p>${formatFeedbackEntry(item, 'userReport')}</p>`).join('')
         : '<div class="mini-empty-state"><strong>No user reports filed</strong><p>Any safety or conduct reports will be listed here.</p></div>';
     const moderationMarkup = reportedListings.length
-        ? reportedListings.map(item => `<p>${item.title} • ${item.status}</p>`).join('')
+        ? reportedListings.map(item => `<p>${formatFeedbackEntry(item, 'moderation')}</p>`).join('')
         : '<div class="mini-empty-state"><strong>No moderation items</strong><p>Reported listings and moderation updates will appear here.</p></div>';
     const teamMarkup = companyAccount
         ? companyAccount.members.map(member => `
@@ -4293,15 +4339,15 @@ function renderAccountExtras(){
         : '<div class="mini-empty-state"><strong>No order requests yet</strong><p>Incoming requests and schedules will appear here.</p></div>';
 
     moderationContainer.innerHTML = reportedListings.length
-        ? reportedListings.map(item => `<p>${item.title} • ${item.status}</p>`).join('')
+        ? reportedListings.map(item => `<p>${formatFeedbackEntry(item, 'moderation')}</p>`).join('')
         : '<div class="mini-empty-state"><strong>No moderation items</strong><p>Reported listings and moderation updates will appear here.</p></div>';
 
     ratingsContainer.innerHTML = ratingsGiven.length
-        ? ratingsGiven.map(item => `<p>${item.contact} • ${item.rating}/5${item.note ? ` • ${item.note}` : ''}</p>`).join('')
+        ? ratingsGiven.map(item => `<p>${formatFeedbackEntry(item, 'rating')}</p>`).join('')
         : '<div class="mini-empty-state"><strong>No ratings submitted</strong><p>Ratings you leave for buyers or sellers will show here.</p></div>';
 
     userReportsContainer.innerHTML = userReports.length
-        ? userReports.map(item => `<p>${item.contact} • ${item.status} • ${item.note}</p>`).join('')
+        ? userReports.map(item => `<p>${formatFeedbackEntry(item, 'userReport')}</p>`).join('')
         : '<div class="mini-empty-state"><strong>No user reports filed</strong><p>Any safety or conduct reports will be listed here.</p></div>';
 }
 
