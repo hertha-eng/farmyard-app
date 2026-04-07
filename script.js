@@ -2386,14 +2386,23 @@ function getSearchableProfiles(){
     return Object.values(profiles).filter(profile => profile?.name);
 }
 
+function getListingsForProfile(profileId){
+    const initialListings = getInitialListings();
+    const allListings = [...initialListings, ...marketplaceListings];
+    return allListings.filter(listing => resolveListingProfileId(listing) === profileId);
+}
+
 function getProfileSearchSummary(profile){
     const visibleFields = Object.values(profile.fields || {})
         .filter(field => field?.visible && field?.value)
         .map(field => field.value);
+    const profileListings = getListingsForProfile(profile.id);
+    const listingTitles = profileListings.slice(0, 3).map(listing => listing.title);
     return [
         profile.type,
         profile.about,
         ...visibleFields,
+        ...listingTitles,
     ].filter(Boolean).join(' • ');
 }
 
@@ -2409,6 +2418,12 @@ function refreshMarketplace(){
             profile.type,
             profile.about,
             ...Object.values(profile.fields || {}).map(field => field?.value),
+            ...getListingsForProfile(profile.id).flatMap(listing => [
+                listing.title,
+                listing.category,
+                listing.location,
+                listing.description,
+            ]),
         ].filter(Boolean).some(value => value.toLowerCase().includes(normalizedQuery)))
         : [];
     const filteredListings = normalizedQuery
@@ -2441,6 +2456,10 @@ function refreshMarketplace(){
     }
 
     filteredProfiles.forEach((profile) => {
+        const profileListings = getListingsForProfile(profile.id);
+        const listingsLabel = profileListings.length
+            ? `${profileListings.length} listing${profileListings.length === 1 ? '' : 's'} available`
+            : 'No active listings yet';
         const profileCard = document.createElement('div');
         profileCard.className = 'card profile-search-card';
         profileCard.innerHTML = `
@@ -2453,12 +2472,31 @@ function refreshMarketplace(){
             <span class="card-category">${profile.type || 'Profile'}</span>
             <h3>${profile.name}</h3>
             <p class="card-summary">${getProfileSearchSummary(profile)}</p>
-            <button type="button">View Profile</button>
+            <p class="card-summary profile-search-meta">${listingsLabel}</p>
+            <div class="profile-search-actions">
+                <button type="button" class="profile-search-action">View Profile</button>
+                <button type="button" class="profile-search-action">Message</button>
+                <button type="button" class="profile-search-action">Call</button>
+                <button type="button" class="profile-search-action">Listings</button>
+            </div>
         `;
         profileCard.onclick = () => openProfile(profile.id);
-        profileCard.querySelector('button').onclick = (event) => {
+        const [viewButton, messageButton, callButton, listingsButton] = profileCard.querySelectorAll('.profile-search-action');
+        viewButton.onclick = (event) => {
             event.stopPropagation();
             openProfile(profile.id);
+        };
+        messageButton.onclick = (event) => {
+            event.stopPropagation();
+            startDirectConversation(profile.id);
+        };
+        callButton.onclick = (event) => {
+            event.stopPropagation();
+            showToast(`Calling ${profile.name} is not available yet`);
+        };
+        listingsButton.onclick = (event) => {
+            event.stopPropagation();
+            viewListingsForProfile(profile.id);
         };
         marketplace.appendChild(profileCard);
     });
