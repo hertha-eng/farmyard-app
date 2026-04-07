@@ -296,6 +296,8 @@ let showCompanyPendingInvites = false;
 let editingListingIndex = null;
 let hasWarnedAboutPersistenceSetup = false;
 let marketQuery = '';
+let timelineMode = 'for-you';
+let selectedTimelineInterest = 'all';
 let selectedMessageMedia = [];
 let activeCallConversationId = null;
 let activeCallStream = null;
@@ -334,6 +336,9 @@ const authScreens = {
 const marketplace = document.getElementById('marketplace-grid');
 const marketSearchInput = document.getElementById('market-search');
 const marketResultsCopy = document.getElementById('market-results-copy');
+const timelineModeInput = document.getElementById('timeline-mode');
+const timelineInterestChips = document.getElementById('timeline-interest-chips');
+const timelineFeedCopy = document.getElementById('timeline-feed-copy');
 const detailImage = document.getElementById('detail-image');
 const detailTitle = document.getElementById('detail-title');
 const detailVerification = document.getElementById('detail-verification');
@@ -2392,6 +2397,113 @@ function getListingsForProfile(profileId){
     return allListings.filter(listing => resolveListingProfileId(listing) === profileId);
 }
 
+function getCurrentUserTimelineInterests(){
+    const sources = [
+        ...savedListings.map(item => item.category),
+        ...orderRequests.map(item => item.title),
+        ...userListings.map(item => item.category),
+    ].filter(Boolean);
+
+    const categoryCounts = sources.reduce((map, value) => {
+        map.set(value, (map.get(value) || 0) + 1);
+        return map;
+    }, new Map());
+
+    return Array.from(categoryCounts.entries())
+        .sort((left, right) => right[1] - left[1])
+        .slice(0, 4)
+        .map(([value]) => value);
+}
+
+function getTimelineLocationTokens(){
+    return (currentUser.location || '')
+        .toLowerCase()
+        .split(/[^a-z0-9]+/)
+        .filter(token => token.length > 2);
+}
+
+function getListingTimelineScore(listing){
+    const listingText = [
+        listing.title,
+        listing.category,
+        listing.location,
+        listing.description,
+        listing.minOrder,
+        listing.unit,
+        listing.postedByName,
+    ].filter(Boolean).join(' ').toLowerCase();
+    const interestMatches = getCurrentUserTimelineInterests()
+        .filter(interest => listingText.includes(interest.toLowerCase()))
+        .length;
+    const locationMatches = getTimelineLocationTokens()
+        .filter(token => listingText.includes(token))
+        .length;
+    const isNegotiable = listing.negotiable ? 1 : 0;
+    const isVerifiedSeller = profiles[resolveListingProfileId(listing)]?.verificationPlan?.subscribed ? 1 : 0;
+    const recencyBoost = listing.userId ? 3 : 1;
+
+    if (timelineMode === 'nearby') {
+        return (locationMatches * 10) + (interestMatches * 2) + isVerifiedSeller + isNegotiable;
+    }
+    if (timelineMode === 'recent') {
+        return recencyBoost * 10;
+    }
+    if (timelineMode === 'interest') {
+        return (interestMatches * 10) + (locationMatches * 2) + isVerifiedSeller;
+    }
+    return (interestMatches * 7) + (locationMatches * 6) + (isVerifiedSeller * 3) + (isNegotiable * 2) + recencyBoost;
+}
+
+function getFilteredTimelineListings(listings){
+    const normalizedInterest = selectedTimelineInterest.toLowerCase();
+    const interestFiltered = normalizedInterest === 'all'
+        ? listings
+        : listings.filter(listing => [listing.category, listing.title, listing.description]
+            .filter(Boolean)
+            .some(value => value.toLowerCase().includes(normalizedInterest)));
+
+    return [...interestFiltered].sort((left, right) => {
+        const scoreDifference = getListingTimelineScore(right) - getListingTimelineScore(left);
+        if (scoreDifference !== 0) return scoreDifference;
+        const leftRecent = left.userId ? 1 : 0;
+        const rightRecent = right.userId ? 1 : 0;
+        return rightRecent - leftRecent;
+    });
+}
+
+function renderTimelineInterestChips(){
+    if (!timelineInterestChips) return;
+    const interests = ['All', ...getCurrentUserTimelineInterests()];
+    timelineInterestChips.innerHTML = interests.map(interest => `
+        <button
+            type="button"
+            class="timeline-interest-chip${selectedTimelineInterest.toLowerCase() === interest.toLowerCase() ? ' is-active' : ''}"
+            data-interest="${interest}"
+        >${interest}</button>
+    `).join('');
+
+    timelineInterestChips.querySelectorAll('.timeline-interest-chip').forEach(button => {
+        button.onclick = () => {
+            selectedTimelineInterest = button.dataset.interest || 'All';
+            refreshMarketplace();
+        };
+    });
+}
+
+function updateTimelineFeedCopy(listings){
+    if (!timelineFeedCopy) return;
+    const interests = getCurrentUserTimelineInterests();
+    const interestLine = interests.length ? interests.slice(0, 2).join(', ') : 'farm activity';
+    const locationLine = currentUser.location || 'your area';
+    const modeCopy = {
+        'for-you': `Prioritizing listings near ${locationLine} and related to ${interestLine}.`,
+        nearby: `Showing listings that look closest to ${locationLine}.`,
+        recent: 'Showing the newest marketplace activity first.',
+        interest: `Showing listings that match your strongest interests: ${interestLine}.`,
+    };
+    timelineFeedCopy.textContent = modeCopy[timelineMode] || `Showing ${listings.length} listings for your timeline.`;
+}
+
 function getProfileSearchSummary(profile){
     const visibleFields = Object.values(profile.fields || {})
         .filter(field => field?.visible && field?.value)
@@ -2410,8 +2522,9 @@ function getProfileSearchSummary(profile){
 function refreshMarketplace(){
     marketplace.innerHTML = '';
     const initialListings = getInitialListings();
-    const all = [...initialListings, ...marketplaceListings];
+    const all = getFilteredTimelineListings([...initialListings, ...marketplaceListings]);
     const normalizedQuery = marketQuery.trim().toLowerCase();
+    renderTimelineInterestChips();
     const filteredProfiles = normalizedQuery
         ? getSearchableProfiles().filter(profile => [
             profile.name,
@@ -2438,11 +2551,12 @@ function refreshMarketplace(){
             profiles[listing.sellerId]?.name,
         ].filter(Boolean).some(value => value.toLowerCase().includes(normalizedQuery)))
         : all;
+    updateTimelineFeedCopy(filteredListings);
 
     if (marketResultsCopy) {
         marketResultsCopy.textContent = normalizedQuery
             ? `${filteredProfiles.length + filteredListings.length} result${filteredProfiles.length + filteredListings.length === 1 ? '' : 's'} for "${marketQuery.trim()}".`
-            : 'Browse current produce, goods, and service listings.';
+            : `Browse ${filteredListings.length} timeline listing${filteredListings.length === 1 ? '' : 's'} ranked for you.`;
     }
 
     if (!filteredProfiles.length && !filteredListings.length) {
@@ -2542,6 +2656,13 @@ function refreshMarketplace(){
 if (marketSearchInput) {
     marketSearchInput.addEventListener('input', (event) => {
         marketQuery = event.target.value;
+        refreshMarketplace();
+    });
+}
+
+if (timelineModeInput) {
+    timelineModeInput.addEventListener('change', (event) => {
+        timelineMode = event.target.value || 'for-you';
         refreshMarketplace();
     });
 }

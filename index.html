@@ -57,8 +57,22 @@
         <section class="market-hero">
             <div class="market-hero-copy">
                 <p class="section-eyebrow">Home</p>
-                <h2>Browse current farm listings</h2>
-                <p class="market-hero-text">Search by product, service, seller, or location.</p>
+                <h2>Your farm timeline</h2>
+                <p class="market-hero-text">See listings ranked by your location, interests, freshness, and marketplace activity.</p>
+                <div class="timeline-controls">
+                    <label for="timeline-mode" class="search-label">Timeline sort</label>
+                    <select id="timeline-mode">
+                        <option value="for-you">For You</option>
+                        <option value="nearby">Nearby</option>
+                        <option value="recent">Most Recent</option>
+                        <option value="interest">Interest Match</option>
+                    </select>
+                </div>
+                <div class="timeline-interest-panel">
+                    <p class="timeline-interest-label">Focus interests</p>
+                    <div id="timeline-interest-chips" class="timeline-interest-chips"></div>
+                </div>
+                <p id="timeline-feed-copy" class="timeline-feed-copy">FarmYard is ranking your timeline for relevance.</p>
             </div>
         </section>
 
