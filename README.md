@@ -37,6 +37,8 @@ After the schema is created, the app will:
 
 - save signed-in user profile edits to `profiles`
 - save created and edited listings to `listings`
+- save shared conversations to `conversations`
+- save shared messages to `messages`
 - reload both on refresh after login
 
 ## Shared Listings Policy Update

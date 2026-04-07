@@ -42,6 +42,30 @@ create table if not exists public.listings (
     updated_at timestamptz not null default timezone('utc', now())
 );
 
+create table if not exists public.conversations (
+    id uuid primary key default gen_random_uuid(),
+    listing_id uuid,
+    listing_title text not null default '',
+    seller_id text,
+    owner_user_id uuid not null references auth.users (id) on delete cascade,
+    owner_name text not null default '',
+    buyer_user_id uuid not null references auth.users (id) on delete cascade,
+    buyer_name text not null default '',
+    location text not null default '',
+    created_at timestamptz not null default timezone('utc', now()),
+    updated_at timestamptz not null default timezone('utc', now())
+);
+
+create table if not exists public.messages (
+    id uuid primary key default gen_random_uuid(),
+    conversation_id uuid not null references public.conversations (id) on delete cascade,
+    sender_user_id uuid not null references auth.users (id) on delete cascade,
+    sender_name text not null default '',
+    body text not null default '',
+    attachments jsonb not null default '[]'::jsonb,
+    created_at timestamptz not null default timezone('utc', now())
+);
+
 create or replace function public.set_updated_at()
 returns trigger
 language plpgsql
@@ -64,8 +88,16 @@ before update on public.listings
 for each row
 execute function public.set_updated_at();
 
+drop trigger if exists set_conversations_updated_at on public.conversations;
+create trigger set_conversations_updated_at
+before update on public.conversations
+for each row
+execute function public.set_updated_at();
+
 alter table public.profiles enable row level security;
 alter table public.listings enable row level security;
+alter table public.conversations enable row level security;
+alter table public.messages enable row level security;
 
 drop policy if exists "Users can read their own profile" on public.profiles;
 create policy "Users can read their own profile"
@@ -118,3 +150,54 @@ on public.listings
 for delete
 to authenticated
 using (auth.uid() = user_id);
+
+drop policy if exists "Conversation participants can read conversations" on public.conversations;
+create policy "Conversation participants can read conversations"
+on public.conversations
+for select
+to authenticated
+using (auth.uid() = owner_user_id or auth.uid() = buyer_user_id);
+
+drop policy if exists "Authenticated users can create conversations they join" on public.conversations;
+create policy "Authenticated users can create conversations they join"
+on public.conversations
+for insert
+to authenticated
+with check (auth.uid() = owner_user_id or auth.uid() = buyer_user_id);
+
+drop policy if exists "Conversation participants can update conversations" on public.conversations;
+create policy "Conversation participants can update conversations"
+on public.conversations
+for update
+to authenticated
+using (auth.uid() = owner_user_id or auth.uid() = buyer_user_id)
+with check (auth.uid() = owner_user_id or auth.uid() = buyer_user_id);
+
+drop policy if exists "Conversation participants can read messages" on public.messages;
+create policy "Conversation participants can read messages"
+on public.messages
+for select
+to authenticated
+using (
+    exists (
+        select 1
+        from public.conversations
+        where public.conversations.id = conversation_id
+          and (auth.uid() = public.conversations.owner_user_id or auth.uid() = public.conversations.buyer_user_id)
+    )
+);
+
+drop policy if exists "Conversation participants can create messages" on public.messages;
+create policy "Conversation participants can create messages"
+on public.messages
+for insert
+to authenticated
+with check (
+    auth.uid() = sender_user_id
+    and exists (
+        select 1
+        from public.conversations
+        where public.conversations.id = conversation_id
+          and (auth.uid() = public.conversations.owner_user_id or auth.uid() = public.conversations.buyer_user_id)
+    )
+);

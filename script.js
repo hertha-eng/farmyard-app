@@ -19,6 +19,8 @@ const supabaseClient = window.supabase?.createClient
 const SUPABASE_TABLES = {
     profiles: 'profiles',
     listings: 'listings',
+    conversations: 'conversations',
+    messages: 'messages',
 };
 const LOCAL_STATE_KEY = 'farmyard-local-state-v1';
 const LAST_ACTIVE_TAB_KEY = 'farmyard-last-active-tab';
@@ -263,7 +265,7 @@ const counterpartyProfiles = {
     'Amina Farm Supplies': { rating: 4.8, ratingCount: 26, reports: 0 },
     'Kato Mechanics': { rating: 4.5, ratingCount: 14, reports: 1 },
 };
-let conversations = [
+const fallbackConversations = [
     {
         id: 'conv-1',
         listingTitle: 'Maize Grain',
@@ -294,6 +296,7 @@ let conversations = [
         ],
     },
 ];
+let conversations = [...fallbackConversations];
 let activeConversationId = 'conv-1';
 let mobileMessagesView = 'inbox';
 let returnTabAfterAuth = 'home';
@@ -314,6 +317,7 @@ let activeCallStartedAt = null;
 let activeCallTimerId = null;
 let isCallMuted = false;
 let isSpeakerMode = false;
+let messagesRefreshTimerId = null;
 
 const app = document.getElementById('app');
 
@@ -921,8 +925,221 @@ async function loadPersistedAccountData(){
     await loadPersistedProfile();
     await loadPersistedListings();
     await loadMarketplaceListings();
+    await loadPersistedConversations();
     refreshMarketplace();
     renderUserListings();
+    if (getActiveTabName() === 'messages') {
+        renderMessagesTab();
+    }
+}
+
+function formatConversationUpdatedLabel(dateString){
+    if (!dateString) return 'Recently';
+    const parsedDate = new Date(dateString);
+    if (Number.isNaN(parsedDate.getTime())) return 'Recently';
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const messageDay = new Date(parsedDate.getFullYear(), parsedDate.getMonth(), parsedDate.getDate());
+    if (messageDay.getTime() === today.getTime()) {
+        return `Today, ${parsedDate.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`;
+    }
+    return parsedDate.toLocaleDateString([], { month: 'short', day: 'numeric' });
+}
+
+function getConversationContactNameFromRow(row){
+    return row.owner_user_id === currentUser.id ? row.buyer_name : row.owner_name;
+}
+
+function mapPersistedConversationRow(row){
+    return {
+        id: row.id,
+        listingId: row.listing_id || null,
+        listingTitle: row.listing_title || 'Marketplace',
+        contact: getConversationContactNameFromRow(row),
+        sellerId: row.seller_id || null,
+        role: 'Marketplace Contact',
+        location: row.location || 'Marketplace',
+        online: false,
+        lastSeen: 'recently',
+        lastUpdated: formatConversationUpdatedLabel(row.updated_at),
+        updatedAt: row.updated_at || row.created_at || null,
+        ownerUserId: row.owner_user_id,
+        buyerUserId: row.buyer_user_id,
+        messages: [],
+        persisted: true,
+    };
+}
+
+function mapPersistedMessageRow(row){
+    return {
+        id: row.id,
+        author: row.sender_name || 'User',
+        text: row.body || '',
+        time: new Date(row.created_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }),
+        sentAt: row.created_at,
+        mine: row.sender_user_id === currentUser.id,
+        attachments: Array.isArray(row.attachments) ? row.attachments : [],
+    };
+}
+
+async function loadPersistedConversations(){
+    if (!supabaseClient || !currentUser.id) return;
+    const { data: conversationRows, error: conversationError } = await supabaseClient
+        .from(SUPABASE_TABLES.conversations)
+        .select('*')
+        .or(`owner_user_id.eq.${currentUser.id},buyer_user_id.eq.${currentUser.id}`)
+        .order('updated_at', { ascending: false });
+
+    if (conversationError) {
+        if (isMissingSupabaseTableError(conversationError) || isMissingSupabaseColumnError(conversationError)) {
+            warnPersistenceSetup('Create the Supabase conversation tables to enable shared messaging.');
+            conversations = [...fallbackConversations];
+            return;
+        }
+        console.error('Failed to load conversations', conversationError);
+        showToast(conversationError.message);
+        return;
+    }
+
+    const mappedConversations = (conversationRows || []).map(mapPersistedConversationRow);
+    const conversationIds = mappedConversations.map(conversation => conversation.id);
+
+    let mappedMessagesByConversation = new Map();
+    if (conversationIds.length) {
+        const { data: messageRows, error: messageError } = await supabaseClient
+            .from(SUPABASE_TABLES.messages)
+            .select('*')
+            .in('conversation_id', conversationIds)
+            .order('created_at', { ascending: true });
+
+        if (messageError) {
+            if (isMissingSupabaseTableError(messageError) || isMissingSupabaseColumnError(messageError)) {
+                warnPersistenceSetup('Create the Supabase message tables to enable shared messaging.');
+                conversations = [...fallbackConversations];
+                return;
+            }
+            console.error('Failed to load messages', messageError);
+            showToast(messageError.message);
+            return;
+        }
+
+        mappedMessagesByConversation = (messageRows || []).reduce((map, row) => {
+            const existingMessages = map.get(row.conversation_id) || [];
+            existingMessages.push(mapPersistedMessageRow(row));
+            map.set(row.conversation_id, existingMessages);
+            return map;
+        }, new Map());
+    }
+
+    conversations = mappedConversations.map(conversation => ({
+        ...conversation,
+        messages: mappedMessagesByConversation.get(conversation.id) || [],
+    }));
+
+    if (!conversations.length) {
+        activeConversationId = null;
+        return;
+    }
+
+    if (!conversations.some(conversation => conversation.id === activeConversationId)) {
+        activeConversationId = conversations[0].id;
+    }
+}
+
+async function ensurePersistedConversationForListing(listing){
+    if (!supabaseClient || !currentUser.id || !listing?.userId || listing.userId === currentUser.id) {
+        return null;
+    }
+
+    const { data: existingConversation, error: lookupError } = await supabaseClient
+        .from(SUPABASE_TABLES.conversations)
+        .select('*')
+        .eq('listing_id', listing.id)
+        .eq('owner_user_id', listing.userId)
+        .eq('buyer_user_id', currentUser.id)
+        .maybeSingle();
+
+    if (lookupError) {
+        console.error('Failed to look up conversation', lookupError);
+        showToast(lookupError.message);
+        return null;
+    }
+
+    if (existingConversation) {
+        return existingConversation;
+    }
+
+    const ownerName = listing.postedByName || profiles[listing.sellerId]?.name || 'Seller';
+    const { data: createdConversation, error: createError } = await supabaseClient
+        .from(SUPABASE_TABLES.conversations)
+        .insert({
+            listing_id: listing.id || null,
+            listing_title: listing.title || 'Marketplace',
+            seller_id: listing.sellerId || null,
+            owner_user_id: listing.userId,
+            owner_name: ownerName,
+            buyer_user_id: currentUser.id,
+            buyer_name: currentUser.name,
+            location: listing.location || 'Marketplace',
+        })
+        .select()
+        .single();
+
+    if (createError) {
+        console.error('Failed to create conversation', createError);
+        showToast(createError.message);
+        return null;
+    }
+
+    return createdConversation;
+}
+
+async function savePersistedMessage(conversationId, payload){
+    if (!supabaseClient || !currentUser.id || !conversationId) return false;
+    const { error } = await supabaseClient
+        .from(SUPABASE_TABLES.messages)
+        .insert({
+            conversation_id: conversationId,
+            sender_user_id: currentUser.id,
+            sender_name: currentUser.name,
+            body: payload.text || '',
+            attachments: payload.attachments || [],
+        });
+
+    if (error) {
+        if (isMissingSupabaseTableError(error) || isMissingSupabaseColumnError(error)) {
+            warnPersistenceSetup('Create the Supabase message tables to enable shared messaging.');
+            return false;
+        }
+        console.error('Failed to save message', error);
+        showToast(error.message);
+        return false;
+    }
+
+    await supabaseClient
+        .from(SUPABASE_TABLES.conversations)
+        .update({ updated_at: new Date().toISOString() })
+        .eq('id', conversationId);
+
+    return true;
+}
+
+function startMessagesRefreshLoop(){
+    if (messagesRefreshTimerId || !supabaseClient || !currentUser.id) return;
+    messagesRefreshTimerId = window.setInterval(() => {
+        if (getActiveTabName() !== 'messages') return;
+        loadPersistedConversations().then(() => {
+            if (getActiveTabName() === 'messages') {
+                renderMessagesTab();
+            }
+        });
+    }, 5000);
+}
+
+function stopMessagesRefreshLoop(){
+    if (!messagesRefreshTimerId) return;
+    window.clearInterval(messagesRefreshTimerId);
+    messagesRefreshTimerId = null;
 }
 
 // Bottom nav
@@ -1064,6 +1281,9 @@ function showTab(name, options = {}){
     updateNavState(name);
     if (name === 'messages') {
         renderMessagesTab();
+        startMessagesRefreshLoop();
+    } else {
+        stopMessagesRefreshLoop();
     }
 }
 
@@ -1159,8 +1379,12 @@ async function signOutUser(){
         updateAuthButtons(false);
         userListings = [];
         marketplaceListings = [];
+        conversations = [...fallbackConversations];
+        activeConversationId = conversations[0]?.id || null;
+        stopMessagesRefreshLoop();
         refreshMarketplace();
         renderUserListings();
+        renderMessagesTab();
         showToast('Signed out successfully');
         return;
     }
@@ -1175,8 +1399,12 @@ async function signOutUser(){
     updateAuthButtons(false);
     userListings = [];
     marketplaceListings = [];
+    conversations = [...fallbackConversations];
+    activeConversationId = conversations[0]?.id || null;
+    stopMessagesRefreshLoop();
     refreshMarketplace();
     renderUserListings();
+    renderMessagesTab();
     showToast('Signed out successfully');
 }
 
@@ -1654,15 +1882,37 @@ function startConversationFromDetail(){
     const listing = JSON.parse(detailMessage.dataset.listing || '{}');
     if (!listing.title) return;
     startConversation({
+        id: currentDetailListing?.id || null,
         title: listing.title,
         location: listing.location || 'Marketplace',
         category: listing.category,
         sellerId: listing.sellerId,
         contact: listing.contact,
+        userId: currentDetailListing?.userId || null,
+        postedByName: currentDetailListing?.postedByName || listing.contact,
     });
 }
 
-function startConversation(listing){
+async function startConversation(listing){
+    if (listing.userId && listing.userId === currentUser.id) {
+        showToast('You cannot message your own listing');
+        return;
+    }
+
+    if (supabaseClient && currentUser.id && listing.userId) {
+        const persistedConversation = await ensurePersistedConversationForListing(listing);
+        if (persistedConversation) {
+            await loadPersistedConversations();
+            activeConversationId = persistedConversation.id;
+            mobileMessagesView = 'chat';
+            clearMessageComposer();
+            showTab('messages');
+            renderMessagesTab();
+            showToast(`Opened conversation for ${listing.title}`);
+            return;
+        }
+    }
+
     const contactName = listing.contact || profiles[listing.sellerId]?.name || `${listing.title} Seller`;
     const sellerProfile = profiles[listing.sellerId];
     const existingConversation = conversations.find(conversation =>
@@ -1673,6 +1923,7 @@ function startConversation(listing){
     } else {
         const newConversation = {
             id: `conv-${Date.now()}`,
+            listingId: listing.id || null,
             listingTitle: listing.title,
             contact: contactName,
             sellerId: listing.sellerId || null,
@@ -1812,19 +2063,33 @@ function getConversationPresenceLabel(conversation){
     return 'Offline';
 }
 
-function sendMessage(){
+async function sendMessage(){
     const text = messageInput.value.trim();
     const conversation = conversations.find(item => item.id === activeConversationId);
     if ((!text && !selectedMessageMedia.length) || !conversation) return;
 
-    conversation.messages.push({
+    const messagePayload = {
         author: 'You',
         text,
         time: getCurrentTimeLabel(),
         sentAt: new Date().toISOString(),
         mine: true,
         attachments: selectedMessageMedia.map(file => ({ ...file })),
-    });
+    };
+
+    if (conversation.persisted) {
+        const saveSucceeded = await savePersistedMessage(conversation.id, messagePayload);
+        if (!saveSucceeded) {
+            return;
+        }
+        await loadPersistedConversations();
+        clearMessageComposer();
+        renderMessagesTab();
+        showToast('Message sent');
+        return;
+    }
+
+    conversation.messages.push(messagePayload);
     conversation.lastUpdated = 'Just now';
     clearMessageComposer();
     renderMessagesTab();
@@ -2256,6 +2521,8 @@ async function initializeAuth(){
     if (!supabaseClient) {
         hydrateCurrentUser(userAccounts['guest@farmyard.app']);
         ensureProfileForAccount(userAccounts['guest@farmyard.app']);
+        conversations = [...fallbackConversations];
+        activeConversationId = conversations[0]?.id || null;
         refreshMarketplace();
         renderUserListings();
         return;
@@ -2282,6 +2549,8 @@ async function initializeAuth(){
     if (!data.session) {
         hydrateCurrentUser(userAccounts['guest@farmyard.app']);
         ensureProfileForAccount(userAccounts['guest@farmyard.app']);
+        conversations = [...fallbackConversations];
+        activeConversationId = conversations[0]?.id || null;
         refreshMarketplace();
         renderUserListings();
     }
@@ -2290,7 +2559,11 @@ async function initializeAuth(){
         if (event === 'SIGNED_IN' && session) {
             syncCurrentUserFromSession(session);
             updateAuthButtons(true);
-            loadPersistedAccountData();
+            loadPersistedAccountData().then(() => {
+                if (getActiveTabName() === 'messages') {
+                    renderMessagesTab();
+                }
+            });
         }
         if (event === 'SIGNED_OUT') {
             hydrateCurrentUser(userAccounts['guest@farmyard.app']);
@@ -2298,8 +2571,12 @@ async function initializeAuth(){
             updateAuthButtons(false);
             userListings = [];
             marketplaceListings = [];
+            conversations = [...fallbackConversations];
+            activeConversationId = conversations[0]?.id || null;
+            stopMessagesRefreshLoop();
             refreshMarketplace();
             renderUserListings();
+            renderMessagesTab();
         }
     });
 }
