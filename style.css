@@ -1437,6 +1437,7 @@ nav button.is-active {
     background-color: rgba(255, 255, 255, 0.2);
     font-weight: 700;
     overflow: hidden;
+    cursor: pointer;
 }
 
 .profile-card {
@@ -1743,6 +1744,10 @@ nav button.is-active {
     background: #eef5f0;
 }
 
+#chat-option-block {
+    color: #8b5a19;
+}
+
 #chat-option-delete {
     color: #9b433b;
 }
@@ -2046,11 +2051,17 @@ nav button.is-active {
     background-color: #ffffff;
     border: none;
     box-shadow: 0 2px 6px rgba(49, 57, 38, 0.06);
+    cursor: pointer;
 }
 
 .message-bubble.mine {
     border-radius: 10px 10px 4px 10px;
     background-color: #d9fdd3;
+}
+
+.message-bubble.is-selected {
+    outline: 2px solid rgba(34, 160, 107, 0.4);
+    box-shadow: 0 0 0 4px rgba(34, 160, 107, 0.12);
 }
 
 .message-attachments {
@@ -2080,6 +2091,115 @@ nav button.is-active {
 
 .message-status {
     font-weight: 700;
+}
+
+.message-reactions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 8px;
+}
+
+.message-reaction-pill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 28px;
+    height: 28px;
+    padding: 0 8px;
+    border-radius: 999px;
+    background: rgba(245, 248, 244, 0.95);
+    border: 1px solid rgba(103, 119, 96, 0.14);
+    font-size: 0.85rem;
+}
+
+.message-action-bar {
+    margin-top: 12px;
+    padding: 12px 14px;
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.92);
+    border: 1px solid rgba(103, 119, 96, 0.16);
+    box-shadow: 0 10px 22px rgba(49, 57, 38, 0.08);
+}
+
+.message-action-reactions,
+.message-action-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.message-action-buttons {
+    margin-top: 10px;
+}
+
+.message-reaction-btn,
+.message-action-buttons button {
+    padding: 8px 12px;
+    border: 1px solid rgba(103, 119, 96, 0.16);
+    border-radius: 999px;
+    background: #fff;
+    cursor: pointer;
+    font-weight: 700;
+}
+
+#message-delete-btn {
+    color: #9b433b;
+}
+
+.chat-blocked-banner {
+    margin-top: 12px;
+    padding: 12px 14px;
+    border-radius: 16px;
+    background: #fff4dc;
+    border: 1px solid rgba(173, 116, 50, 0.18);
+    color: #6f4b1e;
+    font-weight: 600;
+}
+
+.profile-listings-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.photo-viewer {
+    position: fixed;
+    inset: 0;
+    z-index: 30;
+    display: grid;
+    place-items: center;
+    padding: 24px;
+    background: rgba(18, 27, 22, 0.86);
+}
+
+.photo-viewer img {
+    max-width: min(92vw, 560px);
+    max-height: 72vh;
+    border-radius: 24px;
+    box-shadow: 0 24px 48px rgba(0, 0, 0, 0.24);
+    background: #fff;
+}
+
+.photo-viewer p {
+    margin-top: 14px;
+    color: #fff;
+    font-weight: 700;
+    text-align: center;
+}
+
+.photo-viewer-close {
+    position: absolute;
+    top: 24px;
+    right: 24px;
+    padding: 10px 14px;
+    border: none;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.14);
+    color: #fff;
+    font-weight: 700;
+    cursor: pointer;
 }
 
 .message-media-preview {

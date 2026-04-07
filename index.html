@@ -167,6 +167,7 @@
                             <div id="chat-options-menu" class="chat-options-menu" hidden>
                                 <button id="chat-option-profile" type="button">View Profile</button>
                                 <button id="chat-option-call" type="button">Call</button>
+                                <button id="chat-option-block" type="button">Block User</button>
                                 <button id="chat-option-rate" type="button">Rate</button>
                                 <button id="chat-option-report" type="button">Report</button>
                                 <button id="chat-option-delete" type="button">Delete Chat</button>
@@ -196,6 +197,20 @@
                     <p>Select a conversation to start messaging.</p>
                 </div>
                 <div id="chat-thread" class="chat-thread"></div>
+                <div id="message-action-bar" class="message-action-bar" hidden>
+                    <div class="message-action-reactions">
+                        <button type="button" class="message-reaction-btn" data-reaction="👍">👍</button>
+                        <button type="button" class="message-reaction-btn" data-reaction="❤️">❤️</button>
+                        <button type="button" class="message-reaction-btn" data-reaction="😂">😂</button>
+                        <button type="button" class="message-reaction-btn" data-reaction="🙏">🙏</button>
+                    </div>
+                    <div class="message-action-buttons">
+                        <button id="message-copy-btn" type="button">Copy</button>
+                        <button id="message-delete-btn" type="button">Delete</button>
+                        <button id="message-actions-close-btn" type="button">Close</button>
+                    </div>
+                </div>
+                <div id="chat-blocked-banner" class="chat-blocked-banner" hidden></div>
                 <div id="message-media-preview" class="message-media-preview" hidden></div>
                 <div class="chat-composer">
                     <input type="file" id="message-media-input" accept="image/*,video/*" multiple hidden>
@@ -377,6 +392,12 @@
             <button id="call-end-btn" class="call-action-btn call-end-btn" type="button">End</button>
         </div>
     </div>
+</div>
+
+<div id="photo-viewer" class="photo-viewer" hidden>
+    <button id="photo-viewer-close" class="photo-viewer-close" type="button">Close</button>
+    <img id="photo-viewer-image" alt="Profile photo preview">
+    <p id="photo-viewer-name"></p>
 </div>
 
 <div id="toast" class="toast" role="status" aria-live="polite"></div>

@@ -68,7 +68,22 @@ create table if not exists public.messages (
     sender_name text not null default '',
     body text not null default '',
     attachments jsonb not null default '[]'::jsonb,
+    reactions jsonb not null default '{}'::jsonb,
+    deleted_at timestamptz,
+    deleted_by_user_id uuid references auth.users (id) on delete set null,
     created_at timestamptz not null default timezone('utc', now())
+);
+
+alter table public.messages add column if not exists reactions jsonb not null default '{}'::jsonb;
+alter table public.messages add column if not exists deleted_at timestamptz;
+alter table public.messages add column if not exists deleted_by_user_id uuid references auth.users (id) on delete set null;
+
+create table if not exists public.user_blocks (
+    id uuid primary key default gen_random_uuid(),
+    blocker_user_id uuid not null references auth.users (id) on delete cascade,
+    blocked_user_id uuid not null references auth.users (id) on delete cascade,
+    created_at timestamptz not null default timezone('utc', now()),
+    unique (blocker_user_id, blocked_user_id)
 );
 
 do $$
@@ -203,6 +218,7 @@ alter table public.profiles enable row level security;
 alter table public.listings enable row level security;
 alter table public.conversations enable row level security;
 alter table public.messages enable row level security;
+alter table public.user_blocks enable row level security;
 
 drop policy if exists "Users can read their own profile" on public.profiles;
 drop policy if exists "Authenticated users can read all profiles" on public.profiles;
@@ -307,3 +323,46 @@ with check (
           and (auth.uid() = public.conversations.owner_user_id or auth.uid() = public.conversations.buyer_user_id)
     )
 );
+
+drop policy if exists "Conversation participants can update messages" on public.messages;
+create policy "Conversation participants can update messages"
+on public.messages
+for update
+to authenticated
+using (
+    exists (
+        select 1
+        from public.conversations
+        where public.conversations.id = conversation_id
+          and (auth.uid() = public.conversations.owner_user_id or auth.uid() = public.conversations.buyer_user_id)
+    )
+)
+with check (
+    exists (
+        select 1
+        from public.conversations
+        where public.conversations.id = conversation_id
+          and (auth.uid() = public.conversations.owner_user_id or auth.uid() = public.conversations.buyer_user_id)
+    )
+);
+
+drop policy if exists "Users can read related blocks" on public.user_blocks;
+create policy "Users can read related blocks"
+on public.user_blocks
+for select
+to authenticated
+using (auth.uid() = blocker_user_id or auth.uid() = blocked_user_id);
+
+drop policy if exists "Users can create their own blocks" on public.user_blocks;
+create policy "Users can create their own blocks"
+on public.user_blocks
+for insert
+to authenticated
+with check (auth.uid() = blocker_user_id and blocker_user_id <> blocked_user_id);
+
+drop policy if exists "Users can remove their own blocks" on public.user_blocks;
+create policy "Users can remove their own blocks"
+on public.user_blocks
+for delete
+to authenticated
+using (auth.uid() = blocker_user_id);

@@ -309,6 +309,11 @@ let messagesRealtimeChannel = null;
 let messagesRealtimeRefreshPromise = null;
 let messagesRealtimeRefreshQueued = false;
 const seenIncomingMessageIds = new Set();
+let userBlocks = [];
+let selectedMessageId = null;
+let selectedMessageConversationId = null;
+let audioContext = null;
+let hasUnlockedAudio = false;
 
 const app = document.getElementById('app');
 
@@ -368,9 +373,15 @@ const chatOptionsButton = document.getElementById('chat-options-btn');
 const chatOptionsMenu = document.getElementById('chat-options-menu');
 const chatOptionProfileButton = document.getElementById('chat-option-profile');
 const chatOptionCallButton = document.getElementById('chat-option-call');
+const chatOptionBlockButton = document.getElementById('chat-option-block');
 const chatOptionRateButton = document.getElementById('chat-option-rate');
 const chatOptionReportButton = document.getElementById('chat-option-report');
 const chatOptionDeleteButton = document.getElementById('chat-option-delete');
+const messageActionBar = document.getElementById('message-action-bar');
+const messageCopyButton = document.getElementById('message-copy-btn');
+const messageDeleteButton = document.getElementById('message-delete-btn');
+const messageActionsCloseButton = document.getElementById('message-actions-close-btn');
+const chatBlockedBanner = document.getElementById('chat-blocked-banner');
 const callScreen = document.getElementById('call-screen');
 const callAvatar = document.getElementById('call-avatar');
 const callName = document.getElementById('call-name');
@@ -388,6 +399,10 @@ const chatRatingInput = document.getElementById('chat-rating');
 const chatFeedbackNote = document.getElementById('chat-feedback-note');
 const enableMessageNotificationsButton = document.getElementById('enable-message-notifications');
 const navMessagesBadge = document.getElementById('nav-messages-badge');
+const photoViewer = document.getElementById('photo-viewer');
+const photoViewerImage = document.getElementById('photo-viewer-image');
+const photoViewerName = document.getElementById('photo-viewer-name');
+const photoViewerClose = document.getElementById('photo-viewer-close');
 const toast = document.getElementById('toast');
 const listingModerationFeedback = document.getElementById('listing-moderation-feedback');
 const openLoginBtn = document.getElementById('open-login');
@@ -631,6 +646,97 @@ async function requestMessageNotifications(){
     }
 }
 
+function unlockIncomingAudio(){
+    if (hasUnlockedAudio) return;
+    try {
+        audioContext = audioContext || new (window.AudioContext || window.webkitAudioContext)();
+        if (audioContext.state === 'suspended') {
+            audioContext.resume();
+        }
+        hasUnlockedAudio = true;
+    } catch (error) {
+        console.warn('Audio notifications unavailable', error);
+    }
+}
+
+function playIncomingMessageSound(){
+    if (!hasUnlockedAudio || !audioContext) return;
+    try {
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        oscillator.type = 'sine';
+        oscillator.frequency.setValueAtTime(880, audioContext.currentTime);
+        oscillator.frequency.exponentialRampToValueAtTime(660, audioContext.currentTime + 0.18);
+        gainNode.gain.setValueAtTime(0.0001, audioContext.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.08, audioContext.currentTime + 0.02);
+        gainNode.gain.exponentialRampToValueAtTime(0.0001, audioContext.currentTime + 0.24);
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        oscillator.start();
+        oscillator.stop(audioContext.currentTime + 0.24);
+    } catch (error) {
+        console.warn('Could not play incoming message sound', error);
+    }
+}
+
+function getCurrentUserBlockRows(){
+    return userBlocks.filter(row => row.blockerUserId === currentUser.id || row.blockedUserId === currentUser.id);
+}
+
+function isBlockedByCurrentUser(profileId){
+    return getCurrentUserBlockRows().some(row => row.blockerUserId === currentUser.id && row.blockedUserId === profileId);
+}
+
+function hasBlockedCurrentUser(profileId){
+    return getCurrentUserBlockRows().some(row => row.blockerUserId === profileId && row.blockedUserId === currentUser.id);
+}
+
+function getBlockStateForProfile(profileId){
+    return {
+        blockedByMe: isBlockedByCurrentUser(profileId),
+        blockedMe: hasBlockedCurrentUser(profileId),
+    };
+}
+
+function canInteractWithProfile(profileId){
+    const state = getBlockStateForProfile(profileId);
+    return !state.blockedByMe && !state.blockedMe;
+}
+
+function getConversationTargetProfileId(conversation){
+    return conversation?.contactProfileId || conversation?.sellerId || null;
+}
+
+function getConversationBlockMessage(conversation){
+    const profileId = getConversationTargetProfileId(conversation);
+    if (!profileId) return '';
+    if (isBlockedByCurrentUser(profileId)) return 'You blocked this user. Unblock them to send messages.';
+    if (hasBlockedCurrentUser(profileId)) return 'This user blocked you. Messaging is unavailable.';
+    return '';
+}
+
+function openPhotoViewer({ imageUrl, name }){
+    if (!photoViewer || !photoViewerImage || !photoViewerName || !imageUrl) return;
+    photoViewerImage.src = imageUrl;
+    photoViewerName.textContent = name || 'Profile photo';
+    photoViewer.hidden = false;
+}
+
+function closePhotoViewer(){
+    if (!photoViewer) return;
+    photoViewer.hidden = true;
+}
+
+function viewListingsForProfile(profileId){
+    marketQuery = profiles[profileId]?.name || '';
+    if (marketSearchInput) {
+        marketSearchInput.value = marketQuery;
+    }
+    refreshMarketplace();
+    showTab('home');
+    showToast(`Showing listings for ${profiles[profileId]?.name || 'this user'}`);
+}
+
 async function previewSelectedImage(inputElement, previewElement, fallbackUrl = '', altText = 'Selected image preview'){
     const file = inputElement?.files?.[0];
     if (file) {
@@ -775,6 +881,7 @@ async function markConversationAsRead(conversationId){
 
 function maybeNotifyIncomingMessage(conversation, message){
     if (!message || message.mine || typeof Notification === 'undefined') return;
+    playIncomingMessageSound();
     if (Notification.permission !== 'granted' || !document.hidden) return;
     if (message.id && seenIncomingMessageIds.has(message.id)) return;
     if (message.id) {
@@ -799,6 +906,98 @@ function upsertMessageInConversation(conversationId, message){
     sortConversationsByRecent();
     updateMessagesNavBadge();
     return conversation;
+}
+
+function getSelectedMessageContext(){
+    const conversation = conversations.find(item => item.id === selectedMessageConversationId);
+    const message = conversation?.messages.find(item => item.id === selectedMessageId) || null;
+    return { conversation, message };
+}
+
+function clearSelectedMessage(){
+    selectedMessageId = null;
+    selectedMessageConversationId = null;
+    if (messageActionBar) {
+        messageActionBar.hidden = true;
+    }
+}
+
+function selectMessage(conversationId, messageId){
+    if (selectedMessageId === messageId && selectedMessageConversationId === conversationId) {
+        clearSelectedMessage();
+        renderMessagesTab();
+        return;
+    }
+    selectedMessageConversationId = conversationId;
+    selectedMessageId = messageId;
+    if (messageActionBar) {
+        messageActionBar.hidden = false;
+    }
+    renderMessagesTab();
+}
+
+function getReactionSummary(reactions = {}){
+    return Object.entries(reactions)
+        .filter(([, users]) => Array.isArray(users) && users.length)
+        .map(([emoji, users]) => ({ emoji, count: users.length }));
+}
+
+async function reactToSelectedMessage(reaction){
+    const { conversation, message } = getSelectedMessageContext();
+    if (!conversation || !message || message.deletedAt) return;
+    const currentUsers = Array.isArray(message.reactions?.[reaction]) ? [...message.reactions[reaction]] : [];
+    const nextUsers = currentUsers.includes(currentUser.id)
+        ? currentUsers.filter(id => id !== currentUser.id)
+        : [...currentUsers, currentUser.id];
+    const nextReactions = {
+        ...(message.reactions || {}),
+        [reaction]: nextUsers,
+    };
+    if (!nextUsers.length) {
+        delete nextReactions[reaction];
+    }
+    message.reactions = nextReactions;
+    renderMessagesTab();
+
+    if (conversation.persisted && message.id && !String(message.id).startsWith('temp-')) {
+        const saveSucceeded = await updatePersistedMessage(conversation.id, message.id, { reactions: nextReactions });
+        if (!saveSucceeded) return;
+    }
+}
+
+async function deleteSelectedMessage(){
+    const { conversation, message } = getSelectedMessageContext();
+    if (!conversation || !message || !message.mine || message.deletedAt) return;
+    message.text = 'Message deleted';
+    message.attachments = [];
+    message.reactions = {};
+    message.deletedAt = new Date().toISOString();
+    message.deletedByUserId = currentUser.id;
+    clearSelectedMessage();
+    renderMessagesTab();
+
+    if (conversation.persisted && message.id && !String(message.id).startsWith('temp-')) {
+        await updatePersistedMessage(conversation.id, message.id, {
+            body: '',
+            attachments: [],
+            reactions: {},
+            deleted_at: message.deletedAt,
+            deleted_by_user_id: currentUser.id,
+        });
+    }
+}
+
+async function copySelectedMessage(){
+    const { message } = getSelectedMessageContext();
+    if (!message?.text || message.deletedAt) return;
+    try {
+        if (navigator.clipboard?.writeText) {
+            await navigator.clipboard.writeText(message.text);
+            showToast('Message copied');
+        }
+    } catch (error) {
+        console.error('Could not copy message', error);
+    }
 }
 
 function renderMessageMediaPreview(){
@@ -1024,6 +1223,31 @@ async function loadPublicProfiles(){
     (data || []).forEach(syncProfileRecord);
 }
 
+async function loadPersistedBlocks(){
+    if (!supabaseClient || !currentUser.id) return;
+    const { data, error } = await supabaseClient
+        .from('user_blocks')
+        .select('*')
+        .or(`blocker_user_id.eq.${currentUser.id},blocked_user_id.eq.${currentUser.id}`);
+
+    if (error) {
+        if (isMissingSupabaseTableError(error) || isMissingSupabaseColumnError(error)) {
+            userBlocks = [];
+            return;
+        }
+        console.error('Failed to load user blocks', error);
+        showToast(error.message);
+        return;
+    }
+
+    userBlocks = (data || []).map(row => ({
+        id: row.id,
+        blockerUserId: row.blocker_user_id,
+        blockedUserId: row.blocked_user_id,
+        createdAt: row.created_at,
+    }));
+}
+
 function buildPersistedListingRow(listing){
     return {
         id: listing.id,
@@ -1219,6 +1443,7 @@ async function deletePersistedListing(listingId){
 async function loadPersistedAccountData(){
     await loadPersistedProfile();
     await loadPublicProfiles();
+    await loadPersistedBlocks();
     await loadPersistedListings();
     await loadMarketplaceListings();
     await loadPersistedConversations();
@@ -1277,11 +1502,14 @@ function mapPersistedMessageRow(row){
     return {
         id: row.id,
         author: row.sender_name || 'User',
-        text: row.body || '',
+        text: row.deleted_at ? 'Message deleted' : (row.body || ''),
         time: new Date(row.created_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }),
         sentAt: row.created_at,
         mine: row.sender_user_id === currentUser.id,
-        attachments: Array.isArray(row.attachments) ? row.attachments : [],
+        attachments: row.deleted_at ? [] : (Array.isArray(row.attachments) ? row.attachments : []),
+        reactions: row.reactions && typeof row.reactions === 'object' ? row.reactions : {},
+        deletedAt: row.deleted_at || null,
+        deletedByUserId: row.deleted_by_user_id || null,
     };
 }
 
@@ -1459,6 +1687,84 @@ async function ensurePersistedDirectConversation(profileId){
     }
 
     return createdConversation;
+}
+
+async function blockUser(profileId){
+    if (!supabaseClient || !currentUser.id || !profileId || profileId === currentUser.id) return false;
+    const { data, error } = await supabaseClient
+        .from('user_blocks')
+        .insert({
+            blocker_user_id: currentUser.id,
+            blocked_user_id: profileId,
+        })
+        .select()
+        .single();
+
+    if (error) {
+        console.error('Failed to block user', error);
+        showToast(error.message);
+        return false;
+    }
+
+    userBlocks.push({
+        id: data.id,
+        blockerUserId: data.blocker_user_id,
+        blockedUserId: data.blocked_user_id,
+        createdAt: data.created_at,
+    });
+    return true;
+}
+
+async function unblockUser(profileId){
+    if (!supabaseClient || !currentUser.id || !profileId) return false;
+    const existing = userBlocks.find(row => row.blockerUserId === currentUser.id && row.blockedUserId === profileId);
+    if (!existing) return true;
+    const { error } = await supabaseClient
+        .from('user_blocks')
+        .delete()
+        .eq('id', existing.id)
+        .eq('blocker_user_id', currentUser.id);
+
+    if (error) {
+        console.error('Failed to unblock user', error);
+        showToast(error.message);
+        return false;
+    }
+
+    userBlocks = userBlocks.filter(row => row.id !== existing.id);
+    return true;
+}
+
+async function toggleBlockProfile(profileId){
+    if (!profileId || profileId === currentUser.id) return;
+    const blockedByMe = isBlockedByCurrentUser(profileId);
+    const succeeded = blockedByMe ? await unblockUser(profileId) : await blockUser(profileId);
+    if (!succeeded) return;
+    closeChatOptionsMenu();
+    showToast(blockedByMe ? 'User unblocked' : 'User blocked');
+    if (currentProfileId === profileId) {
+        openProfile(profileId);
+    }
+    if (getActiveTabName() === 'messages') {
+        renderMessagesTab();
+    }
+}
+
+async function updatePersistedMessage(conversationId, messageId, payload){
+    if (!supabaseClient || !conversationId || !messageId) return false;
+    const { error } = await supabaseClient
+        .from(SUPABASE_TABLES.messages)
+        .update(payload)
+        .eq('id', messageId)
+        .eq('conversation_id', conversationId);
+
+    if (error) {
+        console.error('Failed to update message', error);
+        showToast(error.message);
+        return false;
+    }
+
+    return true;
 }
 
 async function savePersistedMessage(conversationId, payload){
@@ -1670,10 +1976,38 @@ document.getElementById('message-send').onclick = () => sendMessage();
 if (enableMessageNotificationsButton) {
     enableMessageNotificationsButton.onclick = () => requestMessageNotifications();
 }
+document.querySelectorAll('.message-reaction-btn').forEach(button => {
+    button.onclick = () => reactToSelectedMessage(button.dataset.reaction);
+});
+if (messageCopyButton) {
+    messageCopyButton.onclick = () => copySelectedMessage();
+}
+if (messageDeleteButton) {
+    messageDeleteButton.onclick = () => deleteSelectedMessage();
+}
+if (messageActionsCloseButton) {
+    messageActionsCloseButton.onclick = () => {
+        clearSelectedMessage();
+        renderMessagesTab();
+    };
+}
+if (photoViewerClose) {
+    photoViewerClose.onclick = () => closePhotoViewer();
+}
+if (photoViewer) {
+    photoViewer.onclick = (event) => {
+        if (event.target === photoViewer) {
+            closePhotoViewer();
+        }
+    };
+}
 document.addEventListener('visibilitychange', () => {
     if (!document.hidden && getActiveTabName() === 'messages' && activeConversationId) {
         markConversationAsRead(activeConversationId);
     }
+});
+['click', 'keydown', 'touchstart'].forEach(eventName => {
+    document.addEventListener(eventName, () => unlockIncomingAudio(), { once: true });
 });
 messageAttachButton.onclick = () => messageMediaInput?.click();
 messageMediaInput.onchange = async () => {
@@ -1714,6 +2048,14 @@ if (chatOptionCallButton) {
     chatOptionCallButton.onclick = () => {
         closeChatOptionsMenu();
         callActiveConversation();
+    };
+}
+if (chatOptionBlockButton) {
+    chatOptionBlockButton.onclick = () => {
+        const conversation = conversations.find(item => item.id === activeConversationId);
+        const profileId = getConversationTargetProfileId(conversation);
+        if (!profileId) return;
+        toggleBlockProfile(profileId);
     };
 }
 if (chatOptionRateButton) {
@@ -1871,6 +2213,7 @@ async function signOutUser(){
         userListings = [];
         marketplaceListings = [];
         conversations = [];
+        userBlocks = [];
         activeConversationId = conversations[0]?.id || null;
         stopMessagesRealtime();
         refreshMarketplace();
@@ -1892,6 +2235,7 @@ async function signOutUser(){
     userListings = [];
     marketplaceListings = [];
     conversations = [];
+    userBlocks = [];
     activeConversationId = conversations[0]?.id || null;
     stopMessagesRealtime();
     refreshMarketplace();
@@ -2265,6 +2609,10 @@ function openProfile(profileId){
         imageClassName: 'avatar-image',
         fallbackClassName: 'avatar-fallback',
     });
+    profileAvatar.onclick = () => openPhotoViewer({
+        imageUrl: profile.avatarUrl || createGeneratedAvatar(profile.name),
+        name: profile.name,
+    });
     profileAbout.textContent = profile.about;
     profileVerification.textContent = profile.type === 'Company Profile'
         ? (profile.verificationPlan?.subscribed
@@ -2292,11 +2640,25 @@ function openProfile(profileId){
     }
 
     if (!isCurrentUsersProfile) {
+        const blockState = getBlockStateForProfile(profileId);
         const messageButton = document.createElement('button');
         messageButton.type = 'button';
-        messageButton.textContent = `Message ${profile.name}`;
+        messageButton.textContent = blockState.blockedMe ? `${profile.name} Blocked You` : `Message ${profile.name}`;
+        messageButton.disabled = blockState.blockedByMe || blockState.blockedMe;
         messageButton.onclick = () => startDirectConversation(profileId);
         profileAdminTools.appendChild(messageButton);
+
+        const listingsButton = document.createElement('button');
+        listingsButton.type = 'button';
+        listingsButton.textContent = `View ${profile.name}'s Listings`;
+        listingsButton.onclick = () => viewListingsForProfile(profileId);
+        profileAdminTools.appendChild(listingsButton);
+
+        const blockButton = document.createElement('button');
+        blockButton.type = 'button';
+        blockButton.textContent = blockState.blockedByMe ? `Unblock ${profile.name}` : `Block ${profile.name}`;
+        blockButton.onclick = () => toggleBlockProfile(profileId);
+        profileAdminTools.appendChild(blockButton);
     }
 
     if (!showCompanyEditorOnly) {
@@ -2457,6 +2819,10 @@ async function startConversation(listing){
         showToast('You cannot message your own listing');
         return;
     }
+    if (listing.sellerId && !canInteractWithProfile(listing.sellerId)) {
+        showToast('Messaging is unavailable for this user');
+        return;
+    }
 
     if (supabaseClient && currentUser.id && listing.userId) {
         const persistedConversation = await ensurePersistedConversationForListing(listing);
@@ -2513,6 +2879,10 @@ async function startDirectConversation(profileId){
         showToast('You cannot message yourself');
         return;
     }
+    if (!canInteractWithProfile(profileId)) {
+        showToast(isBlockedByCurrentUser(profileId) ? 'You blocked this user' : 'This user blocked you');
+        return;
+    }
 
     if (supabaseClient && currentUser.id) {
         const persistedConversation = await ensurePersistedDirectConversation(profileId);
@@ -2564,10 +2934,25 @@ function renderMessagesTab(){
     conversationList.innerHTML = '';
     updateNotificationButton();
     const activeConversation = conversations.find(conversation => conversation.id === activeConversationId) || conversations[0];
+    const selectedContext = getSelectedMessageContext();
+    if (messageActionBar) {
+        messageActionBar.hidden = !selectedContext.message;
+    }
+    if (messageDeleteButton) {
+        messageDeleteButton.hidden = !selectedContext.message?.mine;
+    }
+    if (messageCopyButton) {
+        messageCopyButton.disabled = !selectedContext.message?.text || Boolean(selectedContext.message?.deletedAt);
+    }
 
     if (!activeConversation && !conversations.length) {
+        clearSelectedMessage();
         if (activeChatAvatar) {
             activeChatAvatar.innerHTML = '';
+        }
+        if (chatBlockedBanner) {
+            chatBlockedBanner.hidden = true;
+            chatBlockedBanner.textContent = '';
         }
         activeChatTitle.textContent = 'No conversations';
         activeChatMeta.textContent = 'Start from a listing or profile.';
@@ -2612,6 +2997,7 @@ function renderMessagesTab(){
             activeConversationId = conversation.id;
             mobileMessagesView = 'chat';
             clearMessageComposer();
+            clearSelectedMessage();
             renderMessagesTab();
         };
         conversationList.appendChild(card);
@@ -2627,6 +3013,7 @@ function renderActiveConversation(){
     if (!conversation) return;
     const conversationProfile = getConversationProfile(conversation);
     currentProfileId = conversation.contactProfileId || conversation.sellerId || null;
+    const blockMessage = getConversationBlockMessage(conversation);
 
     if (activeChatAvatar) {
         activeChatAvatar.innerHTML = renderAvatarMarkup({
@@ -2635,6 +3022,10 @@ function renderActiveConversation(){
             imageClassName: 'avatar-image',
             fallbackClassName: 'avatar-fallback',
         });
+        activeChatAvatar.onclick = () => openPhotoViewer({
+            imageUrl: conversationProfile?.avatarUrl || createGeneratedAvatar(conversation.contact),
+            name: conversation.contact,
+        });
     }
     activeChatTitle.textContent = conversation.contact;
     activeChatMeta.textContent = conversation.listingTitle === 'Direct message'
@@ -2642,7 +3033,14 @@ function renderActiveConversation(){
         : `${conversation.listingTitle} • ${conversation.location}`;
     messagesEmpty.style.display = 'none';
     chatThread.innerHTML = '';
-    setComposerEnabled(true);
+    setComposerEnabled(!blockMessage);
+    if (chatBlockedBanner) {
+        chatBlockedBanner.hidden = !blockMessage;
+        chatBlockedBanner.textContent = blockMessage;
+    }
+    if (chatOptionBlockButton && currentProfileId) {
+        chatOptionBlockButton.textContent = isBlockedByCurrentUser(currentProfileId) ? 'Unblock User' : 'Block User';
+    }
 
     if (!conversation.messages.length) {
         chatThread.innerHTML = `
@@ -2668,9 +3066,10 @@ function renderActiveConversation(){
                 imageClassName: 'avatar-image',
                 fallbackClassName: 'avatar-fallback',
             });
+        const reactionSummary = getReactionSummary(message.reactions);
         bubble.innerHTML = `
             <span class="message-author-avatar">${authorAvatar}</span>
-            <div class="message-bubble${message.mine ? ' mine' : ''}">
+            <div class="message-bubble${message.mine ? ' mine' : ''}${selectedMessageId === message.id && selectedMessageConversationId === conversation.id ? ' is-selected' : ''}" data-message-id="${message.id}">
                 ${message.text ? `<p>${message.text}</p>` : ''}
                 ${message.attachments?.length ? `
                     <div class="message-attachments">
@@ -2680,9 +3079,15 @@ function renderActiveConversation(){
                         ).join('')}
                     </div>
                 ` : ''}
+                ${reactionSummary.length ? `
+                    <div class="message-reactions">
+                        ${reactionSummary.map(item => `<span class="message-reaction-pill">${item.emoji} ${item.count}</span>`).join('')}
+                    </div>
+                ` : ''}
                 <span class="message-meta">${message.author} • ${formatMessageTimestamp(message.sentAt, message.time)}${message.mine ? ` • <span class="message-status">${formatMessageStatus(message)}</span>` : ''}</span>
             </div>
         `;
+        bubble.querySelector('.message-bubble')?.addEventListener('click', () => selectMessage(conversation.id, message.id));
         chatThread.appendChild(bubble);
     });
 
@@ -2706,6 +3111,10 @@ async function sendMessage(){
     const text = messageInput.value.trim();
     const conversation = conversations.find(item => item.id === activeConversationId);
     if ((!text && !selectedMessageMedia.length) || !conversation) return;
+    if (getConversationBlockMessage(conversation)) {
+        showToast('Messaging is unavailable in this conversation');
+        return;
+    }
 
     const messagePayload = {
         id: `temp-${Date.now()}`,
@@ -2781,6 +3190,7 @@ function deleteConversation(conversationId){
     }
 
     clearMessageComposer();
+    clearSelectedMessage();
     renderMessagesTab();
     showToast(`Deleted chat with ${targetConversation.contact} from your inbox`);
 }
@@ -3196,6 +3606,7 @@ async function initializeAuth(){
         hydrateCurrentUser(userAccounts['guest@farmyard.app']);
         ensureProfileForAccount(userAccounts['guest@farmyard.app']);
         conversations = [];
+        userBlocks = [];
         activeConversationId = conversations[0]?.id || null;
         updateMessagesNavBadge();
         refreshMarketplace();
@@ -3226,6 +3637,7 @@ async function initializeAuth(){
         hydrateCurrentUser(userAccounts['guest@farmyard.app']);
         ensureProfileForAccount(userAccounts['guest@farmyard.app']);
         conversations = [];
+        userBlocks = [];
         activeConversationId = conversations[0]?.id || null;
         updateMessagesNavBadge();
         refreshMarketplace();
@@ -3251,6 +3663,7 @@ async function initializeAuth(){
             userListings = [];
             marketplaceListings = [];
             conversations = [];
+            userBlocks = [];
             activeConversationId = conversations[0]?.id || null;
             stopMessagesRealtime();
             refreshMarketplace();
