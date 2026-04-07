@@ -304,6 +304,7 @@ let tabHistory = [];
 let isEditingProfile = false;
 let isEditingCompanyProfile = false;
 let isCreatingCompanyProfile = false;
+let isEditingOwnProfilePhoto = false;
 let isInvitingSalesRep = false;
 let showCompanyTeamMembers = false;
 let showCompanyPendingInvites = false;
@@ -1745,8 +1746,12 @@ function openProfile(profileId){
     const profile = profiles[profileId];
     if (!profile) return;
     const isCurrentUsersCompany = profileId === currentUser.companyId;
+    const isCurrentUsersProfile = profileId === currentUser.id;
     const canManageCompanyProfile = isCurrentUsersCompany && currentUser.companyRole === 'Admin';
     const showCompanyEditorOnly = canManageCompanyProfile && isEditingCompanyProfile;
+    if (!isCurrentUsersProfile) {
+        isEditingOwnProfilePhoto = false;
+    }
     currentProfileId = profileId;
     profileType.textContent = showCompanyEditorOnly ? 'Company Profile Editor' : profile.type;
     profileName.textContent = showCompanyEditorOnly ? `Edit ${profile.name}` : profile.name;
@@ -1854,6 +1859,34 @@ function openProfile(profileId){
         }
     }
 
+    if (isCurrentUsersProfile) {
+        const photoButton = document.createElement('button');
+        photoButton.type = 'button';
+        photoButton.textContent = isEditingOwnProfilePhoto ? 'Close Photo Form' : 'Update Profile Photo';
+        photoButton.onclick = () => toggleOwnProfilePhotoEditor();
+        profileAdminTools.appendChild(photoButton);
+
+        if (isEditingOwnProfilePhoto) {
+            const photoEditor = document.createElement('div');
+            photoEditor.className = 'profile-admin-panel';
+            photoEditor.innerHTML = `
+                <div class="company-form-intro">
+                    <p class="section-eyebrow">Profile Photo</p>
+                    <h4>Upload a profile photo</h4>
+                    <p>Choose a clear photo that buyers and sellers can recognize easily.</p>
+                </div>
+                <label for="profile-photo-tab-input"><strong>Profile photo</strong></label>
+                <input id="profile-photo-tab-input" type="file" accept="image/*">
+                <img id="profile-photo-tab-preview" class="upload-preview inline-upload-preview" alt="Profile photo preview" ${currentUser.avatarUrl ? '' : 'hidden'}>
+                <div class="profile-edit-actions">
+                    <button id="save-profile-photo-tab-btn" type="button">Save Photo</button>
+                    <button id="cancel-profile-photo-tab-btn" type="button">Cancel</button>
+                </div>
+            `;
+            profileAdminTools.appendChild(photoEditor);
+        }
+    }
+
     showTab('profile');
 
     if (canManageCompanyProfile && isEditingCompanyProfile) {
@@ -1875,6 +1908,24 @@ function openProfile(profileId){
         document.querySelectorAll('.verification-toggle').forEach(toggle => {
             toggle.onchange = (event) => updateVerificationRequirement(event.target.dataset.requirement, event.target.checked, false);
         });
+    }
+
+    if (isCurrentUsersProfile && isEditingOwnProfilePhoto) {
+        setPreviewImage(document.getElementById('profile-photo-tab-preview'), currentUser.avatarUrl || '', 'Profile photo preview');
+        document.getElementById('save-profile-photo-tab-btn').onclick = () => saveOwnProfilePhoto();
+        document.getElementById('cancel-profile-photo-tab-btn').onclick = () => toggleOwnProfilePhotoEditor(false);
+        document.getElementById('profile-photo-tab-input').onchange = async () => {
+            try {
+                await previewSelectedImage(
+                    document.getElementById('profile-photo-tab-input'),
+                    document.getElementById('profile-photo-tab-preview'),
+                    currentUser.avatarUrl || '',
+                    'Profile photo preview'
+                );
+            } catch (error) {
+                showToast(error.message || 'Could not preview the selected profile photo');
+            }
+        };
     }
 }
 
@@ -3289,6 +3340,11 @@ function toggleCompanyProfileEditor(forceState){
     openProfile(currentUser.companyId || currentUser.id);
 }
 
+function toggleOwnProfilePhotoEditor(forceState){
+    isEditingOwnProfilePhoto = typeof forceState === 'boolean' ? forceState : !isEditingOwnProfilePhoto;
+    openProfile(currentUser.id);
+}
+
 async function createCompanyProfile(){
     if (currentUser.companyId) {
         showToast('You can only belong to one company sales team at a time');
@@ -3429,6 +3485,31 @@ async function saveCompanyProfileEdits(){
     showToast('Company profile updated successfully');
     openProfile(currentUser.companyId);
     renderUserListings();
+}
+
+async function saveOwnProfilePhoto(){
+    const profile = profiles[currentUser.id];
+    const profilePhotoInput = document.getElementById('profile-photo-tab-input');
+    const selectedFile = profilePhotoInput?.files?.[0];
+
+    if (!profile || !selectedFile) {
+        showToast('Select a profile photo first');
+        return;
+    }
+
+    currentUser.avatarUrl = await readFileAsDataUrl(selectedFile);
+    profile.avatarUrl = currentUser.avatarUrl;
+
+    persistCurrentUserAccount();
+    const saveSucceeded = await savePersistedProfile();
+    if (!saveSucceeded) {
+        return;
+    }
+
+    isEditingOwnProfilePhoto = false;
+    showToast('Profile photo updated successfully');
+    renderUserListings();
+    openProfile(currentUser.id);
 }
 
 function toggleCompanyVerification(){
