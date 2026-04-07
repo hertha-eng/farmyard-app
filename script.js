@@ -336,7 +336,9 @@ let activeCallStartedAt = null;
 let activeCallTimerId = null;
 let isCallMuted = false;
 let isSpeakerMode = false;
-let messagesRefreshTimerId = null;
+let messagesRealtimeChannel = null;
+let messagesRealtimeRefreshPromise = null;
+let messagesRealtimeRefreshQueued = false;
 
 const app = document.getElementById('app');
 
@@ -1199,22 +1201,89 @@ async function savePersistedMessage(conversationId, payload){
     return true;
 }
 
-function startMessagesRefreshLoop(){
-    if (messagesRefreshTimerId || !supabaseClient || !currentUser.id) return;
-    messagesRefreshTimerId = window.setInterval(() => {
-        if (getActiveTabName() !== 'messages') return;
-        loadPersistedConversations().then(() => {
-            if (getActiveTabName() === 'messages') {
-                renderMessagesTab();
-            }
-        });
-    }, 5000);
+async function refreshRealtimeMessagesView(){
+    await loadPersistedConversations();
+    if (getActiveTabName() === 'messages') {
+        renderMessagesTab();
+    }
 }
 
-function stopMessagesRefreshLoop(){
-    if (!messagesRefreshTimerId) return;
-    window.clearInterval(messagesRefreshTimerId);
-    messagesRefreshTimerId = null;
+function queueRealtimeMessagesRefresh(){
+    if (!supabaseClient || !currentUser.id) return;
+    if (messagesRealtimeRefreshPromise) {
+        messagesRealtimeRefreshQueued = true;
+        return;
+    }
+
+    messagesRealtimeRefreshPromise = refreshRealtimeMessagesView()
+        .catch(error => {
+            console.error('Failed to refresh realtime messages', error);
+        })
+        .finally(() => {
+            messagesRealtimeRefreshPromise = null;
+            if (messagesRealtimeRefreshQueued) {
+                messagesRealtimeRefreshQueued = false;
+                queueRealtimeMessagesRefresh();
+            }
+        });
+}
+
+function isConversationRelevantToCurrentUser(payload = {}){
+    const row = payload.new || payload.old;
+    if (!row || !currentUser.id) return false;
+    return row.owner_user_id === currentUser.id || row.buyer_user_id === currentUser.id;
+}
+
+function isMessageRelevantToCurrentUser(payload = {}){
+    const row = payload.new || payload.old;
+    if (!row || !currentUser.id) return false;
+    const activeConversation = conversations.find(item => item.id === row.conversation_id);
+    if (activeConversation) {
+        return true;
+    }
+    return conversations.some(item => item.id === row.conversation_id);
+}
+
+function stopMessagesRealtime(){
+    if (!supabaseClient || !messagesRealtimeChannel) return;
+    supabaseClient.removeChannel(messagesRealtimeChannel);
+    messagesRealtimeChannel = null;
+}
+
+function startMessagesRealtime(){
+    if (!supabaseClient || !currentUser.id || messagesRealtimeChannel) return;
+
+    messagesRealtimeChannel = supabaseClient
+        .channel(`farmyard-messages-${currentUser.id}`)
+        .on(
+            'postgres_changes',
+            {
+                event: '*',
+                schema: 'public',
+                table: SUPABASE_TABLES.conversations,
+            },
+            payload => {
+                if (!isConversationRelevantToCurrentUser(payload)) return;
+                queueRealtimeMessagesRefresh();
+            }
+        )
+        .on(
+            'postgres_changes',
+            {
+                event: '*',
+                schema: 'public',
+                table: SUPABASE_TABLES.messages,
+            },
+            payload => {
+                if (!isMessageRelevantToCurrentUser(payload)) return;
+                queueRealtimeMessagesRefresh();
+            }
+        )
+        .subscribe((status) => {
+            if (status === 'CHANNEL_ERROR') {
+                console.error('Supabase realtime channel error for messages');
+            }
+        });
 }
 
 // Bottom nav
@@ -1363,9 +1432,8 @@ function showTab(name, options = {}){
     updateNavState(name);
     if (name === 'messages') {
         renderMessagesTab();
-        startMessagesRefreshLoop();
     } else {
-        stopMessagesRefreshLoop();
+        closeChatOptionsMenu();
     }
 }
 
@@ -1463,7 +1531,7 @@ async function signOutUser(){
         marketplaceListings = [];
         conversations = [...fallbackConversations];
         activeConversationId = conversations[0]?.id || null;
-        stopMessagesRefreshLoop();
+        stopMessagesRealtime();
         refreshMarketplace();
         renderUserListings();
         renderMessagesTab();
@@ -1483,7 +1551,7 @@ async function signOutUser(){
     marketplaceListings = [];
     conversations = [...fallbackConversations];
     activeConversationId = conversations[0]?.id || null;
-    stopMessagesRefreshLoop();
+    stopMessagesRealtime();
     refreshMarketplace();
     renderUserListings();
     renderMessagesTab();
@@ -2222,9 +2290,8 @@ async function sendMessage(){
         if (!saveSucceeded) {
             return;
         }
-        await loadPersistedConversations();
+        await refreshRealtimeMessagesView();
         clearMessageComposer();
-        renderMessagesTab();
         showToast('Message sent');
         return;
     }
@@ -2680,6 +2747,7 @@ async function initializeAuth(){
         syncCurrentUserFromSession(data.session);
         updateAuthButtons(true);
         await loadPersistedAccountData();
+        startMessagesRealtime();
         const savedReturnTab = localStorage.getItem('farmyard-return-tab');
         if (savedReturnTab) {
             localStorage.removeItem('farmyard-return-tab');
@@ -2700,6 +2768,8 @@ async function initializeAuth(){
             syncCurrentUserFromSession(session);
             updateAuthButtons(true);
             loadPersistedAccountData().then(() => {
+                stopMessagesRealtime();
+                startMessagesRealtime();
                 if (getActiveTabName() === 'messages') {
                     renderMessagesTab();
                 }
@@ -2713,7 +2783,7 @@ async function initializeAuth(){
             marketplaceListings = [];
             conversations = [...fallbackConversations];
             activeConversationId = conversations[0]?.id || null;
-            stopMessagesRefreshLoop();
+            stopMessagesRealtime();
             refreshMarketplace();
             renderUserListings();
             renderMessagesTab();

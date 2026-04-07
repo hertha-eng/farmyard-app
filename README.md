@@ -72,6 +72,18 @@ If you already created the tables before this update:
 
 This matters because browser-only validation can be bypassed, but the database trigger still blocks invalid posts before they are stored.
 
+## Real-Time Messaging
+
+Messages and conversations now use Supabase Realtime instead of the old 5-second polling loop.
+
+To enable it in an existing project:
+
+1. Open the Supabase SQL editor.
+2. Rerun the full `supabase-schema.sql` file so `public.conversations` and `public.messages` are added to the `supabase_realtime` publication.
+3. Keep Realtime enabled for the project in Supabase.
+
+After that, users in the same conversation should see new messages appear immediately.
+
 ## Local Preview
 
 Open `index.html` in a browser, or serve the folder with any static file server.
