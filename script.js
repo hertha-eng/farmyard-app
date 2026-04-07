@@ -24,6 +24,24 @@ const SUPABASE_TABLES = {
 };
 const LOCAL_STATE_KEY = 'farmyard-local-state-v1';
 const LAST_ACTIVE_TAB_KEY = 'farmyard-last-active-tab';
+const AGRICULTURE_KEYWORDS = [
+    'agriculture', 'agricultural', 'farm', 'farming', 'farmer', 'crop', 'crops', 'harvest',
+    'produce', 'grain', 'grains', 'maize', 'corn', 'beans', 'rice', 'cassava', 'banana',
+    'plantain', 'coffee', 'tea', 'sorghum', 'millet', 'groundnut', 'peanut', 'soy', 'soybean',
+    'tomato', 'onion', 'cabbage', 'pepper', 'okra', 'carrot', 'potato', 'avocado', 'mango',
+    'fruit', 'vegetable', 'vegetables', 'seed', 'seeds', 'seedling', 'seedlings', 'nursery',
+    'fertilizer', 'manure', 'compost', 'pesticide', 'herbicide', 'feed', 'hay', 'silage',
+    'livestock', 'poultry', 'chicken', 'broiler', 'layer', 'goat', 'goats', 'cow', 'cattle',
+    'dairy', 'milk', 'egg', 'eggs', 'pig', 'pigs', 'fish', 'fingerling', 'beekeeping', 'honey',
+    'tractor', 'plough', 'ploughing', 'harrow', 'irrigation', 'greenhouse', 'acre', 'hectare',
+    'farm input', 'farm inputs', 'feed mill'
+];
+const NON_AGRICULTURE_KEYWORDS = [
+    'iphone', 'smartphone', 'phone', 'android phone', 'laptop', 'macbook', 'tablet', 'airpods',
+    'television', 'tv', 'speaker', 'headphones', 'fridge', 'microwave', 'sofa', 'mattress',
+    'handbag', 'shoes', 'sneakers', 'dress', 'watch', 'jewelry', 'perfume', 'makeup',
+    'playstation', 'ps5', 'xbox', 'gaming', 'crypto', 'forex'
+];
 
 const DEFAULT_SECURITY = {
     passwordUpdated: '30 days ago',
@@ -397,6 +415,7 @@ const chatFeedbackTitle = document.getElementById('chat-feedback-title');
 const chatRatingInput = document.getElementById('chat-rating');
 const chatFeedbackNote = document.getElementById('chat-feedback-note');
 const toast = document.getElementById('toast');
+const listingModerationFeedback = document.getElementById('listing-moderation-feedback');
 const openLoginBtn = document.getElementById('open-login');
 const openRegisterBtn = document.getElementById('open-register');
 const navButtons = {
@@ -449,6 +468,52 @@ function isMissingSupabaseColumnError(error){
 
 function generateListingId(){
     return window.crypto?.randomUUID?.() || `listing-${Date.now()}`;
+}
+
+function normalizeModerationText(value){
+    return (value || '')
+        .toLowerCase()
+        .replace(/[^a-z0-9\s]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
+function getMatchedModerationTerms(text, keywords){
+    return keywords.filter(keyword => text.includes(keyword.toLowerCase()));
+}
+
+function setListingModerationFeedback(message = ''){
+    if (!listingModerationFeedback) return;
+    listingModerationFeedback.textContent = message;
+    listingModerationFeedback.hidden = !message;
+}
+
+function evaluateAgricultureListing(listing){
+    const combinedText = normalizeModerationText([
+        listing.title,
+        listing.description,
+        listing.unit,
+    ].join(' '));
+    const agricultureMatches = getMatchedModerationTerms(combinedText, AGRICULTURE_KEYWORDS);
+    const blockedMatches = getMatchedModerationTerms(combinedText, NON_AGRICULTURE_KEYWORDS);
+    const hasStrongAgricultureSignal = agricultureMatches.length > 0;
+    const hasStrongBlockedSignal = blockedMatches.length > 0;
+
+    if (hasStrongBlockedSignal && !hasStrongAgricultureSignal) {
+        return {
+            accepted: false,
+            reason: `This post was rejected because it looks unrelated to agriculture: ${blockedMatches.slice(0, 3).join(', ')}.`,
+        };
+    }
+
+    if (!hasStrongAgricultureSignal) {
+        return {
+            accepted: false,
+            reason: 'This post was rejected because the title and description do not clearly mention a farm product, input, livestock item, or agricultural service.',
+        };
+    }
+
+    return { accepted: true, reason: '' };
 }
 
 function readFileAsDataUrl(file){
@@ -1183,6 +1248,13 @@ document.getElementById('image').onchange = async () => {
         showToast(error.message || 'Could not preview the selected image');
     }
 };
+['category', 'title', 'description', 'unit'].forEach(id => {
+    const field = document.getElementById(id);
+    if (field) {
+        field.addEventListener('input', () => setListingModerationFeedback(''));
+        field.addEventListener('change', () => setListingModerationFeedback(''));
+    }
+});
 document.getElementById('message-send').onclick = () => sendMessage();
 messageAttachButton.onclick = () => messageMediaInput?.click();
 messageMediaInput.onchange = async () => {
@@ -1437,6 +1509,13 @@ document.getElementById('postBtn').onclick = async () => {
     if (!category || !title || !price || !unit || !location) { alert('Fill all required fields'); return; }
     if (description.length > 220) { alert('Keep the description under 220 characters for now.'); return; }
 
+    const moderationResult = evaluateAgricultureListing({ category, title, description, unit });
+    if (!moderationResult.accepted) {
+        setListingModerationFeedback(moderationResult.reason);
+        showToast('Listing rejected by the agriculture-only filter');
+        return;
+    }
+
     let image = existingListing?.image || 'https://via.placeholder.com/150';
     if (selectedImage) {
         try {
@@ -1494,6 +1573,7 @@ function clearPostForm(){
     ['category','title','price','unit','minOrder','location','description','image'].forEach(id => document.getElementById(id).value='');
     document.getElementById('negotiable').checked = false;
     setPreviewImage(document.getElementById('listing-image-preview'), '', 'Listing photo preview');
+    setListingModerationFeedback('');
     editingListingIndex = null;
 }
 

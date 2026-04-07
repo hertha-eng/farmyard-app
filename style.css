@@ -747,6 +747,22 @@ nav button.is-active {
     font-family: Arial, sans-serif;
 }
 
+.moderation-note {
+    color: var(--muted);
+    font-size: 0.9rem;
+    line-height: 1.5;
+}
+
+.moderation-feedback {
+    padding: 10px 12px;
+    border-radius: 12px;
+    border: 1px solid #ebc2bd;
+    background: #fff3f1;
+    color: #8e2f28;
+    font-size: 0.92rem;
+    line-height: 1.5;
+}
+
 .form-row {
     display: grid;
     grid-template-columns: 1fr 1fr;
