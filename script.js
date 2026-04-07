@@ -56,6 +56,23 @@ const DEFAULT_VERIFICATION_PLAN = {
     billing: 'monthly',
     renewalDate: null,
 };
+const DEFAULT_LISTING_IMAGE = `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(`
+    <svg xmlns="http://www.w3.org/2000/svg" width="640" height="420" viewBox="0 0 640 420">
+        <defs>
+            <linearGradient id="farmyardListingGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#eef5df" />
+                <stop offset="100%" stop-color="#d7e7c1" />
+            </linearGradient>
+        </defs>
+        <rect width="640" height="420" rx="28" fill="url(#farmyardListingGradient)" />
+        <circle cx="144" cy="126" r="44" fill="#f5d98a" />
+        <path d="M0 320 C110 248 198 248 296 320 S490 392 640 286 V420 H0 Z" fill="#a7c97f" />
+        <path d="M0 356 C134 292 244 304 368 360 S518 402 640 336 V420 H0 Z" fill="#6f9b58" opacity="0.92" />
+        <rect x="228" y="154" width="184" height="112" rx="20" fill="#fffdf6" opacity="0.96" />
+        <text x="320" y="204" text-anchor="middle" fill="#2f6b3b" font-family="Segoe UI, Arial, sans-serif" font-size="30" font-weight="700">FarmYard</text>
+        <text x="320" y="238" text-anchor="middle" fill="#617067" font-family="Segoe UI, Arial, sans-serif" font-size="18">Listing photo</text>
+    </svg>
+`)}`;
 
 // Data
 let userListings = [];
@@ -1176,7 +1193,7 @@ function mapPersistedListingRow(row){
         minOrder: row.min_order || '',
         location: row.location,
         description: row.description || '',
-        image: row.image_url || 'https://via.placeholder.com/150',
+        image: row.image_url || DEFAULT_LISTING_IMAGE,
         negotiable: Boolean(row.negotiable),
         slug: row.slug,
         verified: Boolean(row.verified),
@@ -2189,7 +2206,7 @@ document.getElementById('postBtn').onclick = async () => {
         return;
     }
 
-    let image = existingListing?.image || 'https://via.placeholder.com/150';
+    let image = existingListing?.image || DEFAULT_LISTING_IMAGE;
     if (selectedImage) {
         try {
             image = await readFileAsDataUrl(selectedImage);
