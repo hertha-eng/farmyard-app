@@ -84,6 +84,16 @@ To enable it in an existing project:
 
 After that, users in the same conversation should see new messages appear immediately.
 
+## Direct User Messaging
+
+Users can now message each other directly from profile pages, not only from listing cards.
+
+To make that work in Supabase:
+
+1. Rerun `supabase-schema.sql`.
+2. Make sure authenticated users can read `public.profiles`, because profile discovery is what powers direct user-to-user messaging.
+3. Sign in with two different accounts and open one profile from the marketplace search results, then use the new message action.
+
 ## Local Preview
 
 Open `index.html` in a browser, or serve the folder with any static file server.

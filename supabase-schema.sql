@@ -200,11 +200,12 @@ alter table public.conversations enable row level security;
 alter table public.messages enable row level security;
 
 drop policy if exists "Users can read their own profile" on public.profiles;
-create policy "Users can read their own profile"
+drop policy if exists "Authenticated users can read all profiles" on public.profiles;
+create policy "Authenticated users can read all profiles"
 on public.profiles
 for select
 to authenticated
-using (auth.uid() = id);
+using (true);
 
 drop policy if exists "Users can insert their own profile" on public.profiles;
 create policy "Users can insert their own profile"

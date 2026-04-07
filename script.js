@@ -606,6 +606,10 @@ function renderAvatarMarkup({ name, avatarUrl, imageClassName = 'avatar-image', 
     return `<span class="${fallbackClassName}">${getInitials(name)}</span>`;
 }
 
+function isUuidLike(value){
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value || '');
+}
+
 function setPreviewImage(imageElement, imageUrl, altText){
     if (!imageElement) return;
     if (imageUrl) {
@@ -630,7 +634,7 @@ async function previewSelectedImage(inputElement, previewElement, fallbackUrl = 
 }
 
 function getConversationProfile(conversation){
-    const bySellerId = profiles[conversation.sellerId];
+    const bySellerId = profiles[conversation.contactProfileId || conversation.sellerId];
     if (bySellerId) return bySellerId;
     return Object.values(profiles).find(profile => profile.name === conversation.contact) || null;
 }
@@ -765,6 +769,73 @@ function buildPersistedProfileRow(){
     };
 }
 
+function syncProfileRecord(profileRow){
+    if (!profileRow?.id) return;
+    const baseAccount = buildBaseUserAccount(
+        normalizeEmail(profileRow.email || `${profileRow.id}@farmyard.local`),
+        profileRow.full_name || 'FarmYard User',
+        profileRow.id
+    );
+
+    if (!profiles[profileRow.id]) {
+        profiles[profileRow.id] = buildIndividualProfile(baseAccount);
+    }
+
+    const profile = profiles[profileRow.id];
+    profile.name = profileRow.full_name || profile.name;
+    profile.avatarUrl = profileRow.profile_fields?._avatar_url || profileRow.security?.profile_photo || profile.avatarUrl || '';
+    profile.type = profileRow.account_type || profile.type;
+    profile.about = profileRow.about || profile.about;
+    profile.verified = typeof profileRow.verified === 'boolean' ? profileRow.verified : profile.verified;
+    profile.rating = Number(profileRow.community_rating ?? profile.rating ?? 5);
+    profile.ratingCount = Number(profileRow.rating_count ?? profile.ratingCount ?? 1);
+    profile.verificationPlan = profileRow.verification_plan
+        ? { ...buildVerificationPlanState(), ...profileRow.verification_plan }
+        : { ...profile.verificationPlan };
+
+    const nextFields = {
+        ...profile.fields,
+        location: {
+            label: 'Location',
+            value: profileRow.location || profile.fields?.location?.value || 'Not set',
+            visible: profile.fields?.location?.visible ?? true,
+        },
+        phone: {
+            label: 'Phone',
+            value: profileRow.phone || profile.fields?.phone?.value || 'Not set',
+            visible: profile.fields?.phone?.visible ?? false,
+        },
+        email: {
+            label: 'Email',
+            value: profileRow.email || profile.fields?.email?.value || '',
+            visible: profile.fields?.email?.visible ?? false,
+        },
+        companyRole: {
+            label: 'Company Role',
+            value: profileRow.company_role || profile.fields?.companyRole?.value || 'Independent seller',
+            visible: profile.fields?.companyRole?.visible ?? true,
+        },
+        companyName: {
+            label: 'Selling For',
+            value: companyAccounts[profileRow.company_id]?.name || profile.fields?.companyName?.value || 'Independent',
+            visible: profile.fields?.companyName?.visible ?? true,
+        },
+    };
+
+    if (profileRow.profile_fields && typeof profileRow.profile_fields === 'object') {
+        Object.entries(profileRow.profile_fields).forEach(([key, value]) => {
+            if (key === '_avatar_url') return;
+            nextFields[key] = {
+                label: value?.label || nextFields[key]?.label || key,
+                value: value?.value ?? nextFields[key]?.value ?? '',
+                visible: typeof value?.visible === 'boolean' ? value.visible : (nextFields[key]?.visible ?? true),
+            };
+        });
+    }
+
+    profile.fields = nextFields;
+}
+
 function applyPersistedProfileRow(profileRow){
     if (!profileRow) return;
     currentUser.name = profileRow.full_name || currentUser.name;
@@ -804,6 +875,25 @@ function applyPersistedProfileRow(profileRow){
         });
     }
     persistCurrentUserAccount();
+}
+
+async function loadPublicProfiles(){
+    if (!supabaseClient || !currentUser.id) return;
+    const { data, error } = await supabaseClient
+        .from(SUPABASE_TABLES.profiles)
+        .select('*');
+
+    if (error) {
+        if (isMissingSupabaseTableError(error) || isMissingSupabaseColumnError(error)) {
+            warnPersistenceSetup('Create the Supabase profiles table to enable user discovery and direct messaging.');
+            return;
+        }
+        console.error('Failed to load public profiles', error);
+        showToast('Direct messaging needs the updated profiles policy in Supabase');
+        return;
+    }
+
+    (data || []).forEach(syncProfileRecord);
 }
 
 function buildPersistedListingRow(listing){
@@ -1000,6 +1090,7 @@ async function deletePersistedListing(listingId){
 
 async function loadPersistedAccountData(){
     await loadPersistedProfile();
+    await loadPublicProfiles();
     await loadPersistedListings();
     await loadMarketplaceListings();
     await loadPersistedConversations();
@@ -1028,11 +1119,17 @@ function getConversationContactNameFromRow(row){
 }
 
 function mapPersistedConversationRow(row){
+    const isBuyer = row.buyer_user_id === currentUser.id;
+    const oppositeUserId = isBuyer ? row.owner_user_id : row.buyer_user_id;
+    const contactProfileId = row.listing_id
+        ? (isBuyer ? (row.seller_id || oppositeUserId) : oppositeUserId)
+        : oppositeUserId;
     return {
         id: row.id,
         listingId: row.listing_id || null,
         listingTitle: row.listing_title || 'Marketplace',
         contact: getConversationContactNameFromRow(row),
+        contactProfileId,
         sellerId: row.seller_id || null,
         role: 'Marketplace Contact',
         location: row.location || 'Marketplace',
@@ -1164,6 +1261,59 @@ async function ensurePersistedConversationForListing(listing){
 
     if (createError) {
         console.error('Failed to create conversation', createError);
+        showToast(createError.message);
+        return null;
+    }
+
+    return createdConversation;
+}
+
+async function ensurePersistedDirectConversation(profileId){
+    if (!supabaseClient || !currentUser.id || !profileId || profileId === currentUser.id || !isUuidLike(profileId)) {
+        return null;
+    }
+
+    const profile = profiles[profileId];
+    if (!profile) {
+        showToast('That user profile is not available yet');
+        return null;
+    }
+
+    const conversationMatch = await supabaseClient
+        .from(SUPABASE_TABLES.conversations)
+        .select('*')
+        .or(`and(listing_id.is.null,owner_user_id.eq.${currentUser.id},buyer_user_id.eq.${profileId}),and(listing_id.is.null,owner_user_id.eq.${profileId},buyer_user_id.eq.${currentUser.id})`)
+        .order('updated_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+    if (conversationMatch.error) {
+        console.error('Failed to look up direct conversation', conversationMatch.error);
+        showToast(conversationMatch.error.message);
+        return null;
+    }
+
+    if (conversationMatch.data) {
+        return conversationMatch.data;
+    }
+
+    const { data: createdConversation, error: createError } = await supabaseClient
+        .from(SUPABASE_TABLES.conversations)
+        .insert({
+            listing_id: null,
+            listing_title: 'Direct message',
+            seller_id: null,
+            owner_user_id: profileId,
+            owner_name: profile.name,
+            buyer_user_id: currentUser.id,
+            buyer_name: currentUser.name,
+            location: profile.fields?.location?.value || 'FarmYard',
+        })
+        .select()
+        .single();
+
+    if (createError) {
+        console.error('Failed to create direct conversation', createError);
         showToast(createError.message);
         return null;
     }
@@ -1948,6 +2098,14 @@ function openProfile(profileId){
         profileFieldsCard?.querySelector('h3')?.replaceChildren(document.createTextNode('Public Details'));
     }
 
+    if (!isCurrentUsersProfile) {
+        const messageButton = document.createElement('button');
+        messageButton.type = 'button';
+        messageButton.textContent = `Message ${profile.name}`;
+        messageButton.onclick = () => startDirectConversation(profileId);
+        profileAdminTools.appendChild(messageButton);
+    }
+
     if (!showCompanyEditorOnly) {
         Object.values(profile.fields).forEach(field => {
             const item = document.createElement('div');
@@ -2134,6 +2292,7 @@ async function startConversation(listing){
             listingId: listing.id || null,
             listingTitle: listing.title,
             contact: contactName,
+            contactProfileId: listing.sellerId || null,
             sellerId: listing.sellerId || null,
             role: sellerProfile?.type || (listing.category === 'Services' ? 'Service Provider' : 'Seller'),
             location: listing.location || 'Marketplace',
@@ -2149,6 +2308,63 @@ async function startConversation(listing){
     clearMessageComposer();
     showTab('messages');
     showToast(`Opened conversation for ${listing.title}`);
+}
+
+async function startDirectConversation(profileId){
+    const profile = profiles[profileId];
+    if (!profile) {
+        showToast('That user profile is not available yet');
+        return;
+    }
+    if (profileId === currentUser.id) {
+        showToast('You cannot message yourself');
+        return;
+    }
+
+    if (supabaseClient && currentUser.id) {
+        const persistedConversation = await ensurePersistedDirectConversation(profileId);
+        if (persistedConversation) {
+            await loadPersistedConversations();
+            activeConversationId = persistedConversation.id;
+            mobileMessagesView = 'chat';
+            clearMessageComposer();
+            showTab('messages');
+            renderMessagesTab();
+            showToast(`Opened chat with ${profile.name}`);
+            return;
+        }
+    }
+
+    const existingConversation = conversations.find(conversation =>
+        !conversation.listingId && (conversation.contactProfileId === profileId || conversation.contact === profile.name)
+    );
+
+    if (existingConversation) {
+        activeConversationId = existingConversation.id;
+    } else {
+        const newConversation = {
+            id: `conv-${Date.now()}`,
+            listingId: null,
+            listingTitle: 'Direct message',
+            contact: profile.name,
+            contactProfileId: profileId,
+            sellerId: null,
+            role: profile.type || 'Marketplace Member',
+            location: profile.fields?.location?.value || 'FarmYard',
+            lastUpdated: 'Just now',
+            messages: [
+                { author: profile.name, text: 'Hello, thanks for reaching out on FarmYard.', time: 'Now', mine: false },
+            ],
+        };
+        conversations.unshift(newConversation);
+        activeConversationId = newConversation.id;
+    }
+
+    mobileMessagesView = 'chat';
+    clearMessageComposer();
+    showTab('messages');
+    renderMessagesTab();
+    showToast(`Opened chat with ${profile.name}`);
 }
 
 function renderMessagesTab(){
@@ -2328,8 +2544,9 @@ function callActiveConversation(){
 
 function openActiveConversationProfile(){
     const conversation = conversations.find(item => item.id === activeConversationId);
-    if (!conversation?.sellerId) return;
-    openProfile(conversation.sellerId);
+    const profileId = conversation?.contactProfileId || conversation?.sellerId;
+    if (!profileId) return;
+    openProfile(profileId);
 }
 
 function toggleChatOptionsMenu(){
