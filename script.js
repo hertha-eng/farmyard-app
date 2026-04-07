@@ -283,39 +283,8 @@ const counterpartyProfiles = {
     'Amina Farm Supplies': { rating: 4.8, ratingCount: 26, reports: 0 },
     'Kato Mechanics': { rating: 4.5, ratingCount: 14, reports: 1 },
 };
-const fallbackConversations = [
-    {
-        id: 'conv-1',
-        listingTitle: 'Maize Grain',
-        contact: 'Amina Farm Supplies',
-        sellerId: 'seller-amina',
-        role: 'Seller',
-        location: 'Farm A',
-        online: true,
-        lastSeen: 'now',
-        lastUpdated: 'Today, 10:24',
-        messages: [
-            { author: 'Amina Farm Supplies', text: 'Fresh maize grain is available this week.', time: '10:12', sentAt: '2026-04-06T10:12:00', mine: false },
-            { author: 'You', text: 'Can you supply 100kg by Friday?', time: '10:24', sentAt: '2026-04-06T10:24:00', mine: true },
-        ],
-    },
-    {
-        id: 'conv-2',
-        listingTitle: 'Tractor Ploughing',
-        contact: 'Kato Mechanics',
-        sellerId: 'seller-kato',
-        role: 'Service Provider',
-        location: 'Farm B',
-        online: false,
-        lastSeen: '2 hours ago',
-        lastUpdated: 'Yesterday',
-        messages: [
-            { author: 'Kato Mechanics', text: 'We cover ploughing and harrowing in nearby districts.', time: '17:45', sentAt: '2026-04-05T17:45:00', mine: false },
-        ],
-    },
-];
-let conversations = [...fallbackConversations];
-let activeConversationId = 'conv-1';
+let conversations = [];
+let activeConversationId = null;
 let mobileMessagesView = 'inbox';
 let returnTabAfterAuth = 'home';
 let tabHistory = [];
@@ -339,6 +308,7 @@ let isSpeakerMode = false;
 let messagesRealtimeChannel = null;
 let messagesRealtimeRefreshPromise = null;
 let messagesRealtimeRefreshQueued = false;
+const seenIncomingMessageIds = new Set();
 
 const app = document.getElementById('app');
 
@@ -416,6 +386,8 @@ const chatFeedbackPanel = document.getElementById('chat-feedback-panel');
 const chatFeedbackTitle = document.getElementById('chat-feedback-title');
 const chatRatingInput = document.getElementById('chat-rating');
 const chatFeedbackNote = document.getElementById('chat-feedback-note');
+const enableMessageNotificationsButton = document.getElementById('enable-message-notifications');
+const navMessagesBadge = document.getElementById('nav-messages-badge');
 const toast = document.getElementById('toast');
 const listingModerationFeedback = document.getElementById('listing-moderation-feedback');
 const openLoginBtn = document.getElementById('open-login');
@@ -622,6 +594,43 @@ function setPreviewImage(imageElement, imageUrl, altText){
     imageElement.hidden = true;
 }
 
+function getNotificationPermissionState(){
+    return typeof Notification === 'undefined' ? 'unsupported' : Notification.permission;
+}
+
+function updateNotificationButton(){
+    if (!enableMessageNotificationsButton) return;
+    const permission = getNotificationPermissionState();
+    if (permission === 'unsupported') {
+        enableMessageNotificationsButton.hidden = true;
+        return;
+    }
+    enableMessageNotificationsButton.hidden = permission === 'granted';
+    enableMessageNotificationsButton.textContent = permission === 'denied'
+        ? 'Notifications Blocked'
+        : 'Enable Notifications';
+    enableMessageNotificationsButton.disabled = permission === 'denied';
+}
+
+async function requestMessageNotifications(){
+    if (typeof Notification === 'undefined') {
+        showToast('Browser notifications are not supported on this device');
+        return;
+    }
+    if (Notification.permission === 'granted') {
+        updateNotificationButton();
+        showToast('Notifications are already enabled');
+        return;
+    }
+    const permission = await Notification.requestPermission();
+    updateNotificationButton();
+    if (permission === 'granted') {
+        showToast('Notifications enabled');
+    } else {
+        showToast('Notifications were not enabled');
+    }
+}
+
 async function previewSelectedImage(inputElement, previewElement, fallbackUrl = '', altText = 'Selected image preview'){
     const file = inputElement?.files?.[0];
     if (file) {
@@ -671,6 +680,125 @@ function formatMessageTimestamp(sentAt, fallbackTime = ''){
         hour: 'numeric',
         minute: '2-digit',
     });
+}
+
+function formatMessageStatus(message){
+    if (!message?.mine) return '';
+    if (message.status === 'sending') return 'Sending';
+    if (message.status === 'failed') return 'Failed';
+    return 'Sent';
+}
+
+function getConversationLastReadAtFromRow(row){
+    return row.owner_user_id === currentUser.id ? row.owner_last_read_at : row.buyer_last_read_at;
+}
+
+function getConversationReadColumn(conversation){
+    return conversation.ownerUserId === currentUser.id ? 'owner_last_read_at' : 'buyer_last_read_at';
+}
+
+function getConversationLatestActivityAt(conversation){
+    const lastMessage = conversation.messages?.[conversation.messages.length - 1];
+    return lastMessage?.sentAt || conversation.updatedAt || null;
+}
+
+function getConversationUnreadCount(conversation){
+    const lastReadAt = conversation?.lastReadAt ? new Date(conversation.lastReadAt).getTime() : 0;
+    return (conversation?.messages || []).filter(message => {
+        const messageTime = message.sentAt ? new Date(message.sentAt).getTime() : 0;
+        return !message.mine && messageTime > lastReadAt;
+    }).length;
+}
+
+function sortConversationsByRecent(){
+    conversations.sort((left, right) => {
+        const leftTime = new Date(getConversationLatestActivityAt(left) || 0).getTime();
+        const rightTime = new Date(getConversationLatestActivityAt(right) || 0).getTime();
+        return rightTime - leftTime;
+    });
+}
+
+function updateMessagesNavBadge(){
+    const unreadTotal = conversations.reduce((total, conversation) => total + (conversation.unreadCount || 0), 0);
+    if (navMessagesBadge) {
+        navMessagesBadge.hidden = unreadTotal === 0;
+        navMessagesBadge.textContent = unreadTotal > 99 ? '99+' : String(unreadTotal);
+    }
+    document.title = unreadTotal > 0 ? `(${unreadTotal}) FarmYard - Marketplace` : 'FarmYard - Marketplace';
+}
+
+function getConversationPreviewText(conversation){
+    const lastMessage = [...(conversation.messages || [])].reverse().find(message => message.text?.trim() || message.attachments?.length);
+    if (!lastMessage) return conversation.listingTitle || 'No messages yet';
+    if (lastMessage.text?.trim()) {
+        return lastMessage.mine ? `You: ${lastMessage.text.trim()}` : lastMessage.text.trim();
+    }
+    return lastMessage.mine ? 'You sent media' : 'Media attachment';
+}
+
+function setComposerEnabled(isEnabled){
+    if (!messageInput || !messageAttachButton) return;
+    messageInput.disabled = !isEnabled;
+    messageAttachButton.disabled = !isEnabled;
+    const sendButton = document.getElementById('message-send');
+    if (sendButton) {
+        sendButton.disabled = !isEnabled;
+    }
+    document.querySelector('.chat-composer')?.classList.toggle('is-disabled', !isEnabled);
+    messageInput.placeholder = isEnabled ? 'Type a message' : 'Select a conversation';
+}
+
+function markConversationAsReadLocally(conversationId, readAt = new Date().toISOString()){
+    const conversation = conversations.find(item => item.id === conversationId);
+    if (!conversation) return;
+    conversation.lastReadAt = readAt;
+    conversation.unreadCount = 0;
+    updateMessagesNavBadge();
+}
+
+async function markConversationAsRead(conversationId){
+    const conversation = conversations.find(item => item.id === conversationId);
+    if (!conversation) return;
+    const latestIncoming = [...conversation.messages].reverse().find(message => !message.mine)?.sentAt;
+    const nextReadAt = latestIncoming || new Date().toISOString();
+    if (conversation.lastReadAt && new Date(conversation.lastReadAt).getTime() >= new Date(nextReadAt).getTime()) {
+        return;
+    }
+    markConversationAsReadLocally(conversationId, nextReadAt);
+    if (!conversation.persisted || !supabaseClient) return;
+    const readColumn = getConversationReadColumn(conversation);
+    await supabaseClient
+        .from(SUPABASE_TABLES.conversations)
+        .update({ [readColumn]: nextReadAt })
+        .eq('id', conversationId);
+}
+
+function maybeNotifyIncomingMessage(conversation, message){
+    if (!message || message.mine || typeof Notification === 'undefined') return;
+    if (Notification.permission !== 'granted' || !document.hidden) return;
+    if (message.id && seenIncomingMessageIds.has(message.id)) return;
+    if (message.id) {
+        seenIncomingMessageIds.add(message.id);
+    }
+    const body = message.text?.trim() || 'Sent an attachment';
+    new Notification(conversation.contact, { body });
+}
+
+function upsertMessageInConversation(conversationId, message){
+    const conversation = conversations.find(item => item.id === conversationId);
+    if (!conversation) return null;
+    const existingIndex = conversation.messages.findIndex(item => item.id && message.id && item.id === message.id);
+    if (existingIndex >= 0) {
+        conversation.messages[existingIndex] = { ...conversation.messages[existingIndex], ...message };
+    } else {
+        conversation.messages.push(message);
+    }
+    conversation.updatedAt = message.sentAt || new Date().toISOString();
+    conversation.lastUpdated = formatConversationUpdatedLabel(conversation.updatedAt);
+    conversation.unreadCount = getConversationUnreadCount(conversation);
+    sortConversationsByRecent();
+    updateMessagesNavBadge();
+    return conversation;
 }
 
 function renderMessageMediaPreview(){
@@ -1137,6 +1265,7 @@ function mapPersistedConversationRow(row){
         lastSeen: 'recently',
         lastUpdated: formatConversationUpdatedLabel(row.updated_at),
         updatedAt: row.updated_at || row.created_at || null,
+        lastReadAt: getConversationLastReadAtFromRow(row) || null,
         ownerUserId: row.owner_user_id,
         buyerUserId: row.buyer_user_id,
         messages: [],
@@ -1167,7 +1296,8 @@ async function loadPersistedConversations(){
     if (conversationError) {
         if (isMissingSupabaseTableError(conversationError) || isMissingSupabaseColumnError(conversationError)) {
             warnPersistenceSetup('Create the Supabase conversation tables to enable shared messaging.');
-            conversations = [...fallbackConversations];
+            conversations = [];
+            updateMessagesNavBadge();
             return;
         }
         console.error('Failed to load conversations', conversationError);
@@ -1189,7 +1319,8 @@ async function loadPersistedConversations(){
         if (messageError) {
             if (isMissingSupabaseTableError(messageError) || isMissingSupabaseColumnError(messageError)) {
                 warnPersistenceSetup('Create the Supabase message tables to enable shared messaging.');
-                conversations = [...fallbackConversations];
+                conversations = [];
+                updateMessagesNavBadge();
                 return;
             }
             console.error('Failed to load messages', messageError);
@@ -1208,7 +1339,14 @@ async function loadPersistedConversations(){
     conversations = mappedConversations.map(conversation => ({
         ...conversation,
         messages: mappedMessagesByConversation.get(conversation.id) || [],
+        unreadCount: 0,
     }));
+
+    conversations.forEach(conversation => {
+        conversation.unreadCount = getConversationUnreadCount(conversation);
+    });
+    sortConversationsByRecent();
+    updateMessagesNavBadge();
 
     if (!conversations.length) {
         activeConversationId = null;
@@ -1255,6 +1393,7 @@ async function ensurePersistedConversationForListing(listing){
             buyer_user_id: currentUser.id,
             buyer_name: currentUser.name,
             location: listing.location || 'Marketplace',
+            buyer_last_read_at: new Date().toISOString(),
         })
         .select()
         .single();
@@ -1308,6 +1447,7 @@ async function ensurePersistedDirectConversation(profileId){
             buyer_user_id: currentUser.id,
             buyer_name: currentUser.name,
             location: profile.fields?.location?.value || 'FarmYard',
+            buyer_last_read_at: new Date().toISOString(),
         })
         .select()
         .single();
@@ -1322,8 +1462,9 @@ async function ensurePersistedDirectConversation(profileId){
 }
 
 async function savePersistedMessage(conversationId, payload){
-    if (!supabaseClient || !currentUser.id || !conversationId) return false;
-    const { error } = await supabaseClient
+    if (!supabaseClient || !currentUser.id || !conversationId) return null;
+    const sentAt = payload.sentAt || new Date().toISOString();
+    const { data, error } = await supabaseClient
         .from(SUPABASE_TABLES.messages)
         .insert({
             conversation_id: conversationId,
@@ -1331,24 +1472,39 @@ async function savePersistedMessage(conversationId, payload){
             sender_name: currentUser.name,
             body: payload.text || '',
             attachments: payload.attachments || [],
-        });
+            created_at: sentAt,
+        })
+        .select()
+        .single();
 
     if (error) {
         if (isMissingSupabaseTableError(error) || isMissingSupabaseColumnError(error)) {
             warnPersistenceSetup('Create the Supabase message tables to enable shared messaging.');
-            return false;
+            return null;
         }
         console.error('Failed to save message', error);
         showToast(error.message);
-        return false;
+        return null;
     }
 
+    const conversation = conversations.find(item => item.id === conversationId);
+    const readColumn = conversation ? getConversationReadColumn(conversation) : null;
     await supabaseClient
         .from(SUPABASE_TABLES.conversations)
-        .update({ updated_at: new Date().toISOString() })
+        .update({
+            updated_at: sentAt,
+            ...(readColumn ? { [readColumn]: sentAt } : {}),
+        })
         .eq('id', conversationId);
 
-    return true;
+    return mapPersistedMessageRow(data || {
+        id: payload.id,
+        sender_name: currentUser.name,
+        sender_user_id: currentUser.id,
+        body: payload.text || '',
+        attachments: payload.attachments || [],
+        created_at: sentAt,
+    });
 }
 
 async function refreshRealtimeMessagesView(){
@@ -1394,6 +1550,29 @@ function isMessageRelevantToCurrentUser(payload = {}){
     return conversations.some(item => item.id === row.conversation_id);
 }
 
+function handleRealtimeMessageInsert(row){
+    if (!row) return;
+    const message = mapPersistedMessageRow(row);
+    const conversation = upsertMessageInConversation(row.conversation_id, message);
+    if (!conversation) {
+        queueRealtimeMessagesRefresh();
+        return;
+    }
+
+    if (!message.mine) {
+        maybeNotifyIncomingMessage(conversation, message);
+        if (getActiveTabName() === 'messages' && activeConversationId === conversation.id && !document.hidden) {
+            markConversationAsRead(conversation.id);
+        }
+    }
+
+    if (getActiveTabName() === 'messages') {
+        renderMessagesTab();
+    } else {
+        updateMessagesNavBadge();
+    }
+}
+
 function stopMessagesRealtime(){
     if (!supabaseClient || !messagesRealtimeChannel) return;
     supabaseClient.removeChannel(messagesRealtimeChannel);
@@ -1426,6 +1605,10 @@ function startMessagesRealtime(){
             },
             payload => {
                 if (!isMessageRelevantToCurrentUser(payload)) return;
+                if (payload.eventType === 'INSERT') {
+                    handleRealtimeMessageInsert(payload.new);
+                    return;
+                }
                 queueRealtimeMessagesRefresh();
             }
         )
@@ -1484,6 +1667,14 @@ document.getElementById('image').onchange = async () => {
     }
 });
 document.getElementById('message-send').onclick = () => sendMessage();
+if (enableMessageNotificationsButton) {
+    enableMessageNotificationsButton.onclick = () => requestMessageNotifications();
+}
+document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && getActiveTabName() === 'messages' && activeConversationId) {
+        markConversationAsRead(activeConversationId);
+    }
+});
 messageAttachButton.onclick = () => messageMediaInput?.click();
 messageMediaInput.onchange = async () => {
     try {
@@ -1679,12 +1870,13 @@ async function signOutUser(){
         updateAuthButtons(false);
         userListings = [];
         marketplaceListings = [];
-        conversations = [...fallbackConversations];
+        conversations = [];
         activeConversationId = conversations[0]?.id || null;
         stopMessagesRealtime();
         refreshMarketplace();
         renderUserListings();
         renderMessagesTab();
+        updateMessagesNavBadge();
         showToast('Signed out successfully');
         return;
     }
@@ -1699,12 +1891,13 @@ async function signOutUser(){
     updateAuthButtons(false);
     userListings = [];
     marketplaceListings = [];
-    conversations = [...fallbackConversations];
+    conversations = [];
     activeConversationId = conversations[0]?.id || null;
     stopMessagesRealtime();
     refreshMarketplace();
     renderUserListings();
     renderMessagesTab();
+    updateMessagesNavBadge();
     showToast('Signed out successfully');
 }
 
@@ -2297,9 +2490,9 @@ async function startConversation(listing){
             role: sellerProfile?.type || (listing.category === 'Services' ? 'Service Provider' : 'Seller'),
             location: listing.location || 'Marketplace',
             lastUpdated: 'Just now',
-            messages: [
-                { author: contactName, text: `Thanks for your interest in ${listing.title}. How can I help?`, time: 'Now', mine: false },
-            ],
+            messages: [],
+            unreadCount: 0,
+            lastReadAt: null,
         };
         conversations.unshift(newConversation);
         activeConversationId = newConversation.id;
@@ -2352,9 +2545,9 @@ async function startDirectConversation(profileId){
             role: profile.type || 'Marketplace Member',
             location: profile.fields?.location?.value || 'FarmYard',
             lastUpdated: 'Just now',
-            messages: [
-                { author: profile.name, text: 'Hello, thanks for reaching out on FarmYard.', time: 'Now', mine: false },
-            ],
+            messages: [],
+            unreadCount: 0,
+            lastReadAt: null,
         };
         conversations.unshift(newConversation);
         activeConversationId = newConversation.id;
@@ -2369,6 +2562,7 @@ async function startDirectConversation(profileId){
 
 function renderMessagesTab(){
     conversationList.innerHTML = '';
+    updateNotificationButton();
     const activeConversation = conversations.find(conversation => conversation.id === activeConversationId) || conversations[0];
 
     if (!activeConversation && !conversations.length) {
@@ -2376,10 +2570,12 @@ function renderMessagesTab(){
             activeChatAvatar.innerHTML = '';
         }
         activeChatTitle.textContent = 'No conversations';
-        activeChatMeta.textContent = 'Start from a listing.';
+        activeChatMeta.textContent = 'Start from a listing or profile.';
         messagesEmpty.style.display = 'block';
         chatThread.innerHTML = '';
         clearMessageComposer();
+        setComposerEnabled(false);
+        updateMessagesNavBadge();
         syncMessagesView();
         return;
     }
@@ -2398,14 +2594,18 @@ function renderMessagesTab(){
         });
         const card = document.createElement('div');
         card.className = `conversation-card${conversation.id === activeConversationId ? ' active' : ''}`;
-        const lastMessage = [...conversation.messages].reverse().find(message => message.text?.trim() || message.attachments?.length);
-        const conversationPreview = lastMessage?.text?.trim()
-            || (lastMessage?.attachments?.length ? 'Media attachment' : getConversationPresenceLabel(conversation));
+        const conversationPreview = getConversationPreviewText(conversation);
         card.innerHTML = `
             <span class="conversation-avatar">${conversationAvatar}</span>
             <span class="conversation-content">
-                <strong>${conversation.contact}</strong>
-                <p class="conversation-subtitle">${conversationPreview}</p>
+                <span class="conversation-row-top">
+                    <strong>${conversation.contact}</strong>
+                    <span class="conversation-updated-at">${conversation.lastUpdated || ''}</span>
+                </span>
+                <span class="conversation-row-bottom">
+                    <p class="conversation-subtitle">${conversationPreview}</p>
+                    ${conversation.unreadCount ? `<span class="conversation-unread-badge">${conversation.unreadCount > 99 ? '99+' : conversation.unreadCount}</span>` : ''}
+                </span>
             </span>
         `;
         card.onclick = () => {
@@ -2418,6 +2618,7 @@ function renderMessagesTab(){
     });
 
     renderActiveConversation();
+    updateMessagesNavBadge();
     syncMessagesView();
 }
 
@@ -2425,7 +2626,7 @@ function renderActiveConversation(){
     const conversation = conversations.find(item => item.id === activeConversationId);
     if (!conversation) return;
     const conversationProfile = getConversationProfile(conversation);
-    currentProfileId = conversation.sellerId || null;
+    currentProfileId = conversation.contactProfileId || conversation.sellerId || null;
 
     if (activeChatAvatar) {
         activeChatAvatar.innerHTML = renderAvatarMarkup({
@@ -2436,9 +2637,20 @@ function renderActiveConversation(){
         });
     }
     activeChatTitle.textContent = conversation.contact;
-    activeChatMeta.textContent = getConversationPresenceLabel(conversation);
+    activeChatMeta.textContent = conversation.listingTitle === 'Direct message'
+        ? getConversationPresenceLabel(conversation)
+        : `${conversation.listingTitle} • ${conversation.location}`;
     messagesEmpty.style.display = 'none';
     chatThread.innerHTML = '';
+    setComposerEnabled(true);
+
+    if (!conversation.messages.length) {
+        chatThread.innerHTML = `
+            <div class="message-thread-empty">
+                <p>No messages yet. Send the first message.</p>
+            </div>
+        `;
+    }
 
     conversation.messages.forEach(message => {
         const bubble = document.createElement('div');
@@ -2468,13 +2680,16 @@ function renderActiveConversation(){
                         ).join('')}
                     </div>
                 ` : ''}
-                <span class="message-meta">${message.author} • ${formatMessageTimestamp(message.sentAt, message.time)}</span>
+                <span class="message-meta">${message.author} • ${formatMessageTimestamp(message.sentAt, message.time)}${message.mine ? ` • <span class="message-status">${formatMessageStatus(message)}</span>` : ''}</span>
             </div>
         `;
         chatThread.appendChild(bubble);
     });
 
     chatThread.scrollTop = chatThread.scrollHeight;
+    if (conversation.unreadCount) {
+        markConversationAsRead(conversation.id);
+    }
 }
 
 function getConversationPresenceLabel(conversation){
@@ -2493,28 +2708,62 @@ async function sendMessage(){
     if ((!text && !selectedMessageMedia.length) || !conversation) return;
 
     const messagePayload = {
+        id: `temp-${Date.now()}`,
         author: 'You',
         text,
         time: getCurrentTimeLabel(),
         sentAt: new Date().toISOString(),
         mine: true,
         attachments: selectedMessageMedia.map(file => ({ ...file })),
+        status: 'sending',
     };
 
+    upsertMessageInConversation(conversation.id, messagePayload);
+    markConversationAsReadLocally(conversation.id, messagePayload.sentAt);
+    clearMessageComposer();
+    renderMessagesTab();
+
     if (conversation.persisted) {
-        const saveSucceeded = await savePersistedMessage(conversation.id, messagePayload);
-        if (!saveSucceeded) {
+        const savedMessage = await savePersistedMessage(conversation.id, messagePayload);
+        if (!savedMessage) {
+            const failedMessage = conversations
+                .find(item => item.id === conversation.id)
+                ?.messages.find(item => item.id === messagePayload.id);
+            if (failedMessage) {
+                failedMessage.status = 'failed';
+                renderMessagesTab();
+            }
+            showToast('Message failed to send');
             return;
         }
-        await refreshRealtimeMessagesView();
-        clearMessageComposer();
+        const currentConversation = conversations.find(item => item.id === conversation.id);
+        const optimisticMessageIndex = currentConversation?.messages.findIndex(item => item.id === messagePayload.id);
+        if (typeof optimisticMessageIndex === 'number' && optimisticMessageIndex >= 0) {
+            currentConversation.messages[optimisticMessageIndex] = { ...savedMessage, status: 'sent' };
+        }
+        if (currentConversation) {
+            currentConversation.messages = currentConversation.messages.filter((message, index, allMessages) =>
+                allMessages.findIndex(item => item.id === message.id) === index
+            );
+        }
+        if (currentConversation) {
+            currentConversation.lastReadAt = savedMessage.sentAt;
+            currentConversation.unreadCount = 0;
+        }
+        sortConversationsByRecent();
+        renderMessagesTab();
         showToast('Message sent');
         return;
     }
 
-    conversation.messages.push(messagePayload);
-    conversation.lastUpdated = 'Just now';
-    clearMessageComposer();
+    const localConversation = conversations.find(item => item.id === conversation.id);
+    const optimisticMessageIndex = localConversation?.messages.findIndex(item => item.id === messagePayload.id);
+    if (typeof optimisticMessageIndex === 'number' && optimisticMessageIndex >= 0) {
+        localConversation.messages[optimisticMessageIndex].status = 'sent';
+    }
+    if (localConversation) {
+        localConversation.lastUpdated = formatConversationUpdatedLabel(messagePayload.sentAt);
+    }
     renderMessagesTab();
     showToast('Message sent');
 }
@@ -2942,11 +3191,13 @@ function updateAuthButtons(isAuthenticated){
 
 async function initializeAuth(){
     updateAuthButtons(false);
+    updateNotificationButton();
     if (!supabaseClient) {
         hydrateCurrentUser(userAccounts['guest@farmyard.app']);
         ensureProfileForAccount(userAccounts['guest@farmyard.app']);
-        conversations = [...fallbackConversations];
+        conversations = [];
         activeConversationId = conversations[0]?.id || null;
+        updateMessagesNavBadge();
         refreshMarketplace();
         renderUserListings();
         return;
@@ -2974,8 +3225,9 @@ async function initializeAuth(){
     if (!data.session) {
         hydrateCurrentUser(userAccounts['guest@farmyard.app']);
         ensureProfileForAccount(userAccounts['guest@farmyard.app']);
-        conversations = [...fallbackConversations];
+        conversations = [];
         activeConversationId = conversations[0]?.id || null;
+        updateMessagesNavBadge();
         refreshMarketplace();
         renderUserListings();
     }
@@ -2998,12 +3250,13 @@ async function initializeAuth(){
             updateAuthButtons(false);
             userListings = [];
             marketplaceListings = [];
-            conversations = [...fallbackConversations];
+            conversations = [];
             activeConversationId = conversations[0]?.id || null;
             stopMessagesRealtime();
             refreshMarketplace();
             renderUserListings();
             renderMessagesTab();
+            updateMessagesNavBadge();
         }
     });
 }

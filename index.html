@@ -147,6 +147,7 @@
                     <p class="messages-panel-kicker">Inbox</p>
                     <h3>Conversations</h3>
                     <p>Your recent chats.</p>
+                    <button id="enable-message-notifications" class="notifications-btn" type="button">Enable Notifications</button>
                 </div>
                 <div id="conversation-list" class="conversation-list"></div>
             </div>
@@ -192,14 +193,14 @@
                     </div>
                 </div>
                 <div id="messages-empty" class="messages-empty">
-                    <p>No chat selected.</p>
+                    <p>Select a conversation to start messaging.</p>
                 </div>
                 <div id="chat-thread" class="chat-thread"></div>
                 <div id="message-media-preview" class="message-media-preview" hidden></div>
                 <div class="chat-composer">
                     <input type="file" id="message-media-input" accept="image/*,video/*" multiple hidden>
                     <button id="message-attach" class="message-attach-btn" type="button" aria-label="Add media">&#128206;</button>
-                    <input type="text" id="message-input" placeholder="Write a message">
+                    <input type="text" id="message-input" placeholder="Type a message">
                     <button id="message-send" class="message-send-btn" type="button" aria-label="Send message">&#10148;</button>
                 </div>
             </div>
@@ -352,7 +353,7 @@
     <nav>
         <button id="nav-home">Home</button>
         <button id="nav-post">Post</button>
-        <button id="nav-messages">Messages</button>
+        <button id="nav-messages">Messages <span id="nav-messages-badge" class="nav-badge" hidden>0</span></button>
         <button id="nav-account">Account</button>
     </nav>
 

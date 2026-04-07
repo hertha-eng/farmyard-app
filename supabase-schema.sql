@@ -52,9 +52,14 @@ create table if not exists public.conversations (
     buyer_user_id uuid not null references auth.users (id) on delete cascade,
     buyer_name text not null default '',
     location text not null default '',
+    owner_last_read_at timestamptz,
+    buyer_last_read_at timestamptz,
     created_at timestamptz not null default timezone('utc', now()),
     updated_at timestamptz not null default timezone('utc', now())
 );
+
+alter table public.conversations add column if not exists owner_last_read_at timestamptz;
+alter table public.conversations add column if not exists buyer_last_read_at timestamptz;
 
 create table if not exists public.messages (
     id uuid primary key default gen_random_uuid(),

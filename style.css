@@ -1870,6 +1870,13 @@ nav button.is-active {
     gap: 3px;
 }
 
+.conversation-row-top {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    justify-content: space-between;
+}
+
 .conversation-card strong {
     display: block;
     font-size: 0.95rem;
@@ -1885,6 +1892,33 @@ nav button.is-active {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+}
+
+.conversation-updated-at {
+    flex-shrink: 0;
+    font-size: 0.72rem;
+    color: #7b8a7d;
+}
+
+.conversation-row-bottom {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.conversation-unread-badge,
+.nav-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 6px;
+    border-radius: 999px;
+    background: #1d9a6c;
+    color: #fff;
+    font-size: 0.72rem;
+    font-weight: 700;
 }
 
 .conversation-card:hover {
@@ -1927,6 +1961,19 @@ nav button.is-active {
     border: 1px dashed rgba(96, 124, 104, 0.22);
     border-radius: 18px;
     background: rgba(255, 255, 255, 0.55);
+}
+
+.message-thread-empty {
+    margin-top: 6px;
+    padding: 16px 18px;
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.72);
+    border: 1px dashed rgba(96, 124, 104, 0.2);
+    color: #61706a;
+}
+
+.message-thread-empty p {
+    margin: 0;
 }
 
 .chat-trust-actions {
@@ -2031,6 +2078,10 @@ nav button.is-active {
     text-align: right;
 }
 
+.message-status {
+    font-weight: 700;
+}
+
 .message-media-preview {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(92px, 1fr));
@@ -2082,6 +2133,10 @@ nav button.is-active {
     box-shadow: 0 8px 16px rgba(49, 57, 38, 0.05);
 }
 
+.chat-composer.is-disabled {
+    opacity: 0.6;
+}
+
 .chat-composer .message-attach-btn {
     width: 42px;
     height: 42px;
@@ -2131,6 +2186,18 @@ nav button.is-active {
 
 .chat-composer input:focus {
     outline: none;
+}
+
+.notifications-btn {
+    align-self: flex-start;
+    margin-top: 8px;
+    padding: 8px 12px;
+    border: 1px solid rgba(52, 102, 89, 0.16);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.78);
+    color: #255f52;
+    font-weight: 700;
+    cursor: pointer;
 }
 
 .chat-composer:focus-within {
