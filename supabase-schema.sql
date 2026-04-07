@@ -245,10 +245,11 @@ with check (auth.uid() = id);
 
 drop policy if exists "Authenticated users can read all listings" on public.listings;
 drop policy if exists "Users can read their own listings" on public.listings;
-create policy "Authenticated users can read all listings"
+drop policy if exists "Anyone can read all listings" on public.listings;
+create policy "Anyone can read all listings"
 on public.listings
 for select
-to authenticated
+to public
 using (true);
 
 drop policy if exists "Users can insert their own listings" on public.listings;

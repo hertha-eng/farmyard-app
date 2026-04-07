@@ -2143,6 +2143,7 @@ async function signOutUser(){
         userBlocks = [];
         activeConversationId = null;
         stopMessagesRealtime();
+        await loadMarketplaceListings();
         refreshMarketplace();
         renderUserListings();
         renderMessagesTab();
@@ -2164,6 +2165,7 @@ async function signOutUser(){
     userBlocks = [];
     activeConversationId = null;
     stopMessagesRealtime();
+    await loadMarketplaceListings();
     refreshMarketplace();
     renderUserListings();
     renderMessagesTab();
@@ -3692,6 +3694,7 @@ async function initializeAuth(){
         userBlocks = [];
         activeConversationId = null;
         updateMessagesNavBadge();
+        await loadMarketplaceListings();
         refreshMarketplace();
         renderUserListings();
         return;
@@ -3722,6 +3725,7 @@ async function initializeAuth(){
         userBlocks = [];
         activeConversationId = null;
         updateMessagesNavBadge();
+        await loadMarketplaceListings();
         refreshMarketplace();
         renderUserListings();
     }
@@ -3747,10 +3751,12 @@ async function initializeAuth(){
             userBlocks = [];
             activeConversationId = null;
             stopMessagesRealtime();
-            refreshMarketplace();
-            renderUserListings();
-            renderMessagesTab();
-            updateMessagesNavBadge();
+            loadMarketplaceListings().then(() => {
+                refreshMarketplace();
+                renderUserListings();
+                renderMessagesTab();
+                updateMessagesNavBadge();
+            });
         }
     });
 }
