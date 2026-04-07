@@ -61,213 +61,32 @@ const DEFAULT_VERIFICATION_PLAN = {
 let userListings = [];
 let marketplaceListings = [];
 const currentUser = {
-    id: 'user-guest',
-    name: 'Guest User',
+    id: '',
+    name: 'Not Signed In',
     avatarUrl: '',
-    role: 'Sales Representative',
-    accountType: 'Individual Profile',
-    location: 'Kampala',
-    phone: '+256 700 000000',
-    email: 'guest@farmyard.app',
+    role: 'Browse Only',
+    accountType: 'Signed-out Visitor',
+    location: 'Set your location after sign in',
+    phone: '',
+    email: '',
     verified: false,
-    communityRating: 4.7,
-    ratingCount: 18,
-    companyId: 'company-farmyard-traders',
-    companyRole: 'Admin',
-    accessStatus: 'Active company access',
+    communityRating: 0,
+    ratingCount: 0,
+    companyId: null,
+    companyRole: null,
+    accessStatus: 'Not signed in',
     permissions: {
-        canPostForCompany: true,
-        canManageCompany: true,
-        canApproveInvites: true,
+        canPostForCompany: false,
+        canManageCompany: false,
+        canApproveInvites: false,
     },
-    security: {
-        passwordUpdated: '30 days ago',
-        twoFactorEnabled: false,
-        activeSessions: 1,
-        loginAlerts: true,
-    },
-    verificationPlan: {
-        subscribed: false,
-        price: 10,
-        billing: 'monthly',
-        renewalDate: null,
-    },
+    security: { ...DEFAULT_SECURITY },
+    verificationPlan: { ...DEFAULT_VERIFICATION_PLAN },
 };
 const profiles = {
-    'user-guest': {
-        id: 'user-guest',
-        name: 'Guest User',
-        avatarUrl: '',
-        type: 'Individual Profile',
-        about: 'Agricultural sales representative handling listings and buyer communication on behalf of a registered company.',
-        verified: false,
-        verificationPlan: { subscribed: false, price: 10, billing: 'monthly', renewalDate: null },
-        rating: 4.7,
-        ratingCount: 18,
-        completedDeals: 12,
-        fields: {
-            location: { label: 'Location', value: 'Kampala', visible: true },
-            phone: { label: 'Phone', value: '+256 700 000000', visible: false },
-            email: { label: 'Email', value: 'guest@farmyard.app', visible: false },
-            companyRole: { label: 'Company Role', value: 'Admin sales representative', visible: true },
-            companyName: { label: 'Selling For', value: 'FarmYard Traders Ltd', visible: true },
-        },
-    },
-    'company-farmyard-traders': {
-        id: 'company-farmyard-traders',
-        name: 'FarmYard Traders Ltd',
-        avatarUrl: '',
-        type: 'Company Profile',
-        about: 'Registered agricultural trading company supplying produce and farm inputs through a managed sales team.',
-        verified: false,
-        verificationPlan: { subscribed: false, price: 10, billing: 'monthly', renewalDate: null },
-        rating: 4.8,
-        ratingCount: 23,
-        completedDeals: 36,
-        fields: {
-            location: { label: 'Head Office', value: 'Kampala Industrial Area', visible: true },
-            phone: { label: 'Company Phone', value: '+256 709 000111', visible: true },
-            email: { label: 'Company Email', value: 'sales@farmyardtraders.example', visible: true },
-            registration: { label: 'Registration', value: 'FTL-AGR-2026', visible: true },
-            certification: { label: 'Permits or Certifications', value: '', visible: true },
-            team: { label: 'Sales Team', value: '3 active representatives', visible: true },
-        },
-    },
-    'seller-amina': {
-        id: 'seller-amina',
-        name: 'Amina Farm Supplies',
-        avatarUrl: '',
-        type: 'Company Profile',
-        about: 'Bulk produce supplier focused on maize, grains, and consistent farm-to-buyer fulfillment.',
-        verified: true,
-        verificationPlan: { subscribed: true, price: 10, billing: 'monthly', renewalDate: '2026-05-01' },
-        rating: 4.8,
-        ratingCount: 26,
-        completedDeals: 41,
-        fields: {
-            location: { label: 'Location', value: 'Farm A', visible: true },
-            phone: { label: 'Phone', value: '+256 701 224466', visible: false },
-            email: { label: 'Email', value: 'sales@aminafarmsupplies.example', visible: true },
-            delivery: { label: 'Delivery', value: 'Regional delivery available', visible: true },
-        },
-    },
-    'seller-kato': {
-        id: 'seller-kato',
-        name: 'Kato Mechanics',
-        avatarUrl: '',
-        type: 'Service Provider',
-        about: 'Farm mechanization team offering ploughing, harrowing, and field preparation services.',
-        verified: true,
-        verificationPlan: { subscribed: true, price: 10, billing: 'monthly', renewalDate: '2026-05-10' },
-        rating: 4.5,
-        ratingCount: 14,
-        completedDeals: 19,
-        fields: {
-            location: { label: 'Location', value: 'Farm B', visible: true },
-            phone: { label: 'Phone', value: '+256 703 112233', visible: true },
-            email: { label: 'Email', value: 'bookings@katomechanics.example', visible: false },
-            equipment: { label: 'Equipment', value: '2 tractors and implements', visible: true },
-        },
-    },
-    'seller-manure': {
-        id: 'seller-manure',
-        name: 'Green Soil Inputs',
-        avatarUrl: '',
-        type: 'Seller Profile',
-        about: 'Organic input supplier serving small and medium-sized farms.',
-        verified: false,
-        verificationPlan: { subscribed: false, price: 10, billing: 'monthly', renewalDate: null },
-        rating: 4.1,
-        ratingCount: 7,
-        completedDeals: 8,
-        fields: {
-            location: { label: 'Location', value: 'Farm C', visible: true },
-            phone: { label: 'Phone', value: '+256 704 445566', visible: false },
-            email: { label: 'Email', value: 'greensoil@example.com', visible: false },
-            sourcing: { label: 'Sourcing', value: 'Locally produced organic manure', visible: true },
-        },
-    },
-    'seller-feed': {
-        id: 'seller-feed',
-        name: 'LayerPro Feed Mill',
-        avatarUrl: '',
-        type: 'Company Profile',
-        about: 'Finished agricultural feed producer supplying poultry operations across the region.',
-        verified: true,
-        verificationPlan: { subscribed: true, price: 10, billing: 'monthly', renewalDate: '2026-05-08' },
-        rating: 4.9,
-        ratingCount: 33,
-        completedDeals: 52,
-        fields: {
-            location: { label: 'Location', value: 'Farm D', visible: true },
-            phone: { label: 'Phone', value: '+256 705 778899', visible: true },
-            email: { label: 'Email', value: 'orders@layerpro.example', visible: true },
-            certification: { label: 'Certification', value: 'Feed quality tested', visible: true },
-        },
-    },
 };
-const companyAccounts = {
-    'company-farmyard-traders': {
-        id: 'company-farmyard-traders',
-        name: 'FarmYard Traders Ltd',
-        maxSalesMembers: 4,
-        members: [
-            { id: 'user-guest', name: 'Guest User', email: 'guest@farmyard.app', phone: '+256 700 000000', nationalId: 'UG-000111', role: 'Admin', status: 'Active', joinedAt: '2026-04-01' },
-            { id: 'rep-1', name: 'Sarah Namusoke', email: 'sarah@farmyardtraders.example', phone: '+256 711 222444', nationalId: 'UG-222444', role: 'Sales Representative', status: 'Active', joinedAt: '2026-04-02' },
-            { id: 'rep-2', name: 'Joel Kato', email: 'joel@farmyardtraders.example', phone: '+256 712 333555', nationalId: 'UG-333555', role: 'Sales Representative', status: 'Active', joinedAt: '2026-04-03' },
-        ],
-        pendingInvites: [
-            {
-                id: 'invite-1',
-                name: 'Mercy Atuhairwe',
-                email: 'mercy@farmyardtraders.example',
-                phone: '+256 710 222333',
-                nationalId: 'CM-448211',
-                inviteCode: 'FY-TRADERS-4821',
-                role: 'Sales Representative',
-                status: 'Sent',
-                linkedUserId: null,
-                claimedAt: null,
-                createdAt: '2026-04-05',
-                expiresOn: '2026-04-19',
-            },
-        ],
-        verificationRequirements: {
-            businessRegistration: true,
-            companyEmail: true,
-            companyPhone: true,
-            businessLocation: true,
-            completeProfile: true,
-            goodStanding: true,
-            permits: false,
-        },
-    },
-};
-const userAccounts = {
-    'guest@farmyard.app': {
-        id: 'user-guest',
-        name: 'Guest User',
-        avatarUrl: '',
-        role: 'Sales Representative',
-        accountType: 'Individual Profile',
-        location: 'Kampala',
-        phone: '+256 700 000000',
-        email: 'guest@farmyard.app',
-        verified: false,
-        communityRating: 4.7,
-        ratingCount: 18,
-        companyId: 'company-farmyard-traders',
-        companyRole: 'Admin',
-        accessStatus: 'Active company access',
-        permissions: {
-            canPostForCompany: true,
-            canManageCompany: true,
-            canApproveInvites: true,
-        },
-        security: { ...DEFAULT_SECURITY },
-        verificationPlan: { ...DEFAULT_VERIFICATION_PLAN },
-    },
-};
+const companyAccounts = {};
+const userAccounts = {};
 
 let savedListings = [];
 let orderRequests = [];
@@ -277,10 +96,7 @@ let userReports = [];
 let currentDetailListing = null;
 let currentProfileId = null;
 let activeFeedbackMode = 'rate';
-const counterpartyProfiles = {
-    'Amina Farm Supplies': { rating: 4.8, ratingCount: 26, reports: 0 },
-    'Kato Mechanics': { rating: 4.5, ratingCount: 14, reports: 1 },
-};
+const counterpartyProfiles = {};
 let conversations = [];
 let activeConversationId = null;
 let mobileMessagesView = 'inbox';
@@ -630,6 +446,42 @@ function formatActivityDateLabel(dateString){
         hour: 'numeric',
         minute: '2-digit',
     });
+}
+
+function buildSignedOutAccount(){
+    return {
+        id: '',
+        name: 'Not Signed In',
+        avatarUrl: '',
+        role: 'Browse Only',
+        accountType: 'Signed-out Visitor',
+        location: 'Set your location after sign in',
+        phone: '',
+        email: '',
+        verified: false,
+        communityRating: 0,
+        ratingCount: 0,
+        companyId: null,
+        companyRole: null,
+        accessStatus: 'Not signed in',
+        permissions: {
+            canPostForCompany: false,
+            canManageCompany: false,
+            canApproveInvites: false,
+        },
+        security: buildSecurityState(),
+        verificationPlan: buildVerificationPlanState(),
+    };
+}
+
+function isAuthenticatedUser(){
+    return Boolean(currentUser.id && currentUser.email);
+}
+
+function promptForAuth(message = 'Sign in to continue'){
+    localStorage.setItem('farmyard-return-tab', getActiveTabName() || 'home');
+    showToast(message);
+    openAuthScreen('login');
 }
 
 function formatFeedbackEntry(entry, kind){
@@ -1973,12 +1825,25 @@ function startMessagesRealtime(){
 
 // Bottom nav
 document.getElementById('nav-home').onclick = () => showTab('home');
-document.getElementById('nav-post').onclick = () => showTab('post');
+document.getElementById('nav-post').onclick = () => {
+    if (!isAuthenticatedUser()) {
+        promptForAuth('Sign in to post a listing');
+        return;
+    }
+    showTab('post');
+};
 document.getElementById('nav-messages').onclick = () => {
+    if (!isAuthenticatedUser()) {
+        promptForAuth('Sign in to view messages');
+        return;
+    }
     mobileMessagesView = 'inbox';
     showTab('messages');
 };
-document.getElementById('nav-account').onclick = () => { showTab('account'); renderUserListings(); };
+document.getElementById('nav-account').onclick = () => {
+    showTab('account');
+    renderUserListings();
+};
 openLoginBtn.onclick = () => openAuthScreen('login');
 openRegisterBtn.onclick = () => openAuthScreen('register');
 document.getElementById('open-legal').onclick = () => showTab('legal');
@@ -2253,14 +2118,13 @@ async function signInWithGoogle(){
 
 async function signOutUser(){
     if (!supabaseClient) {
-        hydrateCurrentUser(userAccounts['guest@farmyard.app']);
-        ensureProfileForAccount(userAccounts['guest@farmyard.app']);
+        hydrateCurrentUser(buildSignedOutAccount());
         updateAuthButtons(false);
         userListings = [];
         marketplaceListings = [];
         conversations = [];
         userBlocks = [];
-        activeConversationId = conversations[0]?.id || null;
+        activeConversationId = null;
         stopMessagesRealtime();
         refreshMarketplace();
         renderUserListings();
@@ -2275,14 +2139,13 @@ async function signOutUser(){
         return;
     }
 
-    hydrateCurrentUser(userAccounts['guest@farmyard.app']);
-    ensureProfileForAccount(userAccounts['guest@farmyard.app']);
+    hydrateCurrentUser(buildSignedOutAccount());
     updateAuthButtons(false);
     userListings = [];
     marketplaceListings = [];
     conversations = [];
     userBlocks = [];
-    activeConversationId = conversations[0]?.id || null;
+    activeConversationId = null;
     stopMessagesRealtime();
     refreshMarketplace();
     renderUserListings();
@@ -2668,12 +2531,7 @@ if (timelineModeInput) {
 }
 
 function getInitialListings(){
-    return [
-        { category: 'Produce', title: 'Maize Grain', price: '1200', unit: 'kg', minOrder: '50kg', location: 'Farm A', image: 'https://via.placeholder.com/150', negotiable: false, verified: true, slug: 'maize-grain', sellerId: 'seller-amina', postedByName: 'Amina Sales Desk' },
-        { category: 'Services', title: 'Tractor Ploughing', price: '80000', unit: 'acre', location: 'Farm B', image: 'https://via.placeholder.com/150', negotiable: false, verified: true, slug: 'tractor-ploughing', sellerId: 'seller-kato', postedByName: 'Kato Mechanics Team' },
-        { category: 'Raw Materials', title: 'Organic Manure', price: '35000', unit: 'bag', minOrder: '10 bags', location: 'Farm C', image: 'https://via.placeholder.com/150', negotiable: true, verified: false, slug: 'organic-manure', sellerId: 'seller-manure' },
-        { category: 'Finished Goods', title: 'Layer Mash Feed', price: '95000', unit: 'bag', minOrder: '5 bags', location: 'Farm D', image: 'https://via.placeholder.com/150', negotiable: false, verified: true, slug: 'layer-mash-feed', sellerId: 'seller-feed', postedByName: 'LayerPro Team' }
-    ];
+    return [];
 }
 
 function saveCurrentListing(){
@@ -3008,6 +2866,10 @@ function openProfile(profileId){
 }
 
 function startConversationFromDetail(){
+    if (!isAuthenticatedUser()) {
+        promptForAuth('Sign in to message sellers');
+        return;
+    }
     const listing = JSON.parse(detailMessage.dataset.listing || '{}');
     if (!listing.title) return;
     startConversation({
@@ -3023,6 +2885,10 @@ function startConversationFromDetail(){
 }
 
 async function startConversation(listing){
+    if (!isAuthenticatedUser()) {
+        promptForAuth('Sign in to message sellers');
+        return;
+    }
     if (listing.userId && listing.userId === currentUser.id) {
         showToast('You cannot message your own listing');
         return;
@@ -3078,6 +2944,10 @@ async function startConversation(listing){
 }
 
 async function startDirectConversation(profileId){
+    if (!isAuthenticatedUser()) {
+        promptForAuth('Sign in to message other users');
+        return;
+    }
     const profile = profiles[profileId];
     if (!profile) {
         showToast('That user profile is not available yet');
@@ -3302,6 +3172,10 @@ function getConversationPresenceLabel(conversation){
 }
 
 async function sendMessage(){
+    if (!isAuthenticatedUser()) {
+        promptForAuth('Sign in to send messages');
+        return;
+    }
     const text = messageInput.value.trim();
     const conversation = conversations.find(item => item.id === activeConversationId);
     if ((!text && !selectedMessageMedia.length) || !conversation) return;
@@ -3554,8 +3428,7 @@ function handleSignedInSession(session, message, options = {}){
 function syncCurrentUserFromSession(session, options = {}){
     const user = session?.user;
     if (!user) {
-        hydrateCurrentUser(userAccounts['guest@farmyard.app']);
-        ensureProfileForAccount(userAccounts['guest@farmyard.app']);
+        hydrateCurrentUser(buildSignedOutAccount());
         return '';
     }
     const normalizedEmail = normalizeEmail(user.email || currentUser.email);
@@ -3797,11 +3670,10 @@ async function initializeAuth(){
     updateAuthButtons(false);
     updateNotificationButton();
     if (!supabaseClient) {
-        hydrateCurrentUser(userAccounts['guest@farmyard.app']);
-        ensureProfileForAccount(userAccounts['guest@farmyard.app']);
+        hydrateCurrentUser(buildSignedOutAccount());
         conversations = [];
         userBlocks = [];
-        activeConversationId = conversations[0]?.id || null;
+        activeConversationId = null;
         updateMessagesNavBadge();
         refreshMarketplace();
         renderUserListings();
@@ -3828,11 +3700,10 @@ async function initializeAuth(){
         }
     }
     if (!data.session) {
-        hydrateCurrentUser(userAccounts['guest@farmyard.app']);
-        ensureProfileForAccount(userAccounts['guest@farmyard.app']);
+        hydrateCurrentUser(buildSignedOutAccount());
         conversations = [];
         userBlocks = [];
-        activeConversationId = conversations[0]?.id || null;
+        activeConversationId = null;
         updateMessagesNavBadge();
         refreshMarketplace();
         renderUserListings();
@@ -3851,14 +3722,13 @@ async function initializeAuth(){
             });
         }
         if (event === 'SIGNED_OUT') {
-            hydrateCurrentUser(userAccounts['guest@farmyard.app']);
-            ensureProfileForAccount(userAccounts['guest@farmyard.app']);
+            hydrateCurrentUser(buildSignedOutAccount());
             updateAuthButtons(false);
             userListings = [];
             marketplaceListings = [];
             conversations = [];
             userBlocks = [];
-            activeConversationId = conversations[0]?.id || null;
+            activeConversationId = null;
             stopMessagesRealtime();
             refreshMarketplace();
             renderUserListings();
@@ -3955,6 +3825,26 @@ function getCounterpartyProfile(contact){
 // Render account listings
 function renderUserListings(){
     const acc = tabs.account;
+    if (!isAuthenticatedUser()) {
+        acc.innerHTML = `
+            <section class="account-shell">
+                <div class="account-hero-card">
+                    <div class="section-heading">
+                        <p class="section-eyebrow">Account</p>
+                        <h2>Sign in to manage your FarmYard account</h2>
+                        <p>You can browse the marketplace without an account, but posting, messaging, saved activity, and account tools require sign-in.</p>
+                    </div>
+                    <div class="account-actions">
+                        <button id="account-login-btn" class="btn btn-primary" type="button">Login</button>
+                        <button id="account-register-btn" class="btn btn-secondary" type="button">Register</button>
+                    </div>
+                </div>
+            </section>
+        `;
+        document.getElementById('account-login-btn').onclick = () => openAuthScreen('login');
+        document.getElementById('account-register-btn').onclick = () => openAuthScreen('register');
+        return;
+    }
     const companyAccount = currentUser.companyId ? companyAccounts[currentUser.companyId] : null;
     const companyProfile = currentUser.companyId ? profiles[currentUser.companyId] : null;
     if (companyAccount && companyProfile) {
@@ -4048,7 +3938,7 @@ function renderUserListings(){
                     <p>Add the core details buyers, verification review, and your sales team will rely on.</p>
                 </div>
                 <label for="create-company-name">Company name</label>
-                <input id="create-company-name" type="text" placeholder="FarmYard Traders Ltd">
+                <input id="create-company-name" type="text" placeholder="Your company name">
                 <label for="create-company-location">Head office</label>
                 <input id="create-company-location" type="text" placeholder="Town, district, or industrial area">
                 <label for="create-company-phone">Company phone</label>
