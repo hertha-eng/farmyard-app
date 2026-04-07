@@ -60,6 +60,18 @@ using (true);
 
 After this runs successfully, marketplace listing updates will be visible to other signed-in users.
 
+## Agriculture-Only Enforcement
+
+The included `supabase-schema.sql` now adds a database trigger on `public.listings` that rejects inserts or updates when the title and description do not look agriculture-related.
+
+If you already created the tables before this update:
+
+1. Open the Supabase SQL editor.
+2. Rerun the full `supabase-schema.sql` file, or at minimum rerun the new function and trigger definitions for `public.ensure_agriculture_listing()`.
+3. Test by trying one valid listing and one unrelated listing.
+
+This matters because browser-only validation can be bypassed, but the database trigger still blocks invalid posts before they are stored.
+
 ## Local Preview
 
 Open `index.html` in a browser, or serve the folder with any static file server.

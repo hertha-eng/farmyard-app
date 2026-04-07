@@ -76,6 +76,68 @@ begin
 end;
 $$;
 
+create or replace function public.ensure_agriculture_listing()
+returns trigger
+language plpgsql
+as $$
+declare
+    normalized_text text;
+    agriculture_keywords text[] := array[
+        'agriculture', 'agricultural', 'farm', 'farming', 'farmer', 'crop', 'crops', 'harvest',
+        'produce', 'grain', 'grains', 'maize', 'corn', 'beans', 'rice', 'cassava', 'banana',
+        'plantain', 'coffee', 'tea', 'sorghum', 'millet', 'groundnut', 'peanut', 'soy', 'soybean',
+        'tomato', 'onion', 'cabbage', 'pepper', 'okra', 'carrot', 'potato', 'avocado', 'mango',
+        'fruit', 'vegetable', 'vegetables', 'seed', 'seeds', 'seedling', 'seedlings', 'nursery',
+        'fertilizer', 'manure', 'compost', 'pesticide', 'herbicide', 'feed', 'hay', 'silage',
+        'livestock', 'poultry', 'chicken', 'broiler', 'layer', 'goat', 'goats', 'cow', 'cattle',
+        'dairy', 'milk', 'egg', 'eggs', 'pig', 'pigs', 'fish', 'fingerling', 'beekeeping', 'honey',
+        'tractor', 'plough', 'ploughing', 'harrow', 'irrigation', 'greenhouse', 'acre', 'hectare',
+        'farm input', 'farm inputs', 'feed mill'
+    ];
+    blocked_keywords text[] := array[
+        'iphone', 'smartphone', 'phone', 'android phone', 'laptop', 'macbook', 'tablet', 'airpods',
+        'television', 'tv', 'speaker', 'headphones', 'fridge', 'microwave', 'sofa', 'mattress',
+        'handbag', 'shoes', 'sneakers', 'dress', 'watch', 'jewelry', 'perfume', 'makeup',
+        'playstation', 'ps5', 'xbox', 'gaming', 'crypto', 'forex'
+    ];
+    matched_agriculture_term text;
+    matched_blocked_term text;
+begin
+    normalized_text := lower(
+        regexp_replace(
+            concat_ws(' ', coalesce(new.title, ''), coalesce(new.description, ''), coalesce(new.unit, '')),
+            '[^a-z0-9\s]+',
+            ' ',
+            'g'
+        )
+    );
+
+    select keyword
+    into matched_agriculture_term
+    from unnest(agriculture_keywords) as keyword
+    where normalized_text like '%' || keyword || '%'
+    limit 1;
+
+    select keyword
+    into matched_blocked_term
+    from unnest(blocked_keywords) as keyword
+    where normalized_text like '%' || keyword || '%'
+    limit 1;
+
+    if matched_blocked_term is not null and matched_agriculture_term is null then
+        raise exception 'FarmYard only accepts agriculture-related listings. Found unrelated term: %', matched_blocked_term
+            using errcode = '23514';
+    end if;
+
+    if matched_agriculture_term is null then
+        raise exception 'FarmYard only accepts agriculture-related listings. Add a clear farm product, input, livestock item, or agricultural service to the title or description.'
+            using errcode = '23514';
+    end if;
+
+    return new;
+end;
+$$;
+
 drop trigger if exists set_profiles_updated_at on public.profiles;
 create trigger set_profiles_updated_at
 before update on public.profiles
@@ -87,6 +149,12 @@ create trigger set_listings_updated_at
 before update on public.listings
 for each row
 execute function public.set_updated_at();
+
+drop trigger if exists ensure_agriculture_listing on public.listings;
+create trigger ensure_agriculture_listing
+before insert or update on public.listings
+for each row
+execute function public.ensure_agriculture_listing();
 
 drop trigger if exists set_conversations_updated_at on public.conversations;
 create trigger set_conversations_updated_at

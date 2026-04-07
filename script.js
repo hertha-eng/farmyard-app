@@ -466,6 +466,10 @@ function isMissingSupabaseColumnError(error){
     return error?.code === 'PGRST204' || /column .* does not exist/i.test(error?.message || '');
 }
 
+function isListingModerationError(error){
+    return error?.code === '23514' || /FarmYard only accepts agriculture-related listings/i.test(error?.message || '');
+}
+
 function generateListingId(){
     return window.crypto?.randomUUID?.() || `listing-${Date.now()}`;
 }
@@ -940,6 +944,11 @@ async function savePersistedListing(listing){
         .upsert(buildPersistedListingRow(listing), { onConflict: 'id' });
 
     if (error) {
+        if (isListingModerationError(error)) {
+            setListingModerationFeedback(error.message);
+            showToast('Listing rejected by server-side moderation');
+            return false;
+        }
         if (isMissingSupabaseTableError(error) || isMissingSupabaseColumnError(error)) {
             warnPersistenceSetup();
             return false;
