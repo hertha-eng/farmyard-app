@@ -39,6 +39,25 @@ After the schema is created, the app will:
 - save created and edited listings to `listings`
 - reload both on refresh after login
 
+## Shared Listings Policy Update
+
+To let authenticated users see listings created by other authenticated users, run the updated policy in the Supabase SQL Editor.
+
+You can either rerun the full `supabase-schema.sql` file or run just this policy update:
+
+```sql
+drop policy if exists "Authenticated users can read all listings" on public.listings;
+drop policy if exists "Users can read their own listings" on public.listings;
+
+create policy "Authenticated users can read all listings"
+on public.listings
+for select
+to authenticated
+using (true);
+```
+
+After this runs successfully, marketplace listing updates will be visible to other signed-in users.
+
 ## Local Preview
 
 Open `index.html` in a browser, or serve the folder with any static file server.
