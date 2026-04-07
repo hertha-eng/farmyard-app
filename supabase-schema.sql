@@ -89,12 +89,13 @@ to authenticated
 using (auth.uid() = id)
 with check (auth.uid() = id);
 
+drop policy if exists "Authenticated users can read all listings" on public.listings;
 drop policy if exists "Users can read their own listings" on public.listings;
-create policy "Users can read their own listings"
+create policy "Authenticated users can read all listings"
 on public.listings
 for select
 to authenticated
-using (auth.uid() = user_id);
+using (true);
 
 drop policy if exists "Users can insert their own listings" on public.listings;
 create policy "Users can insert their own listings"

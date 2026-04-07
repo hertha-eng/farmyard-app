@@ -39,6 +39,7 @@ const DEFAULT_VERIFICATION_PLAN = {
 
 // Data
 let userListings = [];
+let marketplaceListings = [];
 const currentUser = {
     id: 'user-guest',
     name: 'Guest User',
@@ -749,8 +750,8 @@ function buildPersistedListingRow(listing){
     };
 }
 
-function applyPersistedListings(rows){
-    userListings = (rows || []).map(row => ({
+function mapPersistedListingRow(row){
+    return {
         id: row.id,
         category: row.category,
         title: row.title,
@@ -765,7 +766,16 @@ function applyPersistedListings(rows){
         verified: Boolean(row.verified),
         sellerId: row.seller_id || currentUser.id,
         postedByName: row.posted_by_name || currentUser.name,
-    }));
+        userId: row.user_id || '',
+    };
+}
+
+function applyPersistedListings(rows){
+    userListings = (rows || []).map(mapPersistedListingRow);
+}
+
+function applyMarketplaceListings(rows){
+    marketplaceListings = (rows || []).map(mapPersistedListingRow);
 }
 
 async function loadPersistedProfile(){
@@ -832,6 +842,27 @@ async function loadPersistedListings(){
     applyPersistedListings(data);
 }
 
+async function loadMarketplaceListings(){
+    if (!supabaseClient) return;
+    const { data, error } = await supabaseClient
+        .from(SUPABASE_TABLES.listings)
+        .select('*')
+        .order('created_at', { ascending: false });
+
+    if (error) {
+        if (isMissingSupabaseTableError(error) || isMissingSupabaseColumnError(error)) {
+            warnPersistenceSetup();
+            marketplaceListings = [];
+            return;
+        }
+        console.error('Failed to load marketplace listings', error);
+        showToast(error.message);
+        return;
+    }
+
+    applyMarketplaceListings(data);
+}
+
 async function savePersistedListing(listing){
     if (!supabaseClient || !currentUser.id) return true;
     const { error } = await supabaseClient
@@ -849,6 +880,20 @@ async function savePersistedListing(listing){
     }
 
     return true;
+}
+
+function syncMarketplaceListing(listing){
+    const nextListing = { ...listing, userId: currentUser.id };
+    const existingIndex = marketplaceListings.findIndex(item => item.id === listing.id);
+    if (existingIndex === -1) {
+        marketplaceListings.unshift(nextListing);
+        return;
+    }
+    marketplaceListings[existingIndex] = nextListing;
+}
+
+function removeMarketplaceListing(listingId){
+    marketplaceListings = marketplaceListings.filter(item => item.id !== listingId);
 }
 
 async function deletePersistedListing(listingId){
@@ -875,6 +920,7 @@ async function deletePersistedListing(listingId){
 async function loadPersistedAccountData(){
     await loadPersistedProfile();
     await loadPersistedListings();
+    await loadMarketplaceListings();
     refreshMarketplace();
     renderUserListings();
 }
@@ -1112,6 +1158,7 @@ async function signOutUser(){
         ensureProfileForAccount(userAccounts['guest@farmyard.app']);
         updateAuthButtons(false);
         userListings = [];
+        marketplaceListings = [];
         refreshMarketplace();
         renderUserListings();
         showToast('Signed out successfully');
@@ -1127,6 +1174,7 @@ async function signOutUser(){
     ensureProfileForAccount(userAccounts['guest@farmyard.app']);
     updateAuthButtons(false);
     userListings = [];
+    marketplaceListings = [];
     refreshMarketplace();
     renderUserListings();
     showToast('Signed out successfully');
@@ -1205,6 +1253,8 @@ document.getElementById('postBtn').onclick = async () => {
         return;
     }
 
+    syncMarketplaceListing(listingPayload);
+
     refreshMarketplace();
     clearPostForm();
     showTab('home');
@@ -1218,12 +1268,35 @@ function clearPostForm(){
     editingListingIndex = null;
 }
 
+function getSearchableProfiles(){
+    return Object.values(profiles).filter(profile => profile?.name);
+}
+
+function getProfileSearchSummary(profile){
+    const visibleFields = Object.values(profile.fields || {})
+        .filter(field => field?.visible && field?.value)
+        .map(field => field.value);
+    return [
+        profile.type,
+        profile.about,
+        ...visibleFields,
+    ].filter(Boolean).join(' • ');
+}
+
 // Refresh marketplace
 function refreshMarketplace(){
     marketplace.innerHTML = '';
     const initialListings = getInitialListings();
-    const all = [...initialListings, ...userListings];
+    const all = [...initialListings, ...marketplaceListings];
     const normalizedQuery = marketQuery.trim().toLowerCase();
+    const filteredProfiles = normalizedQuery
+        ? getSearchableProfiles().filter(profile => [
+            profile.name,
+            profile.type,
+            profile.about,
+            ...Object.values(profile.fields || {}).map(field => field?.value),
+        ].filter(Boolean).some(value => value.toLowerCase().includes(normalizedQuery)))
+        : [];
     const filteredListings = normalizedQuery
         ? all.filter(listing => [
             listing.title,
@@ -1233,24 +1306,48 @@ function refreshMarketplace(){
             listing.unit,
             listing.minOrder,
             listing.postedByName,
+            profiles[listing.sellerId]?.name,
         ].filter(Boolean).some(value => value.toLowerCase().includes(normalizedQuery)))
         : all;
 
     if (marketResultsCopy) {
         marketResultsCopy.textContent = normalizedQuery
-            ? `${filteredListings.length} result${filteredListings.length === 1 ? '' : 's'} for "${marketQuery.trim()}".`
+            ? `${filteredProfiles.length + filteredListings.length} result${filteredProfiles.length + filteredListings.length === 1 ? '' : 's'} for "${marketQuery.trim()}".`
             : 'Browse current produce, goods, and service listings.';
     }
 
-    if (!filteredListings.length) {
+    if (!filteredProfiles.length && !filteredListings.length) {
         marketplace.innerHTML = `
             <div class="market-empty-state">
-                <strong>No listings match that search yet.</strong>
-                <p>Try another product, service, seller name, or location to widen the results.</p>
+                <strong>No results match that search yet.</strong>
+                <p>Try another product, service, seller, company, or location.</p>
             </div>
         `;
         return;
     }
+
+    filteredProfiles.forEach((profile) => {
+        const profileCard = document.createElement('div');
+        profileCard.className = 'card profile-search-card';
+        profileCard.innerHTML = `
+            <div class="profile-search-avatar">${renderAvatarMarkup({
+                name: profile.name,
+                avatarUrl: profile.avatarUrl || '',
+                imageClassName: 'avatar-image',
+                fallbackClassName: 'avatar-fallback',
+            })}</div>
+            <span class="card-category">${profile.type || 'Profile'}</span>
+            <h3>${profile.name}</h3>
+            <p class="card-summary">${getProfileSearchSummary(profile)}</p>
+            <button type="button">View Profile</button>
+        `;
+        profileCard.onclick = () => openProfile(profile.id);
+        profileCard.querySelector('button').onclick = (event) => {
+            event.stopPropagation();
+            openProfile(profile.id);
+        };
+        marketplace.appendChild(profileCard);
+    });
 
     filteredListings.forEach((listing)=>{
         const isSaved = savedListings.some(item => item.slug === listing.slug);
@@ -2200,6 +2297,7 @@ async function initializeAuth(){
             ensureProfileForAccount(userAccounts['guest@farmyard.app']);
             updateAuthButtons(false);
             userListings = [];
+            marketplaceListings = [];
             refreshMarketplace();
             renderUserListings();
         }
@@ -2781,15 +2879,16 @@ function renderUserListings(){
         listingsGrid.appendChild(card);
         card.querySelector('.delete-btn').onclick = async ()=>{
             const [removedListing] = userListings.splice(i,1);
-            const deleteSucceeded = await deletePersistedListing(removedListing?.id);
-            if (!deleteSucceeded) {
-                userListings.splice(i, 0, removedListing);
-                renderUserListings();
-                refreshMarketplace();
-                return;
-            }
+        const deleteSucceeded = await deletePersistedListing(removedListing?.id);
+        if (!deleteSucceeded) {
+            userListings.splice(i, 0, removedListing);
             renderUserListings();
             refreshMarketplace();
+            return;
+        }
+        removeMarketplaceListing(removedListing?.id);
+        renderUserListings();
+        refreshMarketplace();
         };
         card.querySelector('.edit-btn').onclick = ()=>{
             editingListingIndex = i;
