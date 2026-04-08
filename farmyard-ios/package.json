@@ -1,0 +1,28 @@
+{
+  "name": "farmyard-ios",
+  "version": "1.0.0",
+  "private": true,
+  "description": "FarmYard iPhone packaging workspace using Capacitor.",
+  "scripts": {
+    "serve": "serve web",
+    "cap:copy": "npx cap copy ios",
+    "cap:sync": "npx cap sync ios",
+    "cap:add:ios": "npx cap add ios",
+    "cap:open:ios": "npx cap open ios",
+    "cap:doctor": "npx cap doctor",
+    "cap:assets": "npx capacitor-assets generate --ios --iconBackgroundColor '#234a2f' --iconBackgroundColorDark '#234a2f'"
+  },
+  "dependencies": {
+    "@capacitor/app": "latest",
+    "@capacitor/browser": "latest",
+    "@capacitor/core": "latest",
+    "@capacitor/keyboard": "latest",
+    "@capacitor/status-bar": "latest"
+  },
+  "devDependencies": {
+    "@capacitor/assets": "latest",
+    "@capacitor/cli": "latest",
+    "@capacitor/ios": "latest",
+    "serve": "latest"
+  }
+}

@@ -19,6 +19,10 @@ FarmYard is an agriculture-focused marketplace prototype built with plain HTML, 
 - `manifest.webmanifest` - installable web app metadata
 - `sw.js` - service worker for app shell caching
 - `capacitor.config.json` - Android and iPhone wrapper configuration starter
+- `package.json` - Capacitor dependencies and mobile helper scripts
+- `MOBILE_LAUNCH.md` - Android and iPhone launch steps
+- `farmyard-android/` - standalone Android packaging workspace
+- `farmyard-ios/` - standalone iPhone packaging workspace
 - `netlify.toml` - Netlify deploy configuration
 
 ## Deploying To Netlify
@@ -68,14 +72,27 @@ All three should point to the same Supabase project so users can sign in normall
 
 ## Mobile Build Starter
 
-The included `capacitor.config.json` is a starter split for packaging the same FarmYard codebase into Android and iPhone app-store builds.
+The included `capacitor.config.json`, `package.json`, and `MOBILE_LAUNCH.md` prepare the same FarmYard codebase for Android and iPhone app-store builds.
+
+Separate handoff folders are also included:
+
+- `farmyard-android/` with copied web assets, Android Capacitor config, scripts, and Play Store docs
+- `farmyard-ios/` with copied web assets, iPhone Capacitor config, scripts, and App Store docs
+
+The shared web layer is also updated for mobile launch behavior:
+
+- `viewport-fit=cover` for modern iPhone safe areas
+- `safe-area-inset` padding support in `style.css`
+- richer install manifest metadata for standalone app installs
 
 To continue from here:
 
-1. Add Capacitor to the project.
-2. Create Android and iOS platform folders.
+1. Install Node.js and run `npm install`.
+2. Create Android and iOS platform folders with `npm run cap:add:android` and `npm run cap:add:ios`.
 3. Keep the same Supabase URL and publishable key in all builds.
-4. Request microphone permission in the mobile app builds so in-app audio calling can work.
+4. Add the mobile OAuth redirect `farmyard://auth/callback` in Supabase Auth settings.
+5. Request microphone permission in the mobile app builds so in-app audio calling can work.
+6. Follow `MOBILE_LAUNCH.md` for store prep and device testing.
 
 ## Shared Listings Policy Update
 

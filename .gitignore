@@ -17,3 +17,14 @@ yarn-error.log*
 !.dev.vars.example
 .env*
 !.env.example
+
+# Node / Capacitor
+node_modules/
+dist/
+package-lock.json
+
+# Native builds
+android/
+ios/
+DerivedData/
+build/
