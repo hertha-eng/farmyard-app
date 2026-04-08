@@ -669,6 +669,60 @@ function getConversationProfile(conversation){
     return Object.values(profiles).find(profile => profile.name === conversation.contact) || null;
 }
 
+function normalizeDialablePhoneNumber(phoneNumber){
+    const rawValue = String(phoneNumber || '').trim();
+    if (!rawValue || /add your phone number|not set/i.test(rawValue)) {
+        return '';
+    }
+
+    const sanitizedValue = rawValue.replace(/[^\d+]/g, '');
+    if (!sanitizedValue) {
+        return '';
+    }
+
+    if (sanitizedValue.startsWith('+')) {
+        const digitsOnly = sanitizedValue.slice(1).replace(/\+/g, '');
+        return digitsOnly ? `+${digitsOnly}` : '';
+    }
+
+    return sanitizedValue.replace(/\+/g, '');
+}
+
+function openPhoneDialer(phoneNumber){
+    const dialableNumber = normalizeDialablePhoneNumber(phoneNumber);
+    if (!dialableNumber) return false;
+    window.location.href = `tel:${dialableNumber}`;
+    return true;
+}
+
+function callListingSeller(){
+    const listing = currentDetailListing;
+    if (!listing) return;
+    const sellerProfile = profiles[resolveListingProfileId(listing)] || profiles[listing.sellerId] || null;
+    const sellerName = sellerProfile?.name || listing.contact || listing.postedByName || 'this seller';
+    const sellerPhone = sellerProfile?.fields?.phone?.value || '';
+
+    if (openPhoneDialer(sellerPhone)) {
+        showToast(`Opening call for ${sellerName}`);
+        return;
+    }
+
+    showToast(`${sellerName} has not added a phone number yet`);
+}
+
+function callProfileById(profileId){
+    const profile = profiles[profileId];
+    if (!profile) return;
+    const profilePhone = profile.fields?.phone?.value || '';
+
+    if (openPhoneDialer(profilePhone)) {
+        showToast(`Opening call for ${profile.name}`);
+        return;
+    }
+
+    showToast(`${profile.name} has not added a phone number yet`);
+}
+
 function getCurrentTimeLabel(){
     return new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 }
@@ -1873,7 +1927,7 @@ document.getElementById('login-google-btn').onclick = () => signInWithGoogle();
 document.getElementById('register-google-btn').onclick = () => signInWithGoogle();
 document.getElementById('close-detail').onclick = () => goBack();
 document.getElementById('detail-message').onclick = () => startConversationFromDetail();
-document.getElementById('detail-call').onclick = () => showToast('Seller call action opened');
+document.getElementById('detail-call').onclick = () => callListingSeller();
 document.getElementById('detail-profile').onclick = () => openCurrentProfile();
 document.getElementById('detail-save').onclick = () => saveCurrentListing();
 document.getElementById('detail-order').onclick = () => requestCurrentOrder();
@@ -2488,7 +2542,7 @@ function refreshMarketplace(){
         };
         callButton.onclick = (event) => {
             event.stopPropagation();
-            showToast(`Calling ${profile.name} is not available yet`);
+            callProfileById(profile.id);
         };
         listingsButton.onclick = (event) => {
             event.stopPropagation();
@@ -3285,7 +3339,15 @@ function deleteConversation(conversationId){
 function callActiveConversation(){
     const conversation = conversations.find(item => item.id === activeConversationId);
     if (!conversation) return;
-    openInAppCall(conversation);
+    const conversationProfile = getConversationProfile(conversation);
+    const contactPhone = conversationProfile?.fields?.phone?.value || '';
+
+    if (openPhoneDialer(contactPhone)) {
+        showToast(`Opening call for ${conversation.contact}`);
+        return;
+    }
+
+    showToast(`${conversation.contact} has not added a phone number yet`);
 }
 
 function openActiveConversationProfile(){
