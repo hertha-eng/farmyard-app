@@ -3,11 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <title>FarmYard - Marketplace</title>
+    <meta name="description" content="FarmYard is an agriculture-focused marketplace for produce, farm inputs, and services.">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#234a2f">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="FarmYard">
     <link rel="manifest" href="manifest.webmanifest">
+    <link rel="icon" type="image/png" sizes="512x512" href="farmyard-draft-logo.png">
+    <link rel="apple-touch-icon" href="farmyard-draft-logo.png">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -15,36 +19,65 @@
 <!-- LOGIN SCREEN -->
 <div id="login-screen" class="tab" hidden>
     <h1>FarmYard Login</h1>
-    <input type="email" id="login-email" placeholder="Email">
-    <input type="password" id="login-password" placeholder="Password">
-    <input type="text" id="login-invite-code" placeholder="Company invite code (optional)">
+    <p class="auth-tagline">Sign in to manage listings, messages, and company access from one FarmYard account.</p>
+    <label class="auth-field" for="login-email">
+        <span>Email</span>
+        <input type="email" id="login-email" placeholder="Email" autocomplete="email">
+    </label>
+    <label class="auth-field" for="login-password">
+        <span>Password</span>
+        <input type="password" id="login-password" placeholder="Password" autocomplete="current-password">
+    </label>
+    <label class="auth-field" for="login-invite-code">
+        <span>Company invite code</span>
+        <input type="text" id="login-invite-code" placeholder="Company invite code (optional)" autocomplete="one-time-code">
+    </label>
     <button id="login-btn">Login</button>
     <button id="login-google-btn" class="secondary-auth-btn" type="button">Continue with Google</button>
-    <p>Don't have an account? <span id="show-register">Register</span></p>
+    <p class="auth-help">Don't have an account? <button id="show-register" class="auth-link-btn" type="button">Register</button></p>
 </div>
 
 <!-- REGISTER SCREEN -->
 <div id="register-screen" class="tab" hidden>
     <h1>Register</h1>
-    <input type="text" id="reg-name" placeholder="Full Name">
-    <input type="email" id="reg-email" placeholder="Email">
-    <select id="reg-phone-country">
-        <option value="+256">Uganda (+256)</option>
-        <option value="+254">Kenya (+254)</option>
-        <option value="+255">Tanzania (+255)</option>
-        <option value="+250">Rwanda (+250)</option>
-        <option value="+234">Nigeria (+234)</option>
-        <option value="+233">Ghana (+233)</option>
-        <option value="+27">South Africa (+27)</option>
-        <option value="+1">United States (+1)</option>
-        <option value="+44">United Kingdom (+44)</option>
-    </select>
-    <input type="tel" id="reg-phone" placeholder="Phone Number" autocomplete="tel">
-    <input type="password" id="reg-password" placeholder="Password">
-    <input type="text" id="reg-invite-code" placeholder="Company invite code (optional)">
+    <p class="auth-tagline">Create your FarmYard account to post listings, chat with buyers, and manage your profile.</p>
+    <label class="auth-field" for="reg-name">
+        <span>Full Name</span>
+        <input type="text" id="reg-name" placeholder="Full Name" autocomplete="name">
+    </label>
+    <label class="auth-field" for="reg-email">
+        <span>Email</span>
+        <input type="email" id="reg-email" placeholder="Email" autocomplete="email">
+    </label>
+    <label class="auth-field" for="reg-phone-country">
+        <span>Phone country</span>
+        <select id="reg-phone-country" autocomplete="tel-country-code">
+            <option value="+256">Uganda (+256)</option>
+            <option value="+254">Kenya (+254)</option>
+            <option value="+255">Tanzania (+255)</option>
+            <option value="+250">Rwanda (+250)</option>
+            <option value="+234">Nigeria (+234)</option>
+            <option value="+233">Ghana (+233)</option>
+            <option value="+27">South Africa (+27)</option>
+            <option value="+1">United States (+1)</option>
+            <option value="+44">United Kingdom (+44)</option>
+        </select>
+    </label>
+    <label class="auth-field" for="reg-phone">
+        <span>Phone Number</span>
+        <input type="tel" id="reg-phone" placeholder="Phone Number" autocomplete="tel">
+    </label>
+    <label class="auth-field" for="reg-password">
+        <span>Password</span>
+        <input type="password" id="reg-password" placeholder="Password" autocomplete="new-password">
+    </label>
+    <label class="auth-field" for="reg-invite-code">
+        <span>Company invite code</span>
+        <input type="text" id="reg-invite-code" placeholder="Company invite code (optional)" autocomplete="one-time-code">
+    </label>
     <button id="register-btn">Register</button>
     <button id="register-google-btn" class="secondary-auth-btn" type="button">Continue with Google</button>
-    <p>Already have an account? <span id="show-login">Login</span></p>
+    <p class="auth-help">Already have an account? <button id="show-login" class="auth-link-btn" type="button">Login</button></p>
 </div>
 
 <!-- APP MAIN -->

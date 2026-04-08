@@ -289,6 +289,16 @@ const navButtons = {
 };
 let toastTimeoutId = null;
 
+async function registerServiceWorker(){
+    if (!('serviceWorker' in navigator)) return;
+
+    try {
+        await navigator.serviceWorker.register('sw.js');
+    } catch (error) {
+        console.warn('Failed to register service worker', error);
+    }
+}
+
 function setElementVisibility(element, isVisible, displayMode = 'block'){
     if (!element) return;
     element.hidden = !isVisible;
@@ -5890,4 +5900,5 @@ function generateInviteCode(companyName){
 showTab(localStorage.getItem(LAST_ACTIVE_TAB_KEY) || 'home');
 refreshMarketplace();
 renderMessagesTab();
+registerServiceWorker();
 initializeAuth();

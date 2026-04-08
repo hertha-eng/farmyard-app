@@ -17,6 +17,7 @@ FarmYard is an agriculture-focused marketplace prototype built with plain HTML, 
 - `style.css` - styling and responsive layout
 - `script.js` - app behavior and UI state
 - `manifest.webmanifest` - installable web app metadata
+- `sw.js` - service worker for app shell caching
 - `capacitor.config.json` - Android and iPhone wrapper configuration starter
 - `netlify.toml` - Netlify deploy configuration
 
@@ -26,6 +27,16 @@ This project is configured as a static site.
 
 - Build command: leave blank
 - Publish directory: `.`
+
+## Launch-Ready Web Setup
+
+FarmYard now includes:
+
+- a linked app icon using `farmyard-draft-logo.png`
+- manifest icon metadata for install prompts
+- a service worker for app shell caching
+- Apple touch icon metadata
+- labeled login and register fields for better accessibility
 
 ## Supabase Persistence Setup
 
