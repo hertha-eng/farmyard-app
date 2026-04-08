@@ -43,6 +43,7 @@ After the schema is created, the app will:
 - save shared messages to `messages`
 - save in-app call sessions and WebRTC signaling data to `call_sessions` and `call_ice_candidates`
 - reload both on refresh after login
+- keep listing currency codes so price signs match seller location and user preference
 
 ## Web, Android, And iPhone Access
 
@@ -91,7 +92,7 @@ The included `supabase-schema.sql` now adds a database trigger on `public.listin
 If you already created the tables before this update:
 
 1. Open the Supabase SQL editor.
-2. Rerun the full `supabase-schema.sql` file, or at minimum rerun the new function and trigger definitions for `public.ensure_agriculture_listing()`.
+2. Rerun the full `supabase-schema.sql` file, or at minimum rerun the new function and trigger definitions for `public.ensure_agriculture_listing()` and the `currency_code` listing column update.
 3. Test by trying one valid listing and one unrelated listing.
 
 This matters because browser-only validation can be bypassed, but the database trigger still blocks invalid posts before they are stored.

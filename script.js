@@ -5,6 +5,19 @@ function formatPrice(number) {
     return num.toLocaleString();
 }
 
+const COUNTRY_CONFIGS = [
+    { code: 'UG', label: 'Uganda', dialCode: '+256', currencyCode: 'UGX', currencySign: 'UGX' },
+    { code: 'KE', label: 'Kenya', dialCode: '+254', currencyCode: 'KES', currencySign: 'KSh' },
+    { code: 'TZ', label: 'Tanzania', dialCode: '+255', currencyCode: 'TZS', currencySign: 'TSh' },
+    { code: 'RW', label: 'Rwanda', dialCode: '+250', currencyCode: 'RWF', currencySign: 'RWF' },
+    { code: 'NG', label: 'Nigeria', dialCode: '+234', currencyCode: 'NGN', currencySign: '₦' },
+    { code: 'GH', label: 'Ghana', dialCode: '+233', currencyCode: 'GHS', currencySign: 'GH₵' },
+    { code: 'ZA', label: 'South Africa', dialCode: '+27', currencyCode: 'ZAR', currencySign: 'R' },
+    { code: 'US', label: 'United States', dialCode: '+1', currencyCode: 'USD', currencySign: '$' },
+    { code: 'GB', label: 'United Kingdom', dialCode: '+44', currencyCode: 'GBP', currencySign: '£' },
+];
+const DEFAULT_COUNTRY_CONFIG = COUNTRY_CONFIGS[0];
+
 const SUPABASE_URL = 'https://gekjlypawswkjmaamwme.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_mOsnuYtcElQ0Qj9HzqV5rA_dItzoREq';
 const supabaseClient = window.supabase?.createClient
@@ -91,7 +104,9 @@ const currentUser = {
     accountType: 'Signed-out Visitor',
     location: 'Set your location after sign in',
     phone: '',
+    phoneCountryCode: DEFAULT_COUNTRY_CONFIG.dialCode,
     email: '',
+    currencyPreference: 'auto',
     verified: false,
     communityRating: 0,
     ratingCount: 0,
@@ -495,7 +510,9 @@ function buildSignedOutAccount(){
         accountType: 'Signed-out Visitor',
         location: 'Set your location after sign in',
         phone: '',
+        phoneCountryCode: DEFAULT_COUNTRY_CONFIG.dialCode,
         email: '',
+        currencyPreference: 'auto',
         verified: false,
         communityRating: 0,
         ratingCount: 0,
@@ -690,6 +707,90 @@ function getConversationProfile(conversation){
     return Object.values(profiles).find(profile => profile.name === conversation.contact) || null;
 }
 
+function buildCountryOptionMarkup(selectedDialCode = DEFAULT_COUNTRY_CONFIG.dialCode, includeAuto = false){
+    const options = includeAuto
+        ? [`<option value="auto"${selectedDialCode === 'auto' ? ' selected' : ''}>Auto by location</option>`]
+        : [];
+    return `${options.join('')}${COUNTRY_CONFIGS.map(country => `
+        <option value="${country.dialCode}"${country.dialCode === selectedDialCode ? ' selected' : ''}>${country.label} (${country.dialCode})</option>
+    `).join('')}`;
+}
+
+function buildCurrencyOptionMarkup(selectedCurrency = 'auto'){
+    return `
+        <option value="auto"${selectedCurrency === 'auto' ? ' selected' : ''}>Auto by location</option>
+        ${COUNTRY_CONFIGS.map(country => `
+            <option value="${country.currencyCode}"${country.currencyCode === selectedCurrency ? ' selected' : ''}>${country.label} (${country.currencySign})</option>
+        `).join('')}
+    `;
+}
+
+function findCountryConfigByDialCode(dialCode){
+    return COUNTRY_CONFIGS.find(country => country.dialCode === dialCode) || null;
+}
+
+function findCountryConfigByCurrency(currencyCode){
+    return COUNTRY_CONFIGS.find(country => country.currencyCode === currencyCode) || null;
+}
+
+function inferCountryConfigFromLocation(location){
+    const normalizedLocation = String(location || '').toLowerCase();
+    if (!normalizedLocation) return DEFAULT_COUNTRY_CONFIG;
+    return COUNTRY_CONFIGS.find(country => normalizedLocation.includes(country.label.toLowerCase()))
+        || COUNTRY_CONFIGS.find(country => normalizedLocation.includes(country.code.toLowerCase()))
+        || DEFAULT_COUNTRY_CONFIG;
+}
+
+function getPhoneCountryDialCode(preferredDialCode = currentUser.phoneCountryCode, location = currentUser.location){
+    if (preferredDialCode && preferredDialCode !== 'auto') {
+        return findCountryConfigByDialCode(preferredDialCode)?.dialCode || preferredDialCode;
+    }
+    return inferCountryConfigFromLocation(location).dialCode;
+}
+
+function normalizePhoneNumberForStorage(phoneNumber, { dialCode = currentUser.phoneCountryCode, location = currentUser.location } = {}){
+    const rawValue = String(phoneNumber || '').trim();
+    if (!rawValue || /add your phone number|not set/i.test(rawValue)) {
+        return '';
+    }
+
+    const sanitizedValue = rawValue.replace(/[^\d+]/g, '');
+    if (!sanitizedValue) return '';
+
+    if (sanitizedValue.startsWith('+')) {
+        const digitsOnly = sanitizedValue.slice(1).replace(/\D/g, '');
+        return digitsOnly ? `+${digitsOnly}` : '';
+    }
+
+    const resolvedDialCode = getPhoneCountryDialCode(dialCode, location).replace(/[^\d+]/g, '');
+    const localNumber = sanitizedValue.replace(/\D/g, '').replace(/^0+/, '');
+    if (!localNumber || !resolvedDialCode) return '';
+    return `${resolvedDialCode}${localNumber}`;
+}
+
+function getPreferredCurrencyCode(user = currentUser, fallbackLocation = currentUser.location){
+    if (user?.currencyPreference && user.currencyPreference !== 'auto') {
+        return user.currencyPreference;
+    }
+    return inferCountryConfigFromLocation(fallbackLocation).currencyCode;
+}
+
+function getCurrencyConfig(currencyCode, fallbackLocation = currentUser.location){
+    return findCountryConfigByCurrency(currencyCode) || inferCountryConfigFromLocation(fallbackLocation) || DEFAULT_COUNTRY_CONFIG;
+}
+
+function formatCurrencyAmount(amount, { currencyCode, location = currentUser.location } = {}){
+    const currencyConfig = getCurrencyConfig(currencyCode, location);
+    const spacer = /^[A-Za-z]/.test(currencyConfig.currencySign) ? ' ' : '';
+    return `${currencyConfig.currencySign}${spacer}${formatPrice(amount)}`;
+}
+
+function formatListingPrice(listing){
+    if (!listing) return '';
+    const currencyCode = listing.currencyCode || getPreferredCurrencyCode(currentUser, listing.location);
+    return `${formatCurrencyAmount(listing.price, { currencyCode, location: listing.location })}/${listing.unit}`;
+}
+
 function detectMobileOperatingSystem(){
     const userAgent = navigator.userAgent || navigator.vendor || '';
     if (/android/i.test(userAgent)) return 'android';
@@ -743,22 +844,7 @@ function updatePlatformExperience(){
 }
 
 function normalizeDialablePhoneNumber(phoneNumber){
-    const rawValue = String(phoneNumber || '').trim();
-    if (!rawValue || /add your phone number|not set/i.test(rawValue)) {
-        return '';
-    }
-
-    const sanitizedValue = rawValue.replace(/[^\d+]/g, '');
-    if (!sanitizedValue) {
-        return '';
-    }
-
-    if (sanitizedValue.startsWith('+')) {
-        const digitsOnly = sanitizedValue.slice(1).replace(/\+/g, '');
-        return digitsOnly ? `+${digitsOnly}` : '';
-    }
-
-    return sanitizedValue.replace(/\+/g, '');
+    return normalizePhoneNumberForStorage(phoneNumber);
 }
 
 function openPhoneDialer(phoneNumber){
@@ -769,7 +855,10 @@ function openPhoneDialer(phoneNumber){
 }
 
 function hasRequiredPhoneNumber(phoneNumber = currentUser.phone){
-    return Boolean(normalizeDialablePhoneNumber(phoneNumber));
+    return Boolean(normalizePhoneNumberForStorage(phoneNumber, {
+        dialCode: currentUser.phoneCountryCode,
+        location: currentUser.location,
+    }));
 }
 
 function isPhoneVisibleForWebCalls(profile){
@@ -1213,10 +1302,20 @@ function syncProfileRecord(profileRow){
             value: profileRow.phone || profile.fields?.phone?.value || 'Not set',
             visible: profile.fields?.phone?.visible ?? false,
         },
+        phoneCountryCode: {
+            label: 'Phone Country Code',
+            value: profile.fields?.phoneCountryCode?.value || DEFAULT_COUNTRY_CONFIG.dialCode,
+            visible: false,
+        },
         email: {
             label: 'Email',
             value: profileRow.email || profile.fields?.email?.value || '',
             visible: profile.fields?.email?.visible ?? false,
+        },
+        currencyPreference: {
+            label: 'Currency Preference',
+            value: profile.fields?.currencyPreference?.value || 'auto',
+            visible: false,
         },
         companyRole: {
             label: 'Company Role',
@@ -1251,7 +1350,9 @@ function applyPersistedProfileRow(profileRow){
     currentUser.accountType = profileRow.account_type || currentUser.accountType;
     currentUser.location = profileRow.location || currentUser.location;
     currentUser.phone = profileRow.phone || currentUser.phone;
+    currentUser.phoneCountryCode = profileRow.profile_fields?.phoneCountryCode?.value || currentUser.phoneCountryCode || DEFAULT_COUNTRY_CONFIG.dialCode;
     currentUser.email = profileRow.email || currentUser.email;
+    currentUser.currencyPreference = profileRow.profile_fields?.currencyPreference?.value || currentUser.currencyPreference || 'auto';
     currentUser.verified = typeof profileRow.verified === 'boolean' ? profileRow.verified : currentUser.verified;
     currentUser.communityRating = Number(profileRow.community_rating ?? currentUser.communityRating);
     currentUser.ratingCount = Number(profileRow.rating_count ?? currentUser.ratingCount);
@@ -1337,6 +1438,7 @@ function buildPersistedListingRow(listing){
         category: listing.category,
         title: listing.title,
         price: String(listing.price),
+        currency_code: listing.currencyCode || getPreferredCurrencyCode(currentUser, listing.location),
         unit: listing.unit,
         min_order: listing.minOrder || '',
         location: listing.location,
@@ -1355,6 +1457,7 @@ function mapPersistedListingRow(row){
         category: row.category,
         title: row.title,
         price: row.price,
+        currencyCode: row.currency_code || inferCountryConfigFromLocation(row.location).currencyCode,
         unit: row.unit,
         minOrder: row.min_order || '',
         location: row.location,
@@ -2258,6 +2361,7 @@ async function signUpWithEmail(){
     }
     const fullName = document.getElementById('reg-name').value.trim();
     const email = document.getElementById('reg-email').value.trim().toLowerCase();
+    const phoneCountryCode = document.getElementById('reg-phone-country').value.trim();
     const phone = document.getElementById('reg-phone').value.trim();
     const password = document.getElementById('reg-password').value.trim();
     const inviteCode = document.getElementById('reg-invite-code').value.trim().toUpperCase();
@@ -2267,7 +2371,8 @@ async function signUpWithEmail(){
         return;
     }
 
-    if (!hasRequiredPhoneNumber(phone)) {
+    const normalizedPhone = normalizePhoneNumberForStorage(phone, { dialCode: phoneCountryCode });
+    if (!normalizedPhone) {
         showToast('Enter a valid phone number to continue');
         return;
     }
@@ -2288,7 +2393,7 @@ async function signUpWithEmail(){
         handleSignedInSession(
             data.session,
             inviteCode ? 'Your account is ready. Company invite checked.' : 'Your account is ready',
-            { inviteCode, phone }
+            { inviteCode, phone: normalizedPhone, phoneCountryCode }
         );
     } else {
         showToast('Check your email to confirm your account');
@@ -2408,6 +2513,7 @@ document.getElementById('postBtn').onclick = async () => {
         category,
         title,
         price,
+        currencyCode: getPreferredCurrencyCode(currentUser, location),
         unit,
         minOrder,
         location,
@@ -2700,7 +2806,7 @@ function refreshMarketplace(){
             <span class="card-category">${listing.category || 'General'}</span>
             <h3>${listing.title}</h3>
             <p class="card-summary ${verificationClass}">${verificationText}</p>
-            <p class="card-summary">${listing.negotiable ? 'Price Negotiable' : 'UGX '+formatPrice(listing.price)+'/'+listing.unit}</p>
+            <p class="card-summary">${listing.negotiable ? 'Price Negotiable' : formatListingPrice(listing)}</p>
             <p class="card-summary">${listing.minOrder ? 'Minimum: '+listing.minOrder : 'Tap for full details'}</p>
             <p class="card-summary">📍 ${listing.location}</p>
             <button>Message</button>
@@ -2837,7 +2943,7 @@ function openListingDetail(listing){
     detailTitle.textContent = listing.title;
     detailVerification.textContent = verificationLabel;
     detailVerification.className = isVerifiedCompany ? 'detail-badge company-badge' : 'detail-badge';
-    detailPrice.textContent = listing.negotiable ? 'Price: Negotiable' : 'Price: UGX ' + formatPrice(listing.price) + '/' + listing.unit;
+    detailPrice.textContent = listing.negotiable ? 'Price: Negotiable' : `Price: ${formatListingPrice(listing)}`;
     detailMinOrder.textContent = listing.minOrder ? 'Minimum order: ' + listing.minOrder : 'Minimum order: Flexible';
     detailLocation.textContent = 'Location: ' + listing.location;
     detailNegotiable.textContent = `${listing.description ? `${listing.description} | ` : ''}Category: ${listing.category || 'General'} | Seller: ${sellerName}${listing.postedByName ? ` | Posted by: ${listing.postedByName}` : ''}`;
@@ -2886,7 +2992,7 @@ function openProfile(profileId){
     profileAbout.textContent = profile.about;
     profileVerification.textContent = profile.type === 'Company Profile'
         ? (profile.verificationPlan?.subscribed
-            ? `Verified Company approved • $${profile.verificationPlan.price}/${profile.verificationPlan.billing}${profile.verificationPlan.renewalDate ? ` • renews ${profile.verificationPlan.renewalDate}` : ''}`
+            ? `Verified Company approved • ${formatCurrencyAmount(profile.verificationPlan.price, { currencyCode: getPreferredCurrencyCode(currentUser, profile.fields?.location?.value || currentUser.location) })}/${profile.verificationPlan.billing}${profile.verificationPlan.renewalDate ? ` • renews ${profile.verificationPlan.renewalDate}` : ''}`
             : 'Company profile pending verification review')
         : 'Individual profiles can sell personally or represent a company, but only company profiles receive the Verified Company badge.';
     profileVerification.className = profile.type === 'Company Profile' && profile.verificationPlan?.subscribed ? 'detail-badge company-badge' : 'detail-badge';
@@ -4067,8 +4173,17 @@ function syncCurrentUserFromSession(session, options = {}){
     }
 
     const account = getOrCreateUserAccount(normalizedEmail, fullName, user.id);
-    if (options.phone && hasRequiredPhoneNumber(options.phone)) {
-        account.phone = options.phone.trim();
+    if (options.phoneCountryCode) {
+        account.phoneCountryCode = options.phoneCountryCode;
+    }
+    if (options.phone) {
+        const normalizedPhone = normalizePhoneNumberForStorage(options.phone, {
+            dialCode: options.phoneCountryCode || account.phoneCountryCode,
+            location: account.location,
+        });
+        if (normalizedPhone) {
+            account.phone = normalizedPhone;
+        }
     }
     hydrateCurrentUser(account);
     ensureProfileForAccount(account);
@@ -4123,7 +4238,9 @@ function buildIndividualProfile(account){
         fields: {
             location: { label: 'Location', value: account.location || 'Not set', visible: true },
             phone: { label: 'Phone', value: account.phone || 'Not set', visible: false },
+            phoneCountryCode: { label: 'Phone Country Code', value: account.phoneCountryCode || DEFAULT_COUNTRY_CONFIG.dialCode, visible: false },
             email: { label: 'Email', value: account.email, visible: false },
+            currencyPreference: { label: 'Currency Preference', value: account.currencyPreference || 'auto', visible: false },
             companyRole: { label: 'Company Role', value: account.companyRole || 'Independent seller', visible: true },
             companyName: { label: 'Selling For', value: companyName, visible: true },
         },
@@ -4138,7 +4255,9 @@ function ensureProfileForAccount(account){
     profiles[account.id].avatarUrl = account.avatarUrl || profiles[account.id].avatarUrl || '';
     profiles[account.id].fields.location.value = account.location;
     profiles[account.id].fields.phone.value = account.phone;
+    profiles[account.id].fields.phoneCountryCode.value = account.phoneCountryCode || DEFAULT_COUNTRY_CONFIG.dialCode;
     profiles[account.id].fields.email.value = account.email;
+    profiles[account.id].fields.currencyPreference.value = account.currencyPreference || 'auto';
     profiles[account.id].fields.companyRole.value = account.companyRole || 'Independent seller';
     profiles[account.id].fields.companyName.value = account.companyId && companyAccounts[account.companyId]
         ? companyAccounts[account.companyId].name
@@ -4154,7 +4273,9 @@ function buildBaseUserAccount(email, fullName, userId){
         accountType: 'Individual Profile',
         location: 'Set your trading location',
         phone: 'Add your phone number',
+        phoneCountryCode: DEFAULT_COUNTRY_CONFIG.dialCode,
         email,
+        currencyPreference: 'auto',
         verified: false,
         communityRating: 5,
         ratingCount: 1,
@@ -4192,7 +4313,9 @@ function hydrateCurrentUser(account){
     currentUser.accountType = account.accountType;
     currentUser.location = account.location;
     currentUser.phone = account.phone;
+    currentUser.phoneCountryCode = account.phoneCountryCode || DEFAULT_COUNTRY_CONFIG.dialCode;
     currentUser.email = account.email;
+    currentUser.currencyPreference = account.currencyPreference || 'auto';
     currentUser.verified = account.verified;
     currentUser.communityRating = account.communityRating;
     currentUser.ratingCount = account.ratingCount;
@@ -4218,7 +4341,9 @@ function persistCurrentUserAccount(previousEmail = currentUser.email){
         accountType: currentUser.accountType,
         location: currentUser.location,
         phone: currentUser.phone,
+        phoneCountryCode: currentUser.phoneCountryCode || DEFAULT_COUNTRY_CONFIG.dialCode,
         email: normalizedCurrentEmail,
+        currencyPreference: currentUser.currencyPreference || 'auto',
         verified: currentUser.verified,
         communityRating: currentUser.communityRating,
         ratingCount: currentUser.ratingCount,
@@ -4630,8 +4755,16 @@ function renderUserListings(){
                             <input id="edit-phone" type="text" value="${currentUser.phone}">
                         </div>
                         <div>
+                            <label for="edit-phone-country-code">Phone country code</label>
+                            <select id="edit-phone-country-code">${buildCountryOptionMarkup(currentUser.phoneCountryCode || DEFAULT_COUNTRY_CONFIG.dialCode)}</select>
+                        </div>
+                        <div>
                             <label for="edit-email">Email</label>
                             <input id="edit-email" type="email" value="${currentUser.email}">
+                        </div>
+                        <div>
+                            <label for="edit-currency-preference">Currency preference</label>
+                            <select id="edit-currency-preference">${buildCurrencyOptionMarkup(currentUser.currencyPreference || 'auto')}</select>
                         </div>
                         <div>
                             <label for="edit-company-role">Company role</label>
@@ -4744,6 +4877,7 @@ function renderUserListings(){
                 <div class="detail-list">
                     <p><strong>Email</strong><span>${currentUser.email}</span></p>
                     <p><strong>Phone</strong><span>${currentUser.phone}</span></p>
+                    <p><strong>Currency</strong><span>${getCurrencyConfig(getPreferredCurrencyCode(currentUser)).currencyCode}</span></p>
                     <p><strong>Verification</strong><span>${currentUser.verified ? 'Verified account' : 'Verification required'}</span></p>
                     <p><strong>Account type</strong><span>${currentUser.accountType}</span></p>
                     <p><strong>Trading focus</strong><span>Agriculture products, raw materials, finished goods, and services</span></p>
@@ -4763,7 +4897,7 @@ function renderUserListings(){
                 <div class="detail-list">
                     <p><strong>Company</strong><span>${companyProfile?.name || 'No company linked'}</span></p>
                     <p><strong>Status</strong><span>${verificationStatus}</span></p>
-                    <p><strong>Subscription</strong><span>$${currentUser.verificationPlan.price}/${currentUser.verificationPlan.billing}</span></p>
+                    <p><strong>Subscription</strong><span>${formatCurrencyAmount(currentUser.verificationPlan.price, { currencyCode: getPreferredCurrencyCode(currentUser) })}/${currentUser.verificationPlan.billing}</span></p>
                     <p><strong>Renewal</strong><span>${companyProfile?.verificationPlan?.renewalDate || 'No renewal date set'}</span></p>
                 </div>
                 <div class="security-actions">
@@ -4982,7 +5116,7 @@ function renderUserListings(){
             <img src="${l.image}">
             <span class="card-category">${l.category || 'General'}</span>
             <h3>${l.title}</h3>
-            <p>${l.negotiable ? 'Price Negotiable' : 'UGX '+formatPrice(l.price)+'/'+l.unit}</p>
+            <p>${l.negotiable ? 'Price Negotiable' : formatListingPrice(l)}</p>
             ${l.minOrder?`<p>Minimum: ${l.minOrder}</p>`:''}
             <p>📍 ${l.location}</p>
             ${l.description ? `<p class="card-summary">${l.description}</p>` : ''}
@@ -5064,11 +5198,14 @@ async function saveProfileEdits(){
     const name = document.getElementById('edit-name').value.trim();
     const role = document.getElementById('edit-role').value.trim();
     const location = document.getElementById('edit-location').value.trim();
-    const phone = document.getElementById('edit-phone').value.trim();
+    const rawPhone = document.getElementById('edit-phone').value.trim();
+    const phoneCountryCode = document.getElementById('edit-phone-country-code').value.trim();
     const email = document.getElementById('edit-email').value.trim();
+    const currencyPreference = document.getElementById('edit-currency-preference').value.trim();
     const companyRole = document.getElementById('edit-company-role').value.trim();
     const about = document.getElementById('edit-about').value.trim();
     const profilePhotoInput = document.getElementById('edit-profile-photo');
+    const phone = normalizePhoneNumberForStorage(rawPhone, { dialCode: phoneCountryCode, location });
 
     if (!name || !role || !location || !phone || !email) {
         showToast('Fill in the main profile details first');
@@ -5079,7 +5216,9 @@ async function saveProfileEdits(){
     currentUser.role = role;
     currentUser.location = location;
     currentUser.phone = phone;
+    currentUser.phoneCountryCode = phoneCountryCode;
     currentUser.email = email;
+    currentUser.currencyPreference = currencyPreference || 'auto';
     if (profilePhotoInput?.files?.[0]) {
         currentUser.avatarUrl = await readFileAsDataUrl(profilePhotoInput.files[0]);
     }
@@ -5089,7 +5228,9 @@ async function saveProfileEdits(){
     profile.avatarUrl = currentUser.avatarUrl || profile.avatarUrl || '';
     profile.fields.location.value = location;
     profile.fields.phone.value = phone;
+    profile.fields.phoneCountryCode.value = phoneCountryCode;
     profile.fields.email.value = email;
+    profile.fields.currencyPreference.value = currentUser.currencyPreference;
     currentUser.companyRole = companyRole || currentUser.companyRole;
     if (profile.fields.companyRole) {
         profile.fields.companyRole.value = companyRole || profile.fields.companyRole.value;
@@ -5138,7 +5279,9 @@ async function createCompanyProfile(){
 
     const companyName = document.getElementById('create-company-name').value.trim();
     const companyLocation = document.getElementById('create-company-location').value.trim();
-    const companyPhone = document.getElementById('create-company-phone').value.trim();
+    const companyPhone = normalizePhoneNumberForStorage(document.getElementById('create-company-phone').value.trim(), {
+        location: companyLocation,
+    });
     const companyEmail = document.getElementById('create-company-email').value.trim();
     const companyRegistration = document.getElementById('create-company-registration').value.trim();
     const companyCertification = document.getElementById('create-company-certification').value.trim();
@@ -5233,7 +5376,9 @@ async function saveCompanyProfileEdits(){
 
     const companyName = document.getElementById('company-name-edit').value.trim();
     const companyLocation = document.getElementById('company-location-edit').value.trim();
-    const companyPhone = document.getElementById('company-phone-edit').value.trim();
+    const companyPhone = normalizePhoneNumberForStorage(document.getElementById('company-phone-edit').value.trim(), {
+        location: companyLocation,
+    });
     const companyEmail = document.getElementById('company-email-edit').value.trim();
     const companyRegistration = document.getElementById('company-registration-edit').value.trim();
     const companyCertification = document.getElementById('company-certification-edit').value.trim();
@@ -5360,7 +5505,9 @@ function inviteSalesRep(){
     }
     const name = document.getElementById('invite-rep-name').value.trim();
     const email = document.getElementById('invite-rep-email').value.trim().toLowerCase();
-    const phone = document.getElementById('invite-rep-phone').value.trim();
+    const phone = normalizePhoneNumberForStorage(document.getElementById('invite-rep-phone').value.trim(), {
+        location: profiles[currentUser.companyId]?.fields?.location?.value || currentUser.location,
+    });
     const nationalId = document.getElementById('invite-rep-id').value.trim();
     const role = document.getElementById('invite-rep-role').value.trim() || 'Sales Representative';
 

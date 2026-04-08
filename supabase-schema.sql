@@ -29,6 +29,7 @@ create table if not exists public.listings (
     category text not null,
     title text not null,
     price text not null,
+    currency_code text not null default 'UGX',
     unit text not null,
     min_order text not null default '',
     location text not null,
@@ -41,6 +42,8 @@ create table if not exists public.listings (
     created_at timestamptz not null default timezone('utc', now()),
     updated_at timestamptz not null default timezone('utc', now())
 );
+
+alter table public.listings add column if not exists currency_code text not null default 'UGX';
 
 create table if not exists public.conversations (
     id uuid primary key default gen_random_uuid(),
