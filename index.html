@@ -4,6 +4,10 @@
     <meta charset="UTF-8">
     <title>FarmYard - Marketplace</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#234a2f">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="manifest" href="manifest.webmanifest">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -24,6 +28,7 @@
     <h1>Register</h1>
     <input type="text" id="reg-name" placeholder="Full Name">
     <input type="email" id="reg-email" placeholder="Email">
+    <input type="tel" id="reg-phone" placeholder="Phone Number" autocomplete="tel">
     <input type="password" id="reg-password" placeholder="Password">
     <input type="text" id="reg-invite-code" placeholder="Company invite code (optional)">
     <button id="register-btn">Register</button>
@@ -51,6 +56,10 @@
             <div class="auth-actions">
                 <button id="open-login" type="button">Login</button>
                 <button id="open-register" type="button">Register</button>
+            </div>
+            <div class="platform-runtime-panel">
+                <span id="runtime-platform-badge" class="platform-runtime-badge">Web App</span>
+                <p id="platform-access-note" class="platform-access-note">Use one FarmYard login across web, Android, and iPhone with the same account history.</p>
             </div>
         </header>
 
@@ -259,8 +268,10 @@
             <h3>Privacy Policy</h3>
             <p>FarmYard collects information users provide when creating accounts, editing profiles, creating company profiles, posting listings, sending messages, uploading media, saving listings, requesting orders, rating users, reporting issues, or contacting support.</p>
             <p>That information may include names, email addresses, phone numbers, profile photos, company details, listing details, uploaded images or videos, chat content, order notes, invite records, ratings, reports, and related account activity needed to operate the marketplace.</p>
+            <p>FarmYard may require a phone number for account setup, account recovery, trust, and communication features. Users may still choose whether that number is shown publicly on their profile.</p>
             <p>FarmYard may also store technical and usage information needed to keep users signed in, remember app state, protect accounts, troubleshoot problems, and improve platform performance.</p>
             <p>If users choose to start an in-app call, FarmYard may request microphone permission on the device. Microphone access should only be used for the call experience and should not be used outside the calling feature without clear notice.</p>
+            <p>If a user hides their phone number, FarmYard should not display that number publicly and browser-based call actions should not expose or use it for web-initiated dialer calls. Hidden-number users may still receive calls through supported in-app calling features.</p>
             <p>FarmYard uses collected information to run the marketplace, display listings and profiles, support messaging and calling, manage company-team access, improve safety, investigate abuse, and respond to user requests.</p>
             <p>FarmYard should limit collection to what is reasonably necessary, use appropriate security practices, and give users a clear way to request account help, profile changes, or data-related support.</p>
         </section>
@@ -269,6 +280,7 @@
             <h3>Terms of Use</h3>
             <p>FarmYard is an agriculture-only marketplace for produce, raw materials, finished agricultural goods, and agricultural services.</p>
             <p>Users are responsible for the accuracy of listing titles, prices, quantities, availability, photos, media uploads, delivery details, order information, and contact information shared through the platform.</p>
+            <p>Users are also responsible for keeping required account information, including a valid phone number, accurate and up to date, even if they choose to hide that number from public profile display.</p>
             <p>Users must not post misleading information, impersonate others, interfere with marketplace activity, misuse messaging or calling features, or attempt to gain unauthorized access to another account, company, or sales team.</p>
             <p>FarmYard may remove listings, suspend accounts, or restrict access where listings or conduct appear unsafe, misleading, abusive, or outside the purpose of the platform.</p>
         </section>
@@ -293,6 +305,7 @@
             <p>Users should verify counterparties, confirm price and quantity terms, and use caution before making payments or handing over goods.</p>
             <p>FarmYard does not collect, hold, route, or guarantee buyer or seller payments. Any payment arrangement happens outside FarmYard and is the responsibility of the parties involved.</p>
             <p>Users should use messaging, media sharing, profile review, ratings, reports, and company verification details as safety tools, but they should still make independent checks before any trade, pickup, delivery, or call-based agreement.</p>
+            <p>When a phone number is hidden, web users may be limited from starting direct dialer calls to that user. In supported FarmYard app experiences, users may still be able to connect through in-app audio calling without exposing the hidden number to the other party.</p>
             <p>For a production version of FarmYard, this section should include a support email, complaint channel, fraud-reporting path, and a clear process for account, listing, team-access, or communication complaints.</p>
             <p class="legal-note">This is a product-ready starter policy set, not legal advice. A lawyer should review it before public launch.</p>
         </section>
@@ -399,12 +412,15 @@
         <div id="call-avatar" class="call-avatar" aria-label="Call profile photo"></div>
         <h2 id="call-name">Contact</h2>
         <p id="call-status" class="call-status">Calling...</p>
+        <p id="call-platform-note" class="call-platform-note">Installed FarmYard apps can use in-app audio. Web browsers can switch to the phone dialer.</p>
         <p id="call-duration" class="call-duration" hidden>00:00</p>
         <div class="call-actions">
+            <button id="call-answer-btn" class="call-action-btn call-answer-btn" type="button" hidden>Answer</button>
             <button id="call-mute-btn" class="call-action-btn" type="button">Mute</button>
             <button id="call-speaker-btn" class="call-action-btn" type="button">Speaker</button>
             <button id="call-end-btn" class="call-action-btn call-end-btn" type="button">End</button>
         </div>
+        <audio id="call-remote-audio" autoplay playsinline hidden></audio>
     </div>
 </div>
 

@@ -21,7 +21,13 @@ const SUPABASE_TABLES = {
     listings: 'listings',
     conversations: 'conversations',
     messages: 'messages',
+    callSessions: 'call_sessions',
+    callIceCandidates: 'call_ice_candidates',
 };
+const WEBRTC_ICE_SERVERS = [
+    { urls: 'stun:stun.l.google.com:19302' },
+    { urls: 'stun:stun1.l.google.com:19302' },
+];
 const LOCAL_STATE_KEY = 'farmyard-local-state-v1';
 const LAST_ACTIVE_TAB_KEY = 'farmyard-last-active-tab';
 const AGRICULTURE_KEYWORDS = [
@@ -138,10 +144,20 @@ let activeCallStartedAt = null;
 let activeCallTimerId = null;
 let isCallMuted = false;
 let isSpeakerMode = false;
+let runtimePlatform = 'web';
+let activeCallSessionId = null;
+let activeCallPeerConnection = null;
+let activeCallRole = null;
+let activeCallTargetProfileId = null;
+let activeIncomingCallSession = null;
+let pendingLocalCallCandidates = [];
+let pendingRemoteCallCandidates = [];
+let callsRealtimeChannel = null;
 let messagesRealtimeChannel = null;
 let messagesRealtimeRefreshPromise = null;
 let messagesRealtimeRefreshQueued = false;
 const seenIncomingMessageIds = new Set();
+const seenCallIceCandidateIds = new Set();
 let userBlocks = [];
 let selectedMessageId = null;
 let selectedMessageConversationId = null;
@@ -169,6 +185,8 @@ const authScreens = {
 const marketplace = document.getElementById('marketplace-grid');
 const marketSearchInput = document.getElementById('market-search');
 const marketResultsCopy = document.getElementById('market-results-copy');
+const runtimePlatformBadge = document.getElementById('runtime-platform-badge');
+const platformAccessNote = document.getElementById('platform-access-note');
 const timelineModeInput = document.getElementById('timeline-mode');
 const timelineInterestChips = document.getElementById('timeline-interest-chips');
 const timelineFeedCopy = document.getElementById('timeline-feed-copy');
@@ -224,10 +242,13 @@ const callScreen = document.getElementById('call-screen');
 const callAvatar = document.getElementById('call-avatar');
 const callName = document.getElementById('call-name');
 const callStatus = document.getElementById('call-status');
+const callPlatformNote = document.getElementById('call-platform-note');
 const callDuration = document.getElementById('call-duration');
+const callAnswerButton = document.getElementById('call-answer-btn');
 const callMuteButton = document.getElementById('call-mute-btn');
 const callSpeakerButton = document.getElementById('call-speaker-btn');
 const callEndButton = document.getElementById('call-end-btn');
+const callRemoteAudio = document.getElementById('call-remote-audio');
 const messagesLayout = document.querySelector('.messages-layout');
 const chatRateUserBtn = document.getElementById('chat-rate-user');
 const chatReportUserBtn = document.getElementById('chat-report-user');
@@ -669,6 +690,58 @@ function getConversationProfile(conversation){
     return Object.values(profiles).find(profile => profile.name === conversation.contact) || null;
 }
 
+function detectMobileOperatingSystem(){
+    const userAgent = navigator.userAgent || navigator.vendor || '';
+    if (/android/i.test(userAgent)) return 'android';
+    if (/iphone|ipad|ipod/i.test(userAgent)) return 'ios';
+    return 'web';
+}
+
+function detectRuntimePlatform(){
+    const capacitorPlatform = window.Capacitor?.getPlatform?.();
+    if (window.Capacitor?.isNativePlatform?.()) {
+        if (capacitorPlatform === 'android') return 'android';
+        if (capacitorPlatform === 'ios') return 'ios';
+    }
+
+    const standaloneMatch = window.matchMedia?.('(display-mode: standalone)')?.matches;
+    if (window.navigator.standalone === true || standaloneMatch) {
+        return detectMobileOperatingSystem();
+    }
+
+    return 'web';
+}
+
+function getRuntimePlatformLabel(platform = runtimePlatform){
+    if (platform === 'android') return 'Android App';
+    if (platform === 'ios') return 'iPhone App';
+    return 'Web App';
+}
+
+function isAppRuntime(){
+    return runtimePlatform === 'android' || runtimePlatform === 'ios';
+}
+
+function updatePlatformExperience(){
+    runtimePlatform = detectRuntimePlatform();
+
+    if (runtimePlatformBadge) {
+        runtimePlatformBadge.textContent = getRuntimePlatformLabel();
+    }
+
+    if (platformAccessNote) {
+        platformAccessNote.textContent = isAuthenticatedUser()
+            ? `Signed in once, you can keep the same FarmYard data, chats, and listings on web, Android, and iPhone.`
+            : `Use one FarmYard login across web, Android, and iPhone with the same account history.`;
+    }
+
+    if (callPlatformNote) {
+        callPlatformNote.textContent = isAppRuntime()
+            ? 'This app build can place in-app audio calls when both users are signed in.'
+            : 'Web users open the phone dialer. Install FarmYard on Android or iPhone for in-app audio calls.';
+    }
+}
+
 function normalizeDialablePhoneNumber(phoneNumber){
     const rawValue = String(phoneNumber || '').trim();
     if (!rawValue || /add your phone number|not set/i.test(rawValue)) {
@@ -695,32 +768,71 @@ function openPhoneDialer(phoneNumber){
     return true;
 }
 
-function callListingSeller(){
+function hasRequiredPhoneNumber(phoneNumber = currentUser.phone){
+    return Boolean(normalizeDialablePhoneNumber(phoneNumber));
+}
+
+function isPhoneVisibleForWebCalls(profile){
+    if (!profile?.fields?.phone) return true;
+    return profile.fields.phone.visible !== false;
+}
+
+function enforceRequiredPhoneSetup(message = 'Add your phone number to finish setting up your account'){
+    if (!isAuthenticatedUser() || hasRequiredPhoneNumber()) return false;
+    isEditingProfile = true;
+    showTab('account', { skipHistory: true });
+    renderUserListings();
+    showToast(message);
+    return true;
+}
+
+async function placeCallToProfile(profileId, fallbackName = 'Contact', fallbackPhone = ''){
+    const profile = profileId ? profiles[profileId] : null;
+    const displayName = profile?.name || fallbackName;
+    const profilePhone = profile?.fields?.phone?.value || fallbackPhone || '';
+
+    if (isAppRuntime() && !isAuthenticatedUser()) {
+        promptForAuth('Sign in to place in-app calls');
+        return;
+    }
+
+    if (
+        isAppRuntime()
+        && supabaseClient
+        && isUuidLike(currentUser.id)
+        && isUuidLike(profileId)
+        && profileId !== currentUser.id
+    ) {
+        await startInAppCall(profileId, displayName);
+        return;
+    }
+
+    if (profile && !isPhoneVisibleForWebCalls(profile)) {
+        showToast(`${displayName} accepts calls only through the FarmYard app`);
+        return;
+    }
+
+    if (openPhoneDialer(profilePhone)) {
+        showToast(`Opening call for ${displayName}`);
+        return;
+    }
+
+    showToast(`${displayName} has not added a phone number yet`);
+}
+
+async function callListingSeller(){
     const listing = currentDetailListing;
     if (!listing) return;
     const sellerProfile = profiles[resolveListingProfileId(listing)] || profiles[listing.sellerId] || null;
     const sellerName = sellerProfile?.name || listing.contact || listing.postedByName || 'this seller';
     const sellerPhone = sellerProfile?.fields?.phone?.value || '';
-
-    if (openPhoneDialer(sellerPhone)) {
-        showToast(`Opening call for ${sellerName}`);
-        return;
-    }
-
-    showToast(`${sellerName} has not added a phone number yet`);
+    await placeCallToProfile(sellerProfile?.id || listing.sellerId || '', sellerName, sellerPhone);
 }
 
-function callProfileById(profileId){
+async function callProfileById(profileId){
     const profile = profiles[profileId];
     if (!profile) return;
-    const profilePhone = profile.fields?.phone?.value || '';
-
-    if (openPhoneDialer(profilePhone)) {
-        showToast(`Opening call for ${profile.name}`);
-        return;
-    }
-
-    showToast(`${profile.name} has not added a phone number yet`);
+    await placeCallToProfile(profileId, profile.name, profile.fields?.phone?.value || '');
 }
 
 function getCurrentTimeLabel(){
@@ -2067,6 +2179,9 @@ if (callMuteButton) {
 if (callSpeakerButton) {
     callSpeakerButton.onclick = () => toggleSpeakerMode();
 }
+if (callAnswerButton) {
+    callAnswerButton.onclick = () => answerIncomingCall();
+}
 if (callEndButton) {
     callEndButton.onclick = () => endActiveCall(true);
 }
@@ -2143,11 +2258,17 @@ async function signUpWithEmail(){
     }
     const fullName = document.getElementById('reg-name').value.trim();
     const email = document.getElementById('reg-email').value.trim().toLowerCase();
+    const phone = document.getElementById('reg-phone').value.trim();
     const password = document.getElementById('reg-password').value.trim();
     const inviteCode = document.getElementById('reg-invite-code').value.trim().toUpperCase();
 
-    if (!fullName || !email || !password) {
-        showToast('Fill in name, email, and password');
+    if (!fullName || !email || !phone || !password) {
+        showToast('Fill in name, email, phone number, and password');
+        return;
+    }
+
+    if (!hasRequiredPhoneNumber(phone)) {
+        showToast('Enter a valid phone number to continue');
         return;
     }
 
@@ -2164,7 +2285,11 @@ async function signUpWithEmail(){
     }
 
     if (data.session) {
-        handleSignedInSession(data.session, inviteCode ? 'Your account is ready. Company invite checked.' : 'Your account is ready', { inviteCode });
+        handleSignedInSession(
+            data.session,
+            inviteCode ? 'Your account is ready. Company invite checked.' : 'Your account is ready',
+            { inviteCode, phone }
+        );
     } else {
         showToast('Check your email to confirm your account');
     }
@@ -2189,7 +2314,9 @@ async function signInWithGoogle(){
 
 async function signOutUser(){
     if (!supabaseClient) {
+        endActiveCall(false, 'Call ended', false);
         hydrateCurrentUser(buildSignedOutAccount());
+        updatePlatformExperience();
         updateAuthButtons(false);
         userListings = [];
         marketplaceListings = [];
@@ -2197,6 +2324,7 @@ async function signOutUser(){
         userBlocks = [];
         activeConversationId = null;
         stopMessagesRealtime();
+        stopCallsRealtime();
         await loadMarketplaceListings();
         refreshMarketplace();
         renderUserListings();
@@ -2211,7 +2339,9 @@ async function signOutUser(){
         return;
     }
 
+    endActiveCall(false, 'Call ended', false);
     hydrateCurrentUser(buildSignedOutAccount());
+    updatePlatformExperience();
     updateAuthButtons(false);
     userListings = [];
     marketplaceListings = [];
@@ -2219,6 +2349,7 @@ async function signOutUser(){
     userBlocks = [];
     activeConversationId = null;
     stopMessagesRealtime();
+    stopCallsRealtime();
     await loadMarketplaceListings();
     refreshMarketplace();
     renderUserListings();
@@ -3336,18 +3467,16 @@ function deleteConversation(conversationId){
     showToast(`Deleted chat with ${targetConversation.contact} from your inbox`);
 }
 
-function callActiveConversation(){
+async function callActiveConversation(){
     const conversation = conversations.find(item => item.id === activeConversationId);
     if (!conversation) return;
     const conversationProfile = getConversationProfile(conversation);
-    const contactPhone = conversationProfile?.fields?.phone?.value || '';
-
-    if (openPhoneDialer(contactPhone)) {
-        showToast(`Opening call for ${conversation.contact}`);
-        return;
-    }
-
-    showToast(`${conversation.contact} has not added a phone number yet`);
+    activeCallConversationId = conversation.id;
+    await placeCallToProfile(
+        conversationProfile?.id || conversation.contactProfileId || conversation.sellerId || '',
+        conversation.contact,
+        conversationProfile?.fields?.phone?.value || ''
+    );
 }
 
 function openActiveConversationProfile(){
@@ -3368,45 +3497,8 @@ function closeChatOptionsMenu(){
 }
 
 async function openInAppCall(conversation){
-    if (!conversation || !callScreen) return;
-    closeChatOptionsMenu();
-    activeCallConversationId = conversation.id;
-    isCallMuted = false;
-    isSpeakerMode = false;
-    updateCallControlState();
-    callName.textContent = conversation.contact;
-    callStatus.textContent = 'Calling...';
-    callDuration.hidden = true;
-    callDuration.textContent = '00:00';
-
-    const conversationProfile = getConversationProfile(conversation);
-    if (callAvatar) {
-        callAvatar.innerHTML = renderAvatarMarkup({
-            name: conversation.contact,
-            avatarUrl: conversationProfile?.avatarUrl || '',
-            imageClassName: 'avatar-image',
-            fallbackClassName: 'avatar-fallback',
-        });
-    }
-
-    callScreen.hidden = false;
-
-    if (!navigator.mediaDevices?.getUserMedia) {
-        callStatus.textContent = 'Audio calling is not supported on this device';
-        return;
-    }
-
-    try {
-        activeCallStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-        activeCallStartedAt = Date.now();
-        callStatus.textContent = 'Connected';
-        callDuration.hidden = false;
-        startCallTimer();
-        showToast(`Call started with ${conversation.contact}`);
-    } catch (error) {
-        console.error('Failed to start call', error);
-        callStatus.textContent = 'Microphone permission needed';
-    }
+    if (!conversation) return;
+    await callActiveConversation();
 }
 
 function startCallTimer(){
@@ -3431,6 +3523,382 @@ function updateCallDuration(){
     callDuration.textContent = `${minutes}:${seconds}`;
 }
 
+function updateCallControlAvailability({
+    canAnswer = false,
+    canMute = false,
+    canSpeaker = false,
+    endLabel = 'End',
+} = {}){
+    if (callAnswerButton) {
+        callAnswerButton.hidden = !canAnswer;
+        callAnswerButton.disabled = !canAnswer;
+    }
+    if (callMuteButton) {
+        callMuteButton.disabled = !canMute;
+    }
+    if (callSpeakerButton) {
+        callSpeakerButton.disabled = !canSpeaker;
+    }
+    if (callEndButton) {
+        callEndButton.textContent = endLabel;
+    }
+}
+
+function showCallOverlay({ name, avatarUrl = '', status = 'Calling...', showDuration = false, showAnswer = false, endLabel = 'End' } = {}){
+    if (!callScreen) return;
+    callName.textContent = name || 'Contact';
+    callStatus.textContent = status;
+    callDuration.hidden = !showDuration;
+    if (!showDuration) {
+        callDuration.textContent = '00:00';
+    }
+    if (callAvatar) {
+        callAvatar.innerHTML = renderAvatarMarkup({
+            name: name || 'Contact',
+            avatarUrl,
+            imageClassName: 'avatar-image',
+            fallbackClassName: 'avatar-fallback',
+        });
+    }
+    callScreen.hidden = false;
+    updateCallControlAvailability({
+        canAnswer: showAnswer,
+        canMute: Boolean(activeCallStream),
+        canSpeaker: Boolean(activeCallStream),
+        endLabel,
+    });
+    updateCallControlState();
+}
+
+function resetCallSessionState(){
+    activeCallConversationId = null;
+    activeCallSessionId = null;
+    activeCallRole = null;
+    activeCallTargetProfileId = null;
+    activeIncomingCallSession = null;
+    activeCallStartedAt = null;
+    pendingLocalCallCandidates = [];
+    pendingRemoteCallCandidates = [];
+    seenCallIceCandidateIds.clear();
+}
+
+function closeLocalCallMedia(){
+    if (activeCallPeerConnection) {
+        activeCallPeerConnection.ontrack = null;
+        activeCallPeerConnection.onicecandidate = null;
+        activeCallPeerConnection.onconnectionstatechange = null;
+        activeCallPeerConnection.close();
+        activeCallPeerConnection = null;
+    }
+    if (activeCallStream) {
+        activeCallStream.getTracks().forEach(track => track.stop());
+        activeCallStream = null;
+    }
+    if (callRemoteAudio) {
+        callRemoteAudio.srcObject = null;
+    }
+    stopCallTimer();
+    isCallMuted = false;
+    isSpeakerMode = false;
+    updateCallControlState();
+}
+
+function markCallConnected(statusLabel = 'Connected'){
+    if (!activeCallStartedAt) {
+        activeCallStartedAt = Date.now();
+        startCallTimer();
+    }
+    showCallOverlay({
+        name: callName?.textContent || 'Contact',
+        avatarUrl: profiles[activeCallTargetProfileId]?.avatarUrl || '',
+        status: statusLabel,
+        showDuration: true,
+        showAnswer: false,
+        endLabel: 'End',
+    });
+}
+
+async function saveCallIceCandidate(candidate){
+    if (!supabaseClient || !activeCallSessionId || !currentUser.id || !candidate) return;
+    const { error } = await supabaseClient
+        .from(SUPABASE_TABLES.callIceCandidates)
+        .insert({
+            session_id: activeCallSessionId,
+            sender_user_id: currentUser.id,
+            candidate,
+        });
+
+    if (error && !isMissingSupabaseTableError(error)) {
+        console.error('Failed to save call ICE candidate', error);
+    }
+}
+
+async function flushPendingCallIceCandidates(){
+    if (!pendingLocalCallCandidates.length || !activeCallSessionId) return;
+    const queuedCandidates = [...pendingLocalCallCandidates];
+    pendingLocalCallCandidates = [];
+    for (const candidate of queuedCandidates) {
+        await saveCallIceCandidate(candidate);
+    }
+}
+
+async function addRemoteIceCandidate(candidate){
+    if (!candidate) return;
+    if (!activeCallPeerConnection || !activeCallPeerConnection.remoteDescription) {
+        pendingRemoteCallCandidates.push(candidate);
+        return;
+    }
+    try {
+        await activeCallPeerConnection.addIceCandidate(candidate);
+    } catch (error) {
+        console.error('Failed to apply remote ICE candidate', error);
+    }
+}
+
+async function flushPendingRemoteCallCandidates(){
+    if (!pendingRemoteCallCandidates.length) return;
+    const queuedCandidates = [...pendingRemoteCallCandidates];
+    pendingRemoteCallCandidates = [];
+    for (const candidate of queuedCandidates) {
+        await addRemoteIceCandidate(candidate);
+    }
+}
+
+async function createCallPeerConnection(){
+    if (!window.RTCPeerConnection || !navigator.mediaDevices?.getUserMedia) {
+        throw new Error('In-app audio calling is not supported on this device');
+    }
+
+    closeLocalCallMedia();
+    pendingLocalCallCandidates = [];
+    const peerConnection = new RTCPeerConnection({ iceServers: WEBRTC_ICE_SERVERS });
+    activeCallPeerConnection = peerConnection;
+
+    peerConnection.onicecandidate = (event) => {
+        if (!event.candidate) return;
+        const candidatePayload = event.candidate.toJSON ? event.candidate.toJSON() : event.candidate;
+        if (!activeCallSessionId) {
+            pendingLocalCallCandidates.push(candidatePayload);
+            return;
+        }
+        saveCallIceCandidate(candidatePayload);
+    };
+
+    peerConnection.ontrack = (event) => {
+        const [remoteStream] = event.streams;
+        if (callRemoteAudio && remoteStream) {
+            callRemoteAudio.srcObject = remoteStream;
+            callRemoteAudio.play?.().catch(() => {});
+        }
+    };
+
+    peerConnection.onconnectionstatechange = () => {
+        if (!activeCallPeerConnection) return;
+        const { connectionState } = activeCallPeerConnection;
+        if (connectionState === 'connected') {
+            markCallConnected('Connected');
+            return;
+        }
+        if (connectionState === 'failed' || connectionState === 'disconnected' || connectionState === 'closed') {
+            if (activeCallSessionId || activeCallStream) {
+                endActiveCall(true, 'Call ended', false);
+            }
+        }
+    };
+
+    activeCallStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+    activeCallStream.getAudioTracks().forEach(track => {
+        peerConnection.addTrack(track, activeCallStream);
+    });
+    updateCallControlAvailability({
+        canAnswer: false,
+        canMute: true,
+        canSpeaker: true,
+        endLabel: activeIncomingCallSession ? 'Decline' : 'End',
+    });
+    updateCallControlState();
+}
+
+function getCallPartnerName(sessionRow){
+    if (!sessionRow) return 'Contact';
+    return sessionRow.caller_user_id === currentUser.id
+        ? (sessionRow.callee_name || profiles[sessionRow.callee_user_id]?.name || 'Contact')
+        : (sessionRow.caller_name || profiles[sessionRow.caller_user_id]?.name || 'Contact');
+}
+
+function getCallPartnerAvatar(sessionRow){
+    if (!sessionRow) return '';
+    const partnerId = sessionRow.caller_user_id === currentUser.id ? sessionRow.callee_user_id : sessionRow.caller_user_id;
+    return profiles[partnerId]?.avatarUrl || '';
+}
+
+async function startInAppCall(profileId, displayName){
+    if (!isAppRuntime()) {
+        showToast('In-app calling is available from the FarmYard mobile app');
+        return;
+    }
+    if (!isAuthenticatedUser() || !supabaseClient) {
+        promptForAuth('Sign in to place in-app calls');
+        return;
+    }
+    if (!isUuidLike(profileId) || profileId === currentUser.id) {
+        showToast('This user is not ready for an in-app call yet');
+        return;
+    }
+    if (activeCallSessionId || activeCallPeerConnection || activeCallStream) {
+        showToast('Finish the current call before starting another one');
+        return;
+    }
+
+    closeChatOptionsMenu();
+    activeCallRole = 'caller';
+    activeCallTargetProfileId = profileId;
+    activeIncomingCallSession = null;
+    showCallOverlay({
+        name: displayName,
+        avatarUrl: profiles[profileId]?.avatarUrl || '',
+        status: 'Preparing secure in-app audio...',
+        showDuration: false,
+        showAnswer: false,
+        endLabel: 'Cancel',
+    });
+
+    try {
+        await createCallPeerConnection();
+        const offer = await activeCallPeerConnection.createOffer({
+            offerToReceiveAudio: true,
+        });
+        await activeCallPeerConnection.setLocalDescription(offer);
+
+        const { data, error } = await supabaseClient
+            .from(SUPABASE_TABLES.callSessions)
+            .insert({
+                caller_user_id: currentUser.id,
+                caller_name: currentUser.name,
+                callee_user_id: profileId,
+                callee_name: displayName,
+                status: 'ringing',
+                offer_sdp: activeCallPeerConnection.localDescription?.toJSON?.() || activeCallPeerConnection.localDescription,
+            })
+            .select()
+            .single();
+
+        if (error) {
+            throw error;
+        }
+
+        activeCallSessionId = data.id;
+        await flushPendingCallIceCandidates();
+        showCallOverlay({
+            name: displayName,
+            avatarUrl: profiles[profileId]?.avatarUrl || '',
+            status: 'Ringing in FarmYard...',
+            showDuration: false,
+            showAnswer: false,
+            endLabel: 'Cancel',
+        });
+        showToast(`Calling ${displayName} in the app`);
+    } catch (error) {
+        console.error('Failed to start in-app call', error);
+        endActiveCall(false, 'Call ended', false);
+        if (isMissingSupabaseTableError(error)) {
+            showToast('Run the updated Supabase schema to enable in-app calls');
+            return;
+        }
+        showToast(error.message || 'Could not start the in-app call');
+    }
+}
+
+async function handleIncomingCallSession(sessionRow){
+    if (!sessionRow || sessionRow.callee_user_id !== currentUser.id) return;
+    if (!isAppRuntime()) {
+        showToast(`${sessionRow.caller_name || 'A FarmYard user'} is calling. Open the FarmYard app to answer in-app audio calls.`);
+        return;
+    }
+    if (activeCallSessionId && activeCallSessionId !== sessionRow.id) {
+        showToast('Finish the current call before answering another one');
+        return;
+    }
+
+    activeIncomingCallSession = sessionRow;
+    activeCallSessionId = sessionRow.id;
+    activeCallRole = 'callee';
+    activeCallTargetProfileId = sessionRow.caller_user_id;
+    showCallOverlay({
+        name: getCallPartnerName(sessionRow),
+        avatarUrl: getCallPartnerAvatar(sessionRow),
+        status: 'Incoming FarmYard audio call',
+        showDuration: false,
+        showAnswer: true,
+        endLabel: 'Decline',
+    });
+    showToast(`${sessionRow.caller_name || 'A FarmYard user'} is calling you`);
+}
+
+async function handleCallSessionUpdate(sessionRow){
+    if (!sessionRow || (sessionRow.caller_user_id !== currentUser.id && sessionRow.callee_user_id !== currentUser.id)) {
+        return;
+    }
+
+    if (sessionRow.id === activeCallSessionId) {
+        if ((sessionRow.status === 'ended' || sessionRow.status === 'declined' || sessionRow.status === 'cancelled') && callScreen && !callScreen.hidden) {
+            const endedMessage = sessionRow.status === 'declined' ? 'Call declined' : 'Call ended';
+            endActiveCall(true, endedMessage, false);
+            return;
+        }
+
+        if (activeCallRole === 'caller' && sessionRow.answer_sdp && activeCallPeerConnection && !activeCallPeerConnection.currentRemoteDescription) {
+            try {
+                await activeCallPeerConnection.setRemoteDescription(sessionRow.answer_sdp);
+                await flushPendingRemoteCallCandidates();
+                markCallConnected('Connecting...');
+            } catch (error) {
+                console.error('Failed to apply call answer', error);
+            }
+        }
+    }
+}
+
+async function answerIncomingCall(){
+    if (!activeIncomingCallSession || !supabaseClient) return;
+
+    try {
+        await createCallPeerConnection();
+        await activeCallPeerConnection.setRemoteDescription(activeIncomingCallSession.offer_sdp);
+        await flushPendingRemoteCallCandidates();
+        const answer = await activeCallPeerConnection.createAnswer();
+        await activeCallPeerConnection.setLocalDescription(answer);
+
+        const { error } = await supabaseClient
+            .from(SUPABASE_TABLES.callSessions)
+            .update({
+                status: 'active',
+                answer_sdp: activeCallPeerConnection.localDescription?.toJSON?.() || activeCallPeerConnection.localDescription,
+                started_at: new Date().toISOString(),
+            })
+            .eq('id', activeIncomingCallSession.id);
+
+        if (error) {
+            throw error;
+        }
+
+        await flushPendingCallIceCandidates();
+        showCallOverlay({
+            name: getCallPartnerName(activeIncomingCallSession),
+            avatarUrl: getCallPartnerAvatar(activeIncomingCallSession),
+            status: 'Connecting...',
+            showDuration: false,
+            showAnswer: false,
+            endLabel: 'End',
+        });
+        activeIncomingCallSession = null;
+    } catch (error) {
+        console.error('Failed to answer in-app call', error);
+        endActiveCall(false, 'Call ended', false);
+        showToast(error.message || 'Could not answer the call');
+    }
+}
+
 function toggleCallMute(){
     if (!activeCallStream) return;
     isCallMuted = !isCallMuted;
@@ -3443,6 +3911,9 @@ function toggleCallMute(){
 function toggleSpeakerMode(){
     isSpeakerMode = !isSpeakerMode;
     updateCallControlState();
+    if (callRemoteAudio) {
+        callRemoteAudio.volume = isSpeakerMode ? 1 : 0.85;
+    }
     showToast(isSpeakerMode ? 'Speaker enabled' : 'Speaker disabled');
 }
 
@@ -3457,22 +3928,85 @@ function updateCallControlState(){
     }
 }
 
-function endActiveCall(showEndedToast = false){
-    if (activeCallStream) {
-        activeCallStream.getTracks().forEach(track => track.stop());
-        activeCallStream = null;
+function handleCallIceCandidateRealtime(candidateRow){
+    if (!candidateRow || candidateRow.session_id !== activeCallSessionId || candidateRow.sender_user_id === currentUser.id) {
+        return;
     }
-    stopCallTimer();
-    activeCallStartedAt = null;
-    activeCallConversationId = null;
-    isCallMuted = false;
-    isSpeakerMode = false;
-    updateCallControlState();
+    if (seenCallIceCandidateIds.has(candidateRow.id)) {
+        return;
+    }
+    seenCallIceCandidateIds.add(candidateRow.id);
+    addRemoteIceCandidate(candidateRow.candidate);
+}
+
+function stopCallsRealtime(){
+    if (!supabaseClient || !callsRealtimeChannel) return;
+    supabaseClient.removeChannel(callsRealtimeChannel);
+    callsRealtimeChannel = null;
+}
+
+function startCallsRealtime(){
+    if (!supabaseClient || !currentUser.id || callsRealtimeChannel) return;
+    callsRealtimeChannel = supabaseClient
+        .channel(`farmyard-calls-${currentUser.id}`)
+        .on(
+            'postgres_changes',
+            { event: '*', schema: 'public', table: SUPABASE_TABLES.callSessions },
+            (payload) => {
+                const sessionRow = payload.new;
+                if (!sessionRow) return;
+                if (payload.eventType === 'INSERT') {
+                    handleIncomingCallSession(sessionRow);
+                    return;
+                }
+                handleCallSessionUpdate(sessionRow);
+            }
+        )
+        .on(
+            'postgres_changes',
+            { event: 'INSERT', schema: 'public', table: SUPABASE_TABLES.callIceCandidates },
+            (payload) => {
+                handleCallIceCandidateRealtime(payload.new);
+            }
+        )
+        .subscribe((status) => {
+            if (status === 'CHANNEL_ERROR') {
+                console.error('Supabase realtime channel error for calls');
+            }
+        });
+}
+
+async function endActiveCall(showEndedToast = false, toastMessage = 'Call ended', persistSession = true){
+    const sessionId = activeCallSessionId;
+    const nextStatus = activeIncomingCallSession ? 'declined' : (activeCallStartedAt ? 'ended' : 'cancelled');
+
+    if (persistSession && supabaseClient && sessionId) {
+        const { error } = await supabaseClient
+            .from(SUPABASE_TABLES.callSessions)
+            .update({
+                status: nextStatus,
+                ended_at: new Date().toISOString(),
+            })
+            .eq('id', sessionId);
+
+        if (error && !isMissingSupabaseTableError(error)) {
+            console.error('Failed to end call session', error);
+        }
+    }
+
+    closeLocalCallMedia();
+    resetCallSessionState();
+    updateCallControlAvailability({
+        canAnswer: false,
+        canMute: false,
+        canSpeaker: false,
+        endLabel: 'End',
+    });
     if (callScreen) {
         callScreen.hidden = true;
     }
     if (showEndedToast) {
-        showToast('Call ended');
+        showToast(toastMessage);
     }
 }
 
@@ -3495,14 +4029,25 @@ function showToast(message){
 
 function handleSignedInSession(session, message, options = {}){
     const authContextMessage = syncCurrentUserFromSession(session, options);
+    updatePlatformExperience();
+    const requiresPhoneNumber = isAuthenticatedUser() && !hasRequiredPhoneNumber();
     const savedReturnTab = localStorage.getItem('farmyard-return-tab');
-    const destination = savedReturnTab || returnTabAfterAuth || 'home';
+    const destination = requiresPhoneNumber ? 'account' : (savedReturnTab || returnTabAfterAuth || 'home');
     localStorage.removeItem('farmyard-return-tab');
     Object.values(authScreens).forEach(screen => setElementVisibility(screen, false, 'flex'));
     setElementVisibility(app, true);
     updateAuthButtons(true);
+    if (requiresPhoneNumber) {
+        isEditingProfile = true;
+    }
     showTab(destination, { skipHistory: true });
-    showToast(authContextMessage || message);
+    showToast(authContextMessage || (requiresPhoneNumber ? 'Add your phone number to finish setting up your account' : message));
+    if (requiresPhoneNumber && destination === 'account') {
+        renderUserListings();
+    }
+    if (options.phone && hasRequiredPhoneNumber(options.phone)) {
+        savePersistedProfile();
+    }
     loadPersistedAccountData();
 }
 
@@ -3522,10 +4067,14 @@ function syncCurrentUserFromSession(session, options = {}){
     }
 
     const account = getOrCreateUserAccount(normalizedEmail, fullName, user.id);
+    if (options.phone && hasRequiredPhoneNumber(options.phone)) {
+        account.phone = options.phone.trim();
+    }
     hydrateCurrentUser(account);
     ensureProfileForAccount(account);
     profiles[currentUser.id].name = currentUser.name;
     profiles[currentUser.id].fields.email.value = currentUser.email;
+    persistCurrentUserAccount();
     if (!contextMessage) {
         const pendingInvite = findPendingInviteByEmail(normalizedEmail);
         if (pendingInvite && currentUser.accessStatus === 'Independent account') {
@@ -3748,6 +4297,7 @@ function updateAuthButtons(isAuthenticated){
 }
 
 async function initializeAuth(){
+    updatePlatformExperience();
     updateAuthButtons(false);
     updateNotificationButton();
     if (!supabaseClient) {
@@ -3755,6 +4305,7 @@ async function initializeAuth(){
         conversations = [];
         userBlocks = [];
         activeConversationId = null;
+        stopCallsRealtime();
         updateMessagesNavBadge();
         await loadMarketplaceListings();
         refreshMarketplace();
@@ -3772,11 +4323,14 @@ async function initializeAuth(){
 
     if (data.session) {
         syncCurrentUserFromSession(data.session);
+        updatePlatformExperience();
         updateAuthButtons(true);
         await loadPersistedAccountData();
+        const blockedForPhoneSetup = enforceRequiredPhoneSetup();
         startMessagesRealtime();
+        startCallsRealtime();
         const savedReturnTab = localStorage.getItem('farmyard-return-tab');
-        if (savedReturnTab) {
+        if (savedReturnTab && !blockedForPhoneSetup) {
             localStorage.removeItem('farmyard-return-tab');
             showTab(savedReturnTab, { skipHistory: true });
         }
@@ -3786,6 +4340,8 @@ async function initializeAuth(){
         conversations = [];
         userBlocks = [];
         activeConversationId = null;
+        stopCallsRealtime();
+        updatePlatformExperience();
         updateMessagesNavBadge();
         await loadMarketplaceListings();
         refreshMarketplace();
@@ -3795,17 +4351,23 @@ async function initializeAuth(){
     supabaseClient.auth.onAuthStateChange((event, session) => {
         if (event === 'SIGNED_IN' && session) {
             syncCurrentUserFromSession(session);
+            updatePlatformExperience();
             updateAuthButtons(true);
             loadPersistedAccountData().then(() => {
+                enforceRequiredPhoneSetup();
                 stopMessagesRealtime();
+                stopCallsRealtime();
                 startMessagesRealtime();
+                startCallsRealtime();
                 if (getActiveTabName() === 'messages') {
                     renderMessagesTab();
                 }
             });
         }
         if (event === 'SIGNED_OUT') {
+            endActiveCall(false, 'Call ended', false);
             hydrateCurrentUser(buildSignedOutAccount());
+            updatePlatformExperience();
             updateAuthButtons(false);
             userListings = [];
             marketplaceListings = [];
@@ -3813,6 +4375,7 @@ async function initializeAuth(){
             userBlocks = [];
             activeConversationId = null;
             stopMessagesRealtime();
+            stopCallsRealtime();
             loadMarketplaceListings().then(() => {
                 refreshMarketplace();
                 renderUserListings();

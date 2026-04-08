@@ -164,6 +164,38 @@ header {
     box-shadow: 0 16px 32px rgba(28, 53, 35, 0.16);
 }
 
+.platform-runtime-panel {
+    width: min(100%, 540px);
+    margin-top: 6px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+}
+
+.platform-runtime-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 7px 14px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.14);
+    border: 1px solid rgba(235, 245, 232, 0.26);
+    color: #f7fbf4;
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.platform-access-note {
+    margin: 0;
+    color: rgba(242, 248, 238, 0.9);
+    font-size: 0.86rem;
+    text-align: center;
+}
+
 .header-search-panel {
     position: relative;
     width: min(100%, 540px);
@@ -2462,6 +2494,14 @@ nav button.is-active {
     color: rgba(234, 245, 237, 0.88);
 }
 
+.call-platform-note {
+    margin: 10px auto 0;
+    max-width: 280px;
+    color: rgba(228, 241, 232, 0.82);
+    font-size: 0.84rem;
+    line-height: 1.45;
+}
+
 .call-duration {
     font-weight: 700;
     letter-spacing: 0.04em;
@@ -2491,6 +2531,19 @@ nav button.is-active {
 
 .call-action-btn.is-active {
     background: rgba(226, 242, 230, 0.28);
+}
+
+.call-action-btn:disabled {
+    opacity: 0.48;
+    cursor: not-allowed;
+}
+
+.call-answer-btn {
+    background: #4fa76d;
+}
+
+.call-answer-btn:hover {
+    background: #429360;
 }
 
 .call-end-btn {

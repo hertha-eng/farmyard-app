@@ -1,0 +1,9 @@
+{
+  "name": "FarmYard",
+  "short_name": "FarmYard",
+  "description": "FarmYard marketplace for produce, inputs, services, messaging, and cross-platform account access.",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#f4f0e8",
+  "theme_color": "#234a2f"
+}

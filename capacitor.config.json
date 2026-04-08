@@ -1,0 +1,6 @@
+{
+  "appId": "com.farmyard.marketplace",
+  "appName": "FarmYard",
+  "webDir": ".",
+  "bundledWebRuntime": false
+}

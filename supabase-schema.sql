@@ -78,6 +78,30 @@ alter table public.messages add column if not exists reactions jsonb not null de
 alter table public.messages add column if not exists deleted_at timestamptz;
 alter table public.messages add column if not exists deleted_by_user_id uuid references auth.users (id) on delete set null;
 
+create table if not exists public.call_sessions (
+    id uuid primary key default gen_random_uuid(),
+    caller_user_id uuid not null references auth.users (id) on delete cascade,
+    caller_name text not null default '',
+    callee_user_id uuid not null references auth.users (id) on delete cascade,
+    callee_name text not null default '',
+    status text not null default 'ringing',
+    offer_sdp jsonb,
+    answer_sdp jsonb,
+    started_at timestamptz,
+    ended_at timestamptz,
+    created_at timestamptz not null default timezone('utc', now()),
+    updated_at timestamptz not null default timezone('utc', now()),
+    constraint call_sessions_participants_different check (caller_user_id <> callee_user_id)
+);
+
+create table if not exists public.call_ice_candidates (
+    id uuid primary key default gen_random_uuid(),
+    session_id uuid not null references public.call_sessions (id) on delete cascade,
+    sender_user_id uuid not null references auth.users (id) on delete cascade,
+    candidate jsonb not null,
+    created_at timestamptz not null default timezone('utc', now())
+);
+
 create table if not exists public.user_blocks (
     id uuid primary key default gen_random_uuid(),
     blocker_user_id uuid not null references auth.users (id) on delete cascade,
@@ -114,6 +138,34 @@ begin
           and tablename = 'messages'
     ) then
         execute 'alter publication supabase_realtime add table public.messages';
+    end if;
+
+    if exists (
+        select 1
+        from pg_publication
+        where pubname = 'supabase_realtime'
+    ) and not exists (
+        select 1
+        from pg_publication_tables
+        where pubname = 'supabase_realtime'
+          and schemaname = 'public'
+          and tablename = 'call_sessions'
+    ) then
+        execute 'alter publication supabase_realtime add table public.call_sessions';
+    end if;
+
+    if exists (
+        select 1
+        from pg_publication
+        where pubname = 'supabase_realtime'
+    ) and not exists (
+        select 1
+        from pg_publication_tables
+        where pubname = 'supabase_realtime'
+          and schemaname = 'public'
+          and tablename = 'call_ice_candidates'
+    ) then
+        execute 'alter publication supabase_realtime add table public.call_ice_candidates';
     end if;
 end
 $$;
@@ -214,10 +266,18 @@ before update on public.conversations
 for each row
 execute function public.set_updated_at();
 
+drop trigger if exists set_call_sessions_updated_at on public.call_sessions;
+create trigger set_call_sessions_updated_at
+before update on public.call_sessions
+for each row
+execute function public.set_updated_at();
+
 alter table public.profiles enable row level security;
 alter table public.listings enable row level security;
 alter table public.conversations enable row level security;
 alter table public.messages enable row level security;
+alter table public.call_sessions enable row level security;
+alter table public.call_ice_candidates enable row level security;
 alter table public.user_blocks enable row level security;
 
 drop policy if exists "Users can read their own profile" on public.profiles;
@@ -344,6 +404,57 @@ with check (
         from public.conversations
         where public.conversations.id = conversation_id
           and (auth.uid() = public.conversations.owner_user_id or auth.uid() = public.conversations.buyer_user_id)
+    )
+);
+
+drop policy if exists "Call participants can read sessions" on public.call_sessions;
+create policy "Call participants can read sessions"
+on public.call_sessions
+for select
+to authenticated
+using (auth.uid() = caller_user_id or auth.uid() = callee_user_id);
+
+drop policy if exists "Users can create outgoing call sessions" on public.call_sessions;
+create policy "Users can create outgoing call sessions"
+on public.call_sessions
+for insert
+to authenticated
+with check (auth.uid() = caller_user_id and caller_user_id <> callee_user_id);
+
+drop policy if exists "Call participants can update sessions" on public.call_sessions;
+create policy "Call participants can update sessions"
+on public.call_sessions
+for update
+to authenticated
+using (auth.uid() = caller_user_id or auth.uid() = callee_user_id)
+with check (auth.uid() = caller_user_id or auth.uid() = callee_user_id);
+
+drop policy if exists "Call participants can read ICE candidates" on public.call_ice_candidates;
+create policy "Call participants can read ICE candidates"
+on public.call_ice_candidates
+for select
+to authenticated
+using (
+    exists (
+        select 1
+        from public.call_sessions
+        where public.call_sessions.id = session_id
+          and (auth.uid() = public.call_sessions.caller_user_id or auth.uid() = public.call_sessions.callee_user_id)
+    )
+);
+
+drop policy if exists "Call participants can create ICE candidates" on public.call_ice_candidates;
+create policy "Call participants can create ICE candidates"
+on public.call_ice_candidates
+for insert
+to authenticated
+with check (
+    auth.uid() = sender_user_id
+    and exists (
+        select 1
+        from public.call_sessions
+        where public.call_sessions.id = session_id
+          and (auth.uid() = public.call_sessions.caller_user_id or auth.uid() = public.call_sessions.callee_user_id)
     )
 );
 

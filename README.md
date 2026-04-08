@@ -16,6 +16,8 @@ FarmYard is an agriculture-focused marketplace prototype built with plain HTML, 
 - `index.html` - app structure and screens
 - `style.css` - styling and responsive layout
 - `script.js` - app behavior and UI state
+- `manifest.webmanifest` - installable web app metadata
+- `capacitor.config.json` - Android and iPhone wrapper configuration starter
 - `netlify.toml` - Netlify deploy configuration
 
 ## Deploying To Netlify
@@ -39,7 +41,29 @@ After the schema is created, the app will:
 - save created and edited listings to `listings`
 - save shared conversations to `conversations`
 - save shared messages to `messages`
+- save in-app call sessions and WebRTC signaling data to `call_sessions` and `call_ice_candidates`
 - reload both on refresh after login
+
+## Web, Android, And iPhone Access
+
+FarmYard now has a platform-aware setup:
+
+- `Web App`: browser users can open the phone dialer for seller calls
+- `Android App`: installed app builds can use in-app audio calling
+- `iPhone App`: installed app builds can use in-app audio calling
+
+All three should point to the same Supabase project so users can sign in normally and keep the same listings, chats, and account history everywhere.
+
+## Mobile Build Starter
+
+The included `capacitor.config.json` is a starter split for packaging the same FarmYard codebase into Android and iPhone app-store builds.
+
+To continue from here:
+
+1. Add Capacitor to the project.
+2. Create Android and iOS platform folders.
+3. Keep the same Supabase URL and publishable key in all builds.
+4. Request microphone permission in the mobile app builds so in-app audio calling can work.
 
 ## Shared Listings Policy Update
 
