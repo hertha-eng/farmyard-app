@@ -15,6 +15,7 @@ This repo is now scaffolded for Capacitor packaging, and separate mobile handoff
 - `script.js` with native-friendly Google OAuth handling for Capacitor app builds
 - `farmyard-draft-logo.png` as the source app icon
 - `index.html`, `manifest.webmanifest`, and `style.css` updated for mobile safe-area and install metadata
+- `privacy.html` and `support.html` prepared for public store-policy URLs after deployment
 - `farmyard-android/` as a standalone Android packaging workspace
 - `farmyard-ios/` as a standalone iPhone packaging workspace
 
@@ -72,6 +73,13 @@ Make sure Google OAuth in Supabase is configured to allow the final deployed web
 - microphone usage text clearly explains in-app calling
 - Google sign-in and email sign-in both work on real devices
 - chat, notifications, and audio call flows are tested on two real accounts
+
+## Public Policy URLs
+
+After deployment, these pages can be used as your store-facing URLs:
+
+- `/privacy.html`
+- `/support.html`
 
 ## Suggested Command Order
 

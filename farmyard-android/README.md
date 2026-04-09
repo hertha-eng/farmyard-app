@@ -8,6 +8,7 @@ This folder is a standalone Android handoff repo for packaging the FarmYard web 
 - `package.json` with Android-focused Capacitor scripts
 - `capacitor.config.json` configured for the Play Store package id
 - `docs/` with release, QA, and store metadata checklists
+- deployable `web/privacy.html` and `web/support.html` pages for Play Store metadata URLs
 - `scripts/bootstrap-android.sh` to generate the native Android project once Node.js is available
 
 ## Current Status

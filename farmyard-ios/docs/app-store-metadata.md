@@ -23,8 +23,8 @@ farm, agriculture, produce, marketplace, crops, livestock, agri, inputs
 ## Support
 
 - Support email: replace-with-support-email@example.com
-- Privacy policy URL: replace-with-public-privacy-policy-url
-- Marketing URL: replace-with-public-website-url
+- Privacy policy URL: your-deployed-domain/privacy
+- Marketing URL: your-deployed-domain/support
 
 ## Permissions Rationale
 

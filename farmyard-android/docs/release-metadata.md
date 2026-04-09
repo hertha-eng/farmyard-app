@@ -15,8 +15,8 @@ FarmYard is an agriculture-focused marketplace built for farmers, buyers, suppli
 ## Support
 
 - Support email: replace-with-support-email@example.com
-- Privacy policy URL: replace-with-public-privacy-policy-url
-- Website: replace-with-public-website-url
+- Privacy policy URL: your-deployed-domain/privacy
+- Website: your-deployed-domain/support
 
 ## Permissions Rationale
 

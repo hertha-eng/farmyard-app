@@ -18,6 +18,8 @@ FarmYard is an agriculture-focused marketplace prototype built with plain HTML, 
 - `script.js` - app behavior and UI state
 - `manifest.webmanifest` - installable web app metadata
 - `sw.js` - service worker for app shell caching
+- `privacy.html` - deployable privacy policy page for store metadata
+- `support.html` - deployable support page for store metadata
 - `capacitor.config.json` - Android and iPhone wrapper configuration starter
 - `package.json` - Capacitor dependencies and mobile helper scripts
 - `MOBILE_LAUNCH.md` - Android and iPhone launch steps
@@ -41,6 +43,7 @@ FarmYard now includes:
 - a service worker for app shell caching
 - Apple touch icon metadata
 - labeled login and register fields for better accessibility
+- deployable privacy and support pages for app-store listing URLs
 
 ## Supabase Persistence Setup
 

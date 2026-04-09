@@ -8,6 +8,7 @@ This folder is a standalone iPhone handoff repo for packaging the FarmYard web a
 - `package.json` with iPhone-focused Capacitor scripts
 - `capacitor.config.json` configured for the App Store bundle id
 - `docs/` with release, QA, and App Store metadata checklists
+- deployable `web/privacy.html` and `web/support.html` pages for App Store metadata URLs
 - `scripts/bootstrap-ios.sh` to generate the native iOS project once Node.js is available
 
 ## Current Status
