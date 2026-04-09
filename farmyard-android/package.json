@@ -3,8 +3,12 @@
   "version": "1.0.0",
   "private": true,
   "description": "FarmYard Android packaging workspace using Capacitor.",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "serve": "serve web",
+    "launch:audit": "bash ../scripts/launch-audit.sh android",
     "cap:copy": "npx cap copy android",
     "cap:sync": "npx cap sync android",
     "cap:add:android": "npx cap add android",
@@ -13,16 +17,16 @@
     "cap:assets": "npx capacitor-assets generate --android --iconBackgroundColor '#234a2f' --iconBackgroundColorDark '#234a2f'"
   },
   "dependencies": {
-    "@capacitor/app": "latest",
-    "@capacitor/browser": "latest",
-    "@capacitor/core": "latest",
-    "@capacitor/keyboard": "latest",
-    "@capacitor/status-bar": "latest"
+    "@capacitor/app": "8.0.0",
+    "@capacitor/browser": "8.0.0",
+    "@capacitor/core": "8.0.0",
+    "@capacitor/keyboard": "8.0.0",
+    "@capacitor/status-bar": "8.0.0"
   },
   "devDependencies": {
-    "@capacitor/android": "latest",
-    "@capacitor/assets": "latest",
-    "@capacitor/cli": "latest",
-    "serve": "latest"
+    "@capacitor/android": "8.0.0",
+    "@capacitor/assets": "3.0.5",
+    "@capacitor/cli": "8.0.0",
+    "serve": "14.2.4"
   }
 }
