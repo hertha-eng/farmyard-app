@@ -27,12 +27,34 @@ check_no_latest() {
   fi
 }
 
+check_no_latest() {
+  local file="$1"
+  if grep -q '"latest"' "$file"; then
+    fail "$file still contains unpinned dependency versions"
+  else
+    pass "$file uses pinned dependency versions"
+  fi
+}
+
 check_no_placeholders() {
   local file="$1"
   if grep -Eqi 'replace-with|your-deployed-domain|placeholder support|Before launch, replace|For launch, replace' "$file"; then
     fail "$file still contains launch placeholder text"
   else
     pass "$file has production-safe public copy"
+  fi
+}
+
+check_valid_json() {
+  local file="$1"
+  if command -v jq >/dev/null 2>&1; then
+    if jq . "$file" >/dev/null 2>&1; then
+      pass "$file is valid JSON"
+    else
+      fail "$file is invalid JSON"
+    fi
+  else
+    pass "$file exists (jq not available to validate JSON)"
   fi
 }
 
@@ -51,6 +73,9 @@ note "Running FarmYard launch audit in '$MODE' mode"
 check_no_latest "$ROOT_DIR/package.json"
 check_no_placeholders "$ROOT_DIR/privacy.html"
 check_no_placeholders "$ROOT_DIR/support.html"
+check_valid_json "$ROOT_DIR/manifest.webmanifest"
+check_exists "$ROOT_DIR/sw.js" "service worker"
+check_exists "$ROOT_DIR/index.html" "main HTML file"
 
 case "$MODE" in
   all)
@@ -60,8 +85,8 @@ case "$MODE" in
     check_no_placeholders "$ROOT_DIR/farmyard-android/web/support.html"
     check_no_placeholders "$ROOT_DIR/farmyard-ios/web/privacy.html"
     check_no_placeholders "$ROOT_DIR/farmyard-ios/web/support.html"
-    check_exists "$ROOT_DIR/android" "root Android project"
-    check_exists "$ROOT_DIR/ios" "root iOS project"
+    check_exists "$ROOT_DIR/farmyard-android" "Android packaging workspace"
+    check_exists "$ROOT_DIR/farmyard-ios" "iOS packaging workspace"
     ;;
   android)
     check_no_latest "$ROOT_DIR/farmyard-android/package.json"

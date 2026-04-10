@@ -45,9 +45,17 @@ FarmYard now includes:
 - labeled login and register fields for better accessibility
 - deployable privacy and support pages for app-store listing URLs
 
-## Supabase Persistence Setup
+## Launch Checklist
 
-To make profile edits and user-created listings persist after refresh:
+Before launching, ensure:
+
+- [ ] Run `npm run launch:audit` to verify all checks pass
+- [ ] Deploy web version to Netlify or Cloudflare
+- [ ] Test web app functionality: sign-in, listings, messaging
+- [ ] For Android: Use `farmyard-android/` workspace, run bootstrap script, build in Android Studio, complete QA, submit to Play Store
+- [ ] For iOS: Use `farmyard-ios/` workspace, run bootstrap script, build in Xcode, complete QA, submit to App Store
+
+See `MOBILE_LAUNCH.md` for detailed mobile steps.
 
 1. Open the Supabase SQL editor.
 2. Run the SQL in `supabase-schema.sql`.

@@ -151,7 +151,8 @@ let showCompanyPendingInvites = false;
 let editingListingIndex = null;
 let hasWarnedAboutPersistenceSetup = false;
 let marketQuery = '';
-let timelineMode = 'for-you';
+let timelineMode = 'nearby';
+let timelineSort = 'location';
 let selectedTimelineInterest = 'all';
 let selectedMessageMedia = [];
 let activeCallConversationId = null;
@@ -205,6 +206,7 @@ const marketResultsCopy = document.getElementById('market-results-copy');
 const runtimePlatformBadge = document.getElementById('runtime-platform-badge');
 const platformAccessNote = document.getElementById('platform-access-note');
 const timelineModeInput = document.getElementById('timeline-mode');
+const timelineSortInput = document.getElementById('timeline-sort');
 const timelineInterestChips = document.getElementById('timeline-interest-chips');
 const timelineFeedCopy = document.getElementById('timeline-feed-copy');
 const detailImage = document.getElementById('detail-image');
@@ -2709,9 +2711,19 @@ function getFilteredTimelineListings(listings){
     return [...interestFiltered].sort((left, right) => {
         const scoreDifference = getListingTimelineScore(right) - getListingTimelineScore(left);
         if (scoreDifference !== 0) return scoreDifference;
-        const leftRecent = left.userId ? 1 : 0;
-        const rightRecent = right.userId ? 1 : 0;
-        return rightRecent - leftRecent;
+        // Secondary sort
+        if (timelineSort === 'date') {
+            return new Date(right.createdAt || 0) - new Date(left.createdAt || 0);
+        }
+        if (timelineSort === 'price') {
+            return (parseFloat(right.price) || 0) - (parseFloat(left.price) || 0);
+        }
+        if (timelineSort === 'location') {
+            const leftMatches = getTimelineLocationTokens().filter(token => (left.location || '').toLowerCase().includes(token)).length;
+            const rightMatches = getTimelineLocationTokens().filter(token => (right.location || '').toLowerCase().includes(token)).length;
+            return rightMatches - leftMatches;
+        }
+        return 0; // relevance already handled by score
     });
 }
 
@@ -2906,7 +2918,13 @@ if (marketSearchInput) {
 
 if (timelineModeInput) {
     timelineModeInput.addEventListener('change', (event) => {
-        timelineMode = event.target.value || 'for-you';
+        timelineMode = event.target.value || 'nearby';
+        refreshMarketplace();
+    });
+}
+if (timelineSortInput) {
+    timelineSortInput.addEventListener('change', (event) => {
+        timelineSort = event.target.value || 'location';
         refreshMarketplace();
     });
 }
