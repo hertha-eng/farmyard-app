@@ -1,11 +1,11 @@
-const CACHE_NAME = 'farmyard-shell-v1';
+const CACHE_NAME = 'farmyard-shell-v2';
 const APP_SHELL = [
     './',
     './index.html',
     './style.css',
     './script.js',
     './manifest.webmanifest',
-    './farmyard-draft-logo.png',
+    './app-icon.png',
 ];
 
 self.addEventListener('install', event => {

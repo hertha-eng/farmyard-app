@@ -44,6 +44,11 @@ const WEBRTC_ICE_SERVERS = [
 const MOBILE_OAUTH_REDIRECT_URI = 'farmyard://auth/callback';
 const LOCAL_STATE_KEY = 'farmyard-local-state-v1';
 const LAST_ACTIVE_TAB_KEY = 'farmyard-last-active-tab';
+const THEME_PREFERENCE_KEY = 'farmyard-theme-preference-v1';
+const THEME_META_COLORS = {
+    light: '#234a2f',
+    dark: '#102316',
+};
 const AGRICULTURE_KEYWORDS = [
     'agriculture', 'agricultural', 'farm', 'farming', 'farmer', 'crop', 'crops', 'harvest',
     'produce', 'grain', 'grains', 'maize', 'corn', 'beans', 'rice', 'cassava', 'banana',
@@ -285,13 +290,30 @@ const toast = document.getElementById('toast');
 const listingModerationFeedback = document.getElementById('listing-moderation-feedback');
 const openLoginBtn = document.getElementById('open-login');
 const openRegisterBtn = document.getElementById('open-register');
+const themeToggleButton = document.getElementById('theme-toggle');
+const themeToggleIcon = themeToggleButton?.querySelector('.theme-toggle-icon');
+const themeToggleLabel = themeToggleButton?.querySelector('.theme-toggle-label');
+const themeColorMetaTag = document.querySelector('meta[name="theme-color"]');
+const appleStatusBarMetaTag = document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]');
 const navButtons = {
     home: document.getElementById('nav-home'),
     post: document.getElementById('nav-post'),
     messages: document.getElementById('nav-messages'),
     account: document.getElementById('nav-account'),
 };
+let currentTheme = document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light';
 let toastTimeoutId = null;
+
+applyTheme(getPreferredTheme(), { persist: false });
+themeToggleButton?.addEventListener('click', toggleTheme);
+
+if (window.matchMedia) {
+    const preferredThemeQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    preferredThemeQuery.addEventListener?.('change', event => {
+        if (getStoredThemePreference()) return;
+        applyTheme(event.matches ? 'dark' : 'light', { persist: false });
+    });
+}
 
 async function registerServiceWorker(){
     if (!('serviceWorker' in navigator)) return;
@@ -333,6 +355,66 @@ function registerNativeOAuthListener(){
     });
 
     hasNativeOAuthListener = true;
+}
+
+function getStoredThemePreference(){
+    try {
+        const storedTheme = localStorage.getItem(THEME_PREFERENCE_KEY);
+        return storedTheme === 'dark' || storedTheme === 'light' ? storedTheme : null;
+    } catch (error) {
+        console.warn('Failed to read theme preference', error);
+        return null;
+    }
+}
+
+function getSystemThemePreference(){
+    return window.matchMedia?.('(prefers-color-scheme: dark)')?.matches ? 'dark' : 'light';
+}
+
+function getPreferredTheme(){
+    return getStoredThemePreference() || getSystemThemePreference();
+}
+
+function applyTheme(theme, { persist = true } = {}){
+    currentTheme = theme === 'dark' ? 'dark' : 'light';
+    document.documentElement.dataset.theme = currentTheme;
+    document.body?.setAttribute('data-theme', currentTheme);
+    updateThemeToggle();
+    updateThemeMeta();
+
+    if (!persist) return;
+
+    try {
+        localStorage.setItem(THEME_PREFERENCE_KEY, currentTheme);
+    } catch (error) {
+        console.warn('Failed to save theme preference', error);
+    }
+}
+
+function toggleTheme(){
+    applyTheme(currentTheme === 'dark' ? 'light' : 'dark');
+}
+
+function updateThemeToggle(){
+    if (!themeToggleButton) return;
+
+    const nextTheme = currentTheme === 'dark' ? 'light' : 'dark';
+    themeToggleButton.setAttribute('aria-label', `Switch to ${nextTheme} mode`);
+    themeToggleButton.setAttribute('aria-pressed', String(currentTheme === 'dark'));
+    themeToggleButton.title = `Switch to ${nextTheme} mode`;
+
+    if (themeToggleIcon) {
+        themeToggleIcon.textContent = currentTheme === 'dark' ? '☾' : '☀';
+    }
+
+    if (themeToggleLabel) {
+        themeToggleLabel.textContent = currentTheme === 'dark' ? 'Dark mode' : 'Light mode';
+    }
+}
+
+function updateThemeMeta(){
+    themeColorMetaTag?.setAttribute('content', THEME_META_COLORS[currentTheme] || THEME_META_COLORS.light);
+    appleStatusBarMetaTag?.setAttribute('content', currentTheme === 'dark' ? 'black' : 'black-translucent');
 }
 
 function setElementVisibility(element, isVisible, displayMode = 'block'){
@@ -2380,7 +2462,7 @@ function openAuthScreen(name){
 
 async function signInWithEmail(){
     if (!supabaseClient) {
-        handleSignedInSession(null, 'Auth service unavailable right now. Opened the app in local mode.');
+        await handleSignedInSession(null, 'Auth service unavailable right now. Opened the app in local mode.');
         return;
     }
     const email = document.getElementById('login-email').value.trim().toLowerCase();
@@ -2398,12 +2480,12 @@ async function signInWithEmail(){
         return;
     }
 
-    handleSignedInSession(data.session, inviteCode ? 'Welcome back. Company invite checked.' : 'Welcome back to FarmYard', { inviteCode });
+    await handleSignedInSession(data.session, inviteCode ? 'Welcome back. Company invite checked.' : 'Welcome back to FarmYard', { inviteCode });
 }
 
 async function signUpWithEmail(){
     if (!supabaseClient) {
-        handleSignedInSession(null, 'Auth service unavailable right now. Opened the app in local mode.');
+        await handleSignedInSession(null, 'Auth service unavailable right now. Opened the app in local mode.');
         return;
     }
     const fullName = document.getElementById('reg-name').value.trim();
@@ -2437,7 +2519,7 @@ async function signUpWithEmail(){
     }
 
     if (data.session) {
-        handleSignedInSession(
+        await handleSignedInSession(
             data.session,
             inviteCode ? 'Your account is ready. Company invite checked.' : 'Your account is ready',
             { inviteCode, phone: normalizedPhone, phoneCountryCode }
@@ -4234,7 +4316,7 @@ function showToast(message){
     }, 2200);
 }
 
-function handleSignedInSession(session, message, options = {}){
+async function handleSignedInSession(session, message, options = {}){
     const authContextMessage = syncCurrentUserFromSession(session, options);
     updatePlatformExperience();
     const requiresPhoneNumber = isAuthenticatedUser() && !hasRequiredPhoneNumber();
@@ -4255,7 +4337,7 @@ function handleSignedInSession(session, message, options = {}){
     if (options.phone && hasRequiredPhoneNumber(options.phone)) {
         savePersistedProfile();
     }
-    loadPersistedAccountData();
+    await loadPersistedAccountData();
 }
 
 function syncCurrentUserFromSession(session, options = {}){

@@ -27,12 +27,67 @@
     --radius-xl: 30px;
     --radius-lg: 24px;
     --radius-md: 16px;
+    --body-glow-start: rgba(217, 141, 63, 0.16);
+    --body-glow-end: rgba(61, 117, 71, 0.2);
+    --header-glow-start: rgba(214, 233, 202, 0.24);
+    --header-glow-end: rgba(255, 244, 216, 0.18);
+    --header-start: #234a2f;
+    --header-mid: #3c6a43;
+    --header-end: #6d925b;
+    --header-chip-border: rgba(232, 244, 225, 0.2);
+    --header-chip-bg: rgba(239, 248, 233, 0.1);
+    --header-button-border: rgba(232, 244, 225, 0.42);
+    --header-button-bg: rgba(239, 248, 233, 0.12);
+    --header-button-hover: rgba(239, 248, 233, 0.2);
+    --theme-toggle-bg: rgba(255, 253, 248, 0.88);
+    --theme-toggle-border: rgba(103, 119, 96, 0.18);
+    --theme-toggle-text: #1f3123;
+    --theme-toggle-shadow: 0 14px 28px rgba(33, 46, 30, 0.14);
+}
+
+html {
+    color-scheme: light;
+}
+
+html[data-theme="dark"] {
+    color-scheme: dark;
+    --bg: #0f1712;
+    --bg-soft: #18231c;
+    --surface: rgba(20, 30, 24, 0.94);
+    --surface-strong: #1d2a22;
+    --surface-soft: #243328;
+    --text: #edf5ee;
+    --muted: #b5c4b7;
+    --line: rgba(161, 184, 167, 0.2);
+    --brand: #6ab16c;
+    --brand-strong: #dff2e0;
+    --brand-soft: rgba(74, 111, 78, 0.42);
+    --accent: #f2b36a;
+    --accent-soft: rgba(111, 73, 28, 0.34);
+    --shadow-soft: 0 18px 40px rgba(0, 0, 0, 0.3);
+    --shadow-card: 0 14px 28px rgba(0, 0, 0, 0.26);
+    --body-glow-start: rgba(201, 139, 56, 0.12);
+    --body-glow-end: rgba(82, 144, 91, 0.16);
+    --header-glow-start: rgba(163, 214, 149, 0.12);
+    --header-glow-end: rgba(250, 202, 118, 0.1);
+    --header-start: #0f2718;
+    --header-mid: #1d3f28;
+    --header-end: #386046;
+    --header-chip-border: rgba(214, 233, 210, 0.16);
+    --header-chip-bg: rgba(219, 238, 214, 0.08);
+    --header-button-border: rgba(219, 238, 214, 0.26);
+    --header-button-bg: rgba(219, 238, 214, 0.08);
+    --header-button-hover: rgba(219, 238, 214, 0.16);
+    --theme-toggle-bg: rgba(19, 32, 24, 0.92);
+    --theme-toggle-border: rgba(188, 213, 192, 0.18);
+    --theme-toggle-text: #edf5ee;
+    --theme-toggle-shadow: 0 18px 34px rgba(0, 0, 0, 0.28);
 }
 
 body {
     background:
-        radial-gradient(circle at top left, rgba(217, 141, 63, 0.16), transparent 28%),
-        radial-gradient(circle at top right, rgba(61, 117, 71, 0.2), transparent 32%),
+        radial-gradient(circle at top left, var(--body-glow-start), transparent 28%),
+        radial-gradient(circle at top right, var(--body-glow-end), transparent 32%),
         linear-gradient(180deg, var(--bg-soft) 0%, var(--bg) 100%);
     min-height: 100vh;
     min-height: 100dvh;
@@ -79,6 +134,13 @@ input,
 select,
 textarea {
     font: inherit;
+}
+
+input,
+select,
+textarea {
+    background-color: var(--surface-strong);
+    color: var(--text);
 }
 
 button {
@@ -146,6 +208,40 @@ button:focus {
     display: block;
 }
 
+.theme-toggle {
+    position: fixed;
+    top: calc(env(safe-area-inset-top, 0) + 14px);
+    right: 14px;
+    z-index: 40;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    border: 1px solid var(--theme-toggle-border);
+    border-radius: 999px;
+    background: var(--theme-toggle-bg);
+    color: var(--theme-toggle-text);
+    box-shadow: var(--theme-toggle-shadow);
+    backdrop-filter: blur(14px);
+    cursor: pointer;
+}
+
+.theme-toggle-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, rgba(244, 205, 120, 0.24), rgba(88, 148, 92, 0.22));
+    font-size: 1rem;
+}
+
+.theme-toggle-label {
+    font-size: 0.88rem;
+    font-weight: 700;
+}
+
 /* --------------------
    HEADER
 -------------------- */
@@ -153,9 +249,9 @@ header {
     position: relative;
     overflow: hidden;
     background:
-        radial-gradient(circle at 18% 18%, rgba(214, 233, 202, 0.24), transparent 26%),
-        radial-gradient(circle at 84% 12%, rgba(255, 244, 216, 0.18), transparent 24%),
-        linear-gradient(135deg, #234a2f 0%, #3c6a43 46%, #6d925b 100%);
+        radial-gradient(circle at 18% 18%, var(--header-glow-start), transparent 26%),
+        radial-gradient(circle at 84% 12%, var(--header-glow-end), transparent 24%),
+        linear-gradient(135deg, var(--header-start) 0%, var(--header-mid) 46%, var(--header-end) 100%);
     color: #fff;
     padding: 28px 16px 22px;
     display: flex;
@@ -285,9 +381,9 @@ header h1 {
     position: relative;
     margin-bottom: 8px;
     padding: 7px 12px;
-    border: 1px solid rgba(232, 244, 225, 0.2);
+    border: 1px solid var(--header-chip-border);
     border-radius: 999px;
-    background: rgba(239, 248, 233, 0.1);
+    background: var(--header-chip-bg);
     font-size: 0.76rem;
     font-weight: 800;
     letter-spacing: 0.12em;
@@ -303,9 +399,9 @@ header h1 {
 
 .auth-actions button {
     padding: 10px 16px;
-    border: 1px solid rgba(232, 244, 225, 0.42);
+    border: 1px solid var(--header-button-border);
     border-radius: 999px;
-    background-color: rgba(239, 248, 233, 0.12);
+    background-color: var(--header-button-bg);
     color: #fff;
     cursor: pointer;
     font-weight: bold;
@@ -313,7 +409,7 @@ header h1 {
 }
 
 .auth-actions button:hover {
-    background-color: rgba(239, 248, 233, 0.2);
+    background-color: var(--header-button-hover);
 }
 
 .app-tagline {
@@ -2650,12 +2746,127 @@ nav button.is-active {
     box-shadow: none !important;
 }
 
+html[data-theme="dark"] body {
+    color: var(--text);
+}
+
+html[data-theme="dark"] .theme-toggle-icon {
+    background: linear-gradient(135deg, rgba(242, 179, 106, 0.26), rgba(72, 136, 80, 0.24));
+}
+
+html[data-theme="dark"] nav,
+html[data-theme="dark"] .market-hero,
+html[data-theme="dark"] .timeline-interest-panel,
+html[data-theme="dark"] .post-form,
+html[data-theme="dark"] .account-summary-card,
+html[data-theme="dark"] .company-form-card,
+html[data-theme="dark"] .account-listing-card,
+html[data-theme="dark"] .legal-card,
+html[data-theme="dark"] .profile-card,
+html[data-theme="dark"] .company-profile-editor,
+html[data-theme="dark"] #card-detail,
+html[data-theme="dark"] .schedule-order-panel,
+html[data-theme="dark"] .messages-shell,
+html[data-theme="dark"] .messages-panel,
+html[data-theme="dark"] .conversation-card,
+html[data-theme="dark"] .chat-composer,
+html[data-theme="dark"] .call-shell,
+html[data-theme="dark"] .photo-viewer,
+html[data-theme="dark"] #marketplace-grid > article,
+html[data-theme="dark"] #account-tab details,
+html[data-theme="dark"] .page-heading,
+html[data-theme="dark"] .profile-hero {
+    background: var(--surface);
+    color: var(--text);
+    border-color: var(--line);
+    box-shadow: var(--shadow-card);
+}
+
+html[data-theme="dark"] .page-heading,
+html[data-theme="dark"] .account-hero,
+html[data-theme="dark"] .profile-hero {
+    background: linear-gradient(135deg, #173120, #2b5338);
+    color: #f4fbf4;
+}
+
+html[data-theme="dark"] .header-search-panel {
+    border-color: rgba(205, 225, 208, 0.18);
+    background: linear-gradient(180deg, rgba(27, 48, 34, 0.48), rgba(23, 37, 28, 0.32));
+}
+
+html[data-theme="dark"] .header-search-panel .search-shell,
+html[data-theme="dark"] .search-shell {
+    background: rgba(19, 30, 23, 0.94);
+    border-color: rgba(187, 208, 191, 0.18);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+}
+
+html[data-theme="dark"] .search-shell input,
+html[data-theme="dark"] .search-shell select,
+html[data-theme="dark"] .search-shell textarea,
+html[data-theme="dark"] .post-form input,
+html[data-theme="dark"] .post-form select,
+html[data-theme="dark"] .post-form textarea,
+html[data-theme="dark"] .auth-field input,
+html[data-theme="dark"] .auth-field select,
+html[data-theme="dark"] .schedule-order-panel input,
+html[data-theme="dark"] .schedule-order-panel textarea,
+html[data-theme="dark"] .company-profile-editor input,
+html[data-theme="dark"] .company-profile-editor textarea,
+html[data-theme="dark"] #account-tab input,
+html[data-theme="dark"] #account-tab select,
+html[data-theme="dark"] #account-tab textarea,
+html[data-theme="dark"] #profile-tab input,
+html[data-theme="dark"] #profile-tab textarea,
+html[data-theme="dark"] .chat-composer textarea {
+    background: var(--surface-strong);
+    color: var(--text);
+    border-color: rgba(187, 208, 191, 0.18);
+}
+
+html[data-theme="dark"] input::placeholder,
+html[data-theme="dark"] textarea::placeholder {
+    color: #9fb09f;
+}
+
+html[data-theme="dark"] .app-footer-links button,
+html[data-theme="dark"] .section-intro,
+html[data-theme="dark"] .market-hero-text,
+html[data-theme="dark"] .timeline-feed-copy,
+html[data-theme="dark"] .market-results-copy,
+html[data-theme="dark"] .platform-access-note,
+html[data-theme="dark"] .conversation-subtitle,
+html[data-theme="dark"] .active-chat-meta,
+html[data-theme="dark"] .legal-intro,
+html[data-theme="dark"] .legal-note {
+    color: var(--muted);
+}
+
+html[data-theme="dark"] .btn-secondary,
+html[data-theme="dark"] nav button.is-active,
+html[data-theme="dark"] .timeline-interest-chip.is-active,
+html[data-theme="dark"] .company-badge {
+    background: var(--brand-soft);
+    color: var(--brand-strong);
+    border-color: rgba(174, 205, 177, 0.2);
+}
+
+html[data-theme="dark"] .auth-link-btn {
+    color: #dff2e0;
+}
+
 /* --------------------
    RESPONSIVE
 -------------------- */
 @media (max-width: 600px) {
     header h1 { font-size: 1.5rem; }
     nav button { font-size: 0.85rem; }
+    .theme-toggle {
+        top: calc(env(safe-area-inset-top, 0) + 10px);
+        right: 10px;
+        padding: 9px 12px;
+    }
+    .theme-toggle-label { display: none; }
     .auth-actions { width: 90%; }
     .auth-actions button { flex: 1; }
     .market-hero { grid-template-columns: 1fr; }

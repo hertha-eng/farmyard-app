@@ -6,17 +6,51 @@
     <meta name="description" content="FarmYard is an agriculture-focused marketplace for produce, farm inputs, and services.">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#234a2f">
+    <meta name="color-scheme" content="light dark">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="FarmYard">
     <meta name="format-detection" content="telephone=no">
+    <script>
+        (function () {
+            try {
+                var storedTheme = localStorage.getItem('farmyard-theme-preference-v1');
+                var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+                var theme = storedTheme === 'dark' || storedTheme === 'light'
+                    ? storedTheme
+                    : (prefersDark ? 'dark' : 'light');
+                document.documentElement.dataset.theme = theme;
+            } catch (error) {
+                document.documentElement.dataset.theme = 'light';
+            }
+        }());
+    </script>
+    
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://farmyard.app/">
+    <meta property="og:title" content="FarmYard - Agriculture Marketplace">
+    <meta property="og:description" content="A clear marketplace for produce, farm inputs, and services.">
+    <meta property="og:image" content="https://farmyard.app/app-icon.png">
+    
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image">
+    <meta property="twitter:url" content="https://farmyard.app/">
+    <meta property="twitter:title" content="FarmYard - Agriculture Marketplace">
+    <meta property="twitter:description" content="A clear marketplace for produce, farm inputs, and services.">
+    <meta property="twitter:image" content="https://farmyard.app/app-icon.png">
+    
     <link rel="manifest" href="manifest.webmanifest">
-    <link rel="icon" type="image/png" sizes="512x512" href="farmyard-draft-logo.png">
-    <link rel="apple-touch-icon" href="farmyard-draft-logo.png">
+    <link rel="icon" type="image/png" sizes="1024x1024" href="app-icon.png">
+    <link rel="apple-touch-icon" href="app-icon.png">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
+<button id="theme-toggle" class="theme-toggle" type="button" aria-label="Switch color theme" aria-pressed="false">
+    <span class="theme-toggle-icon" aria-hidden="true">☀</span>
+    <span class="theme-toggle-label">Light mode</span>
+</button>
 
 <!-- LOGIN SCREEN -->
 <div id="login-screen" class="tab" hidden>
@@ -359,7 +393,7 @@
             <p>FarmYard does not collect, hold, route, or guarantee buyer or seller payments. Any payment arrangement happens outside FarmYard and is the responsibility of the parties involved.</p>
             <p>Users should use messaging, media sharing, profile review, ratings, reports, and company verification details as safety tools, but they should still make independent checks before any trade, pickup, delivery, or call-based agreement.</p>
             <p>When a phone number is hidden, web users may be limited from starting direct dialer calls to that user. In supported FarmYard app experiences, users may still be able to connect through in-app audio calling without exposing the hidden number to the other party.</p>
-            <p>For a production version of FarmYard, this section should include a support email, complaint channel, fraud-reporting path, and a clear process for account, listing, team-access, or communication complaints.</p>
+            <p>Public launch pages are available at <a href="privacy.html">Privacy Policy</a> and <a href="support.html">Support</a>. Replace the placeholder contact details on those pages with your final launch contact information before store submission.</p>
             <p class="legal-note">This is a product-ready starter policy set, not legal advice. A lawyer should review it before public launch.</p>
         </section>
 
@@ -388,6 +422,7 @@
         <div class="detail-actions">
             <button id="detail-message">Message Seller</button>
             <button id="detail-call">Call Seller</button>
+            <button id="detail-share">Share Listing</button>
             <button id="detail-profile">View Profile</button>
             <button id="detail-save">Save Listing</button>
             <button id="detail-order">Request Order</button>

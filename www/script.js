@@ -44,6 +44,11 @@ const WEBRTC_ICE_SERVERS = [
 const MOBILE_OAUTH_REDIRECT_URI = 'farmyard://auth/callback';
 const LOCAL_STATE_KEY = 'farmyard-local-state-v1';
 const LAST_ACTIVE_TAB_KEY = 'farmyard-last-active-tab';
+const THEME_PREFERENCE_KEY = 'farmyard-theme-preference-v1';
+const THEME_META_COLORS = {
+    light: '#234a2f',
+    dark: '#102316',
+};
 const AGRICULTURE_KEYWORDS = [
     'agriculture', 'agricultural', 'farm', 'farming', 'farmer', 'crop', 'crops', 'harvest',
     'produce', 'grain', 'grains', 'maize', 'corn', 'beans', 'rice', 'cassava', 'banana',
@@ -285,13 +290,30 @@ const toast = document.getElementById('toast');
 const listingModerationFeedback = document.getElementById('listing-moderation-feedback');
 const openLoginBtn = document.getElementById('open-login');
 const openRegisterBtn = document.getElementById('open-register');
+const themeToggleButton = document.getElementById('theme-toggle');
+const themeToggleIcon = themeToggleButton?.querySelector('.theme-toggle-icon');
+const themeToggleLabel = themeToggleButton?.querySelector('.theme-toggle-label');
+const themeColorMetaTag = document.querySelector('meta[name="theme-color"]');
+const appleStatusBarMetaTag = document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]');
 const navButtons = {
     home: document.getElementById('nav-home'),
     post: document.getElementById('nav-post'),
     messages: document.getElementById('nav-messages'),
     account: document.getElementById('nav-account'),
 };
+let currentTheme = document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light';
 let toastTimeoutId = null;
+
+applyTheme(getPreferredTheme(), { persist: false });
+themeToggleButton?.addEventListener('click', toggleTheme);
+
+if (window.matchMedia) {
+    const preferredThemeQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    preferredThemeQuery.addEventListener?.('change', event => {
+        if (getStoredThemePreference()) return;
+        applyTheme(event.matches ? 'dark' : 'light', { persist: false });
+    });
+}
 
 async function registerServiceWorker(){
     if (!('serviceWorker' in navigator)) return;
@@ -333,6 +355,66 @@ function registerNativeOAuthListener(){
     });
 
     hasNativeOAuthListener = true;
+}
+
+function getStoredThemePreference(){
+    try {
+        const storedTheme = localStorage.getItem(THEME_PREFERENCE_KEY);
+        return storedTheme === 'dark' || storedTheme === 'light' ? storedTheme : null;
+    } catch (error) {
+        console.warn('Failed to read theme preference', error);
+        return null;
+    }
+}
+
+function getSystemThemePreference(){
+    return window.matchMedia?.('(prefers-color-scheme: dark)')?.matches ? 'dark' : 'light';
+}
+
+function getPreferredTheme(){
+    return getStoredThemePreference() || getSystemThemePreference();
+}
+
+function applyTheme(theme, { persist = true } = {}){
+    currentTheme = theme === 'dark' ? 'dark' : 'light';
+    document.documentElement.dataset.theme = currentTheme;
+    document.body?.setAttribute('data-theme', currentTheme);
+    updateThemeToggle();
+    updateThemeMeta();
+
+    if (!persist) return;
+
+    try {
+        localStorage.setItem(THEME_PREFERENCE_KEY, currentTheme);
+    } catch (error) {
+        console.warn('Failed to save theme preference', error);
+    }
+}
+
+function toggleTheme(){
+    applyTheme(currentTheme === 'dark' ? 'light' : 'dark');
+}
+
+function updateThemeToggle(){
+    if (!themeToggleButton) return;
+
+    const nextTheme = currentTheme === 'dark' ? 'light' : 'dark';
+    themeToggleButton.setAttribute('aria-label', `Switch to ${nextTheme} mode`);
+    themeToggleButton.setAttribute('aria-pressed', String(currentTheme === 'dark'));
+    themeToggleButton.title = `Switch to ${nextTheme} mode`;
+
+    if (themeToggleIcon) {
+        themeToggleIcon.textContent = currentTheme === 'dark' ? '☾' : '☀';
+    }
+
+    if (themeToggleLabel) {
+        themeToggleLabel.textContent = currentTheme === 'dark' ? 'Dark mode' : 'Light mode';
+    }
+}
+
+function updateThemeMeta(){
+    themeColorMetaTag?.setAttribute('content', THEME_META_COLORS[currentTheme] || THEME_META_COLORS.light);
+    appleStatusBarMetaTag?.setAttribute('content', currentTheme === 'dark' ? 'black' : 'black-translucent');
 }
 
 function setElementVisibility(element, isVisible, displayMode = 'block'){
@@ -2189,6 +2271,7 @@ document.getElementById('register-google-btn').onclick = () => signInWithGoogle(
 document.getElementById('close-detail').onclick = () => goBack();
 document.getElementById('detail-message').onclick = () => startConversationFromDetail();
 document.getElementById('detail-call').onclick = () => callListingSeller();
+document.getElementById('detail-share').onclick = () => shareListing(currentDetailListing);
 document.getElementById('detail-profile').onclick = () => openCurrentProfile();
 document.getElementById('detail-save').onclick = () => saveCurrentListing();
 document.getElementById('detail-order').onclick = () => requestCurrentOrder();
@@ -2894,6 +2977,7 @@ function refreshMarketplace(){
             <p class="card-summary">📍 ${listing.location}</p>
             <button>Message</button>
             <button>Call</button>
+            <button>Share</button>
         `;
         marketplace.appendChild(card);
         card.onclick = () => openListingDetail(listing);
@@ -2902,9 +2986,13 @@ function refreshMarketplace(){
             event.stopPropagation();
             startConversation(listing);
         };
-        card.querySelector('button:last-of-type').onclick = (event)=>{
+        card.querySelector('button:nth-of-type(2)').onclick = (event)=>{
             event.stopPropagation();
             showToast(`Calling seller of ${listing.title}`);
+        };
+        card.querySelector('button:last-of-type').onclick = (event)=>{
+            event.stopPropagation();
+            shareListing(listing);
         };
     });
 }
@@ -3124,6 +3212,12 @@ function openProfile(profileId){
         blockButton.textContent = blockState.blockedByMe ? `Unblock ${profile.name}` : `Block ${profile.name}`;
         blockButton.onclick = () => toggleBlockProfile(activeProfileId);
         profileAdminTools.appendChild(blockButton);
+
+        const shareButton = document.createElement('button');
+        shareButton.type = 'button';
+        shareButton.textContent = `Share ${profile.name}'s Profile`;
+        shareButton.onclick = () => shareProfile(activeProfileId);
+        profileAdminTools.appendChild(shareButton);
     }
 
     if (!showCompanyEditorOnly) {
@@ -4222,7 +4316,7 @@ function showToast(message){
     }, 2200);
 }
 
-async function handleSignedInSession(session, message, options = {}){
+function handleSignedInSession(session, message, options = {}){
     const authContextMessage = syncCurrentUserFromSession(session, options);
     updatePlatformExperience();
     const requiresPhoneNumber = isAuthenticatedUser() && !hasRequiredPhoneNumber();
@@ -4243,7 +4337,7 @@ async function handleSignedInSession(session, message, options = {}){
     if (options.phone && hasRequiredPhoneNumber(options.phone)) {
         savePersistedProfile();
     }
-    await loadPersistedAccountData();
+    loadPersistedAccountData();
 }
 
 function syncCurrentUserFromSession(session, options = {}){
@@ -5973,6 +6067,76 @@ function generateInviteCode(companyName){
     const companyKey = slugifyValue(companyName).split('-').slice(0, 2).join('-').toUpperCase() || 'FARMYARD';
     const randomDigits = `${Math.floor(1000 + Math.random() * 9000)}`;
     return `${companyKey}-${randomDigits}`;
+}
+
+// Social Sharing Functions
+async function shareListing(listing) {
+    if (!listing) return;
+    
+    const listingUrl = `${window.location.origin}${window.location.pathname}#listing-${listing.id}`;
+    const shareData = {
+        title: `${listing.title} - FarmYard Marketplace`,
+        text: `Check out this ${listing.category} listing: ${listing.title} - ${listing.negotiable ? 'Price negotiable' : formatListingPrice(listing)}`,
+        url: listingUrl,
+    };
+
+    // Try Web Share API first (modern browsers and mobile)
+    if (navigator.share && navigator.canShare && navigator.canShare(shareData)) {
+        try {
+            await navigator.share(shareData);
+            showToast('Listing shared successfully');
+            return;
+        } catch (error) {
+            if (error.name !== 'AbortError') {
+                console.warn('Web Share API failed, falling back to copy link', error);
+            }
+        }
+    }
+
+    // Fallback: Copy link to clipboard
+    try {
+        await navigator.clipboard.writeText(listingUrl);
+        showToast('Listing link copied to clipboard');
+    } catch (error) {
+        console.error('Failed to copy link', error);
+        // Last resort: show the URL in a prompt
+        window.prompt('Copy this link to share:', listingUrl);
+    }
+}
+
+async function shareProfile(profileId) {
+    const profile = profiles[profileId];
+    if (!profile) return;
+    
+    const profileUrl = `${window.location.origin}${window.location.pathname}#profile-${profileId}`;
+    const shareData = {
+        title: `${profile.name} - FarmYard Profile`,
+        text: `Check out ${profile.name}'s profile on FarmYard: ${profile.type}`,
+        url: profileUrl,
+    };
+
+    // Try Web Share API first
+    if (navigator.share && navigator.canShare && navigator.canShare(shareData)) {
+        try {
+            await navigator.share(shareData);
+            showToast('Profile shared successfully');
+            return;
+        } catch (error) {
+            if (error.name !== 'AbortError') {
+                console.warn('Web Share API failed, falling back to copy link', error);
+            }
+        }
+    }
+
+    // Fallback: Copy link to clipboard
+    try {
+        await navigator.clipboard.writeText(profileUrl);
+        showToast('Profile link copied to clipboard');
+    } catch (error) {
+        console.error('Failed to copy link', error);
+        // Last resort: show the URL in a prompt
+        window.prompt('Copy this link to share:', profileUrl);
+    }
 }
 
 // Initial
