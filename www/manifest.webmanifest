@@ -1,0 +1,33 @@
+{
+  "name": "FarmYard",
+  "short_name": "FarmYard",
+  "description": "FarmYard marketplace for produce, inputs, services, messaging, and cross-platform account access.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "id": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "categories": ["business", "shopping", "productivity"],
+  "background_color": "#f4f0e8",
+  "theme_color": "#234a2f",
+  "icons": [
+    {
+      "src": "farmyard-draft-logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Post Listing",
+      "short_name": "Post",
+      "url": "./index.html#post-tab"
+    },
+    {
+      "name": "Messages",
+      "short_name": "Messages",
+      "url": "./index.html#messages-tab"
+    }
+  ]
+}

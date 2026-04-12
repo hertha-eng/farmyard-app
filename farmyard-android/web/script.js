@@ -4204,7 +4204,7 @@ function showToast(message){
     }, 2200);
 }
 
-function handleSignedInSession(session, message, options = {}){
+async function handleSignedInSession(session, message, options = {}){
     const authContextMessage = syncCurrentUserFromSession(session, options);
     updatePlatformExperience();
     const requiresPhoneNumber = isAuthenticatedUser() && !hasRequiredPhoneNumber();
@@ -4225,7 +4225,7 @@ function handleSignedInSession(session, message, options = {}){
     if (options.phone && hasRequiredPhoneNumber(options.phone)) {
         savePersistedProfile();
     }
-    loadPersistedAccountData();
+    await loadPersistedAccountData();
 }
 
 function syncCurrentUserFromSession(session, options = {}){

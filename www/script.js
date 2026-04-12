@@ -2189,7 +2189,6 @@ document.getElementById('register-google-btn').onclick = () => signInWithGoogle(
 document.getElementById('close-detail').onclick = () => goBack();
 document.getElementById('detail-message').onclick = () => startConversationFromDetail();
 document.getElementById('detail-call').onclick = () => callListingSeller();
-document.getElementById('detail-share').onclick = () => shareListing(currentDetailListing);
 document.getElementById('detail-profile').onclick = () => openCurrentProfile();
 document.getElementById('detail-save').onclick = () => saveCurrentListing();
 document.getElementById('detail-order').onclick = () => requestCurrentOrder();
@@ -2895,7 +2894,6 @@ function refreshMarketplace(){
             <p class="card-summary">📍 ${listing.location}</p>
             <button>Message</button>
             <button>Call</button>
-            <button>Share</button>
         `;
         marketplace.appendChild(card);
         card.onclick = () => openListingDetail(listing);
@@ -2904,13 +2902,9 @@ function refreshMarketplace(){
             event.stopPropagation();
             startConversation(listing);
         };
-        card.querySelector('button:nth-of-type(2)').onclick = (event)=>{
-            event.stopPropagation();
-            showToast(`Calling seller of ${listing.title}`);
-        };
         card.querySelector('button:last-of-type').onclick = (event)=>{
             event.stopPropagation();
-            shareListing(listing);
+            showToast(`Calling seller of ${listing.title}`);
         };
     });
 }
@@ -3130,12 +3124,6 @@ function openProfile(profileId){
         blockButton.textContent = blockState.blockedByMe ? `Unblock ${profile.name}` : `Block ${profile.name}`;
         blockButton.onclick = () => toggleBlockProfile(activeProfileId);
         profileAdminTools.appendChild(blockButton);
-
-        const shareButton = document.createElement('button');
-        shareButton.type = 'button';
-        shareButton.textContent = `Share ${profile.name}'s Profile`;
-        shareButton.onclick = () => shareProfile(activeProfileId);
-        profileAdminTools.appendChild(shareButton);
     }
 
     if (!showCompanyEditorOnly) {
@@ -4234,7 +4222,7 @@ function showToast(message){
     }, 2200);
 }
 
-function handleSignedInSession(session, message, options = {}){
+async function handleSignedInSession(session, message, options = {}){
     const authContextMessage = syncCurrentUserFromSession(session, options);
     updatePlatformExperience();
     const requiresPhoneNumber = isAuthenticatedUser() && !hasRequiredPhoneNumber();
@@ -4255,7 +4243,7 @@ function handleSignedInSession(session, message, options = {}){
     if (options.phone && hasRequiredPhoneNumber(options.phone)) {
         savePersistedProfile();
     }
-    loadPersistedAccountData();
+    await loadPersistedAccountData();
 }
 
 function syncCurrentUserFromSession(session, options = {}){
@@ -5985,76 +5973,6 @@ function generateInviteCode(companyName){
     const companyKey = slugifyValue(companyName).split('-').slice(0, 2).join('-').toUpperCase() || 'FARMYARD';
     const randomDigits = `${Math.floor(1000 + Math.random() * 9000)}`;
     return `${companyKey}-${randomDigits}`;
-}
-
-// Social Sharing Functions
-async function shareListing(listing) {
-    if (!listing) return;
-    
-    const listingUrl = `${window.location.origin}${window.location.pathname}#listing-${listing.id}`;
-    const shareData = {
-        title: `${listing.title} - FarmYard Marketplace`,
-        text: `Check out this ${listing.category} listing: ${listing.title} - ${listing.negotiable ? 'Price negotiable' : formatListingPrice(listing)}`,
-        url: listingUrl,
-    };
-
-    // Try Web Share API first (modern browsers and mobile)
-    if (navigator.share && navigator.canShare && navigator.canShare(shareData)) {
-        try {
-            await navigator.share(shareData);
-            showToast('Listing shared successfully');
-            return;
-        } catch (error) {
-            if (error.name !== 'AbortError') {
-                console.warn('Web Share API failed, falling back to copy link', error);
-            }
-        }
-    }
-
-    // Fallback: Copy link to clipboard
-    try {
-        await navigator.clipboard.writeText(listingUrl);
-        showToast('Listing link copied to clipboard');
-    } catch (error) {
-        console.error('Failed to copy link', error);
-        // Last resort: show the URL in a prompt
-        window.prompt('Copy this link to share:', listingUrl);
-    }
-}
-
-async function shareProfile(profileId) {
-    const profile = profiles[profileId];
-    if (!profile) return;
-    
-    const profileUrl = `${window.location.origin}${window.location.pathname}#profile-${profileId}`;
-    const shareData = {
-        title: `${profile.name} - FarmYard Profile`,
-        text: `Check out ${profile.name}'s profile on FarmYard: ${profile.type}`,
-        url: profileUrl,
-    };
-
-    // Try Web Share API first
-    if (navigator.share && navigator.canShare && navigator.canShare(shareData)) {
-        try {
-            await navigator.share(shareData);
-            showToast('Profile shared successfully');
-            return;
-        } catch (error) {
-            if (error.name !== 'AbortError') {
-                console.warn('Web Share API failed, falling back to copy link', error);
-            }
-        }
-    }
-
-    // Fallback: Copy link to clipboard
-    try {
-        await navigator.clipboard.writeText(profileUrl);
-        showToast('Profile link copied to clipboard');
-    } catch (error) {
-        console.error('Failed to copy link', error);
-        // Last resort: show the URL in a prompt
-        window.prompt('Copy this link to share:', profileUrl);
-    }
 }
 
 // Initial
