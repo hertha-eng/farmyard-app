@@ -13,7 +13,7 @@ This repo is now scaffolded for Capacitor packaging, and separate mobile handoff
 - `package.json` with Capacitor dependencies and common commands
 - `capacitor.config.json` with app-level plugin defaults
 - `script.js` with native-friendly Google OAuth handling for Capacitor app builds
-- `farmyard-draft-logo.png` as the source app icon
+- `app-icon.png` as the source app icon
 - `index.html`, `manifest.webmanifest`, and `style.css` updated for mobile safe-area and install metadata
 - `privacy.html` and `support.html` prepared for public store-policy URLs after deployment
 - `farmyard-android/` as a standalone Android packaging workspace

@@ -38,7 +38,7 @@ This project is configured as a static site.
 
 FarmYard now includes:
 
-- a linked app icon using `farmyard-draft-logo.png`
+- a linked app icon using `app-icon.png`
 - manifest icon metadata for install prompts
 - a service worker for app shell caching
 - Apple touch icon metadata
