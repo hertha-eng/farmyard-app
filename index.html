@@ -47,11 +47,6 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<button id="theme-toggle" class="theme-toggle" type="button" aria-label="Switch color theme" aria-pressed="false">
-    <span class="theme-toggle-icon" aria-hidden="true">☀</span>
-    <span class="theme-toggle-label">Light mode</span>
-</button>
-
 <!-- LOGIN SCREEN -->
 <div id="login-screen" class="tab" hidden>
     <h1>FarmYard Login</h1>
@@ -155,6 +150,7 @@
                         <option value="nearby">Nearby</option>
                         <option value="recent">Most Recent</option>
                         <option value="interest">Interest Match</option>
+                        <option value="all">Browse All</option>
                     </select>
                     <label for="timeline-sort" class="search-label">Sort by</label>
                     <select id="timeline-sort">
@@ -340,6 +336,10 @@
                 <p class="page-heading-note">Account Overview</p>
             </div>
         </div>
+        <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Switch color theme" aria-pressed="false">
+            <span class="theme-toggle-icon" aria-hidden="true">☀</span>
+            <span class="theme-toggle-label">Light mode</span>
+        </button>
     </div>
 
     <div id="legal-tab" class="tab" hidden>

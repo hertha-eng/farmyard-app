@@ -2780,6 +2780,9 @@ function getListingTimelineScore(listing){
     if (timelineMode === 'interest') {
         return (interestMatches * 10) + (locationMatches * 2) + isVerifiedSeller;
     }
+    if (timelineMode === 'all') {
+        return recencyBoost + isVerifiedSeller + isNegotiable;
+    }
     return (interestMatches * 7) + (locationMatches * 6) + (isVerifiedSeller * 3) + (isNegotiable * 2) + recencyBoost;
 }
 
@@ -2839,6 +2842,7 @@ function updateTimelineFeedCopy(listings){
         nearby: `Showing listings that look closest to ${locationLine}.`,
         recent: 'Showing the newest marketplace activity first.',
         interest: `Showing listings that match your strongest interests: ${interestLine}.`,
+        all: 'Browsing all marketplace listings. Search or filter by interest to find specific items.',
     };
     timelineFeedCopy.textContent = modeCopy[timelineMode] || `Showing ${listings.length} listings for your timeline.`;
 }

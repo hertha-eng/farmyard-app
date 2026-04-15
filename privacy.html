@@ -15,6 +15,15 @@
             --line: rgba(103, 119, 96, 0.18);
         }
 
+        html[data-theme="dark"] {
+            --bg: #0f1712;
+            --surface: #1d2a22;
+            --text: #edf5ee;
+            --muted: #b5c4b7;
+            --line: rgba(161, 184, 167, 0.2);
+            --brand: #6ab16c;
+        }
+
         * { box-sizing: border-box; }
 
         body {
@@ -40,9 +49,12 @@
         }
 
         h1, h2 { margin: 0 0 14px; }
-        p, li { line-height: 1.6; }
+        h3 { margin: 0 0 10px; font-size: 1.1rem; }
+        p, li { line-height: 1.6; margin-bottom: 10px; }
+        li { margin-bottom: 8px; }
         ul { padding-left: 18px; }
-        a { color: var(--brand); }
+        a { color: var(--brand); text-decoration: none; }
+        a:hover { text-decoration: underline; }
         .eyebrow {
             text-transform: uppercase;
             letter-spacing: 0.08em;
@@ -54,69 +66,183 @@
             color: var(--muted);
             font-size: 0.95rem;
         }
+        .back-link {
+            display: inline-block;
+            margin-bottom: 20px;
+            padding: 8px 12px;
+            background: var(--brand);
+            color: white;
+            border-radius: 8px;
+            cursor: pointer;
+            border: none;
+            text-decoration: none;
+        }
+        .back-link:hover {
+            opacity: 0.9;
+        }
     </style>
 </head>
 <body>
 <main>
+    <a href="./" class="back-link">← Back to App</a>
+    
     <section class="card">
         <p class="eyebrow">FarmYard</p>
         <h1>Privacy Policy</h1>
-        <p class="note">Effective date: April 8, 2026</p>
-        <p>This Privacy Policy explains how FarmYard collects, uses, stores, and shares information when people use the FarmYard marketplace on web, Android, and iPhone.</p>
+        <p class="note">Effective date: April 15, 2026 | Last updated: April 15, 2026</p>
+        <p>This Privacy Policy explains how FarmYard collects, uses, stores, and shares information when people use the FarmYard marketplace on web, Android, and iPhone. FarmYard is committed to protecting your privacy while providing a safe, transparent agricultural marketplace.</p>
     </section>
 
     <section class="card">
-        <h2>Information We Collect</h2>
+        <h2>1. Information We Collect</h2>
+        <h3>Account Information:</h3>
         <ul>
-            <li>Account details such as name, email address, phone number, and authentication records.</li>
-            <li>Profile and company information such as profile photos, company descriptions, team invites, and trust-related details.</li>
-            <li>Marketplace content such as listings, listing images, saved items, order notes, ratings, reports, and messages.</li>
-            <li>Technical data needed to operate the service, including session information, app state, device/browser details, and basic diagnostics.</li>
-            <li>Call-related data required to enable in-app audio calling, such as signaling records and microphone permission state during supported call flows.</li>
+            <li>Full name, email address, phone number, and authentication records</li>
+            <li>Account security details and login history</li>
+            <li>Profile preferences and settings</li>
+        </ul>
+        
+        <h3>Profile & Company Information:</h3>
+        <ul>
+            <li>Profile photos, company names, and business descriptions</li>
+            <li>Company team invitations and access permissions</li>
+            <li>Verification status and trust-related details</li>
+            <li>Business location, registration details, and certifications</li>
+        </ul>
+        
+        <h3>Marketplace Content:</h3>
+        <ul>
+            <li>Listings you create (titles, descriptions, prices, images)</li>
+            <li>Saved listings and preferences</li>
+            <li>Order notes, quantities, and delivery information</li>
+            <li>User ratings, reviews, and feedback</li>
+            <li>Messages and chat history with other users</li>
+            <li>Media files (photos and videos) you upload</li>
+        </ul>
+        
+        <h3>Technical & Diagnostic Data:</h3>
+        <ul>
+            <li>Browser and device information (type, OS, version)</li>
+            <li>Session information and login/logout timestamps</li>
+            <li>IP address and approximate location (for security)</li>
+            <li>App crash reports and error diagnostics</li>
+            <li>Feature usage patterns</li>
+        </ul>
+        
+        <h3>Communication Data:</h3>
+        <ul>
+            <li>In-app voice call metadata (timing, duration, participants)</li>
+            <li>Microphone access permissions for calling features</li>
+            <li>Support requests and correspondence</li>
         </ul>
     </section>
 
     <section class="card">
-        <h2>How We Use Information</h2>
+        <h2>2. How We Use Your Information</h2>
         <ul>
-            <li>Provide sign-in, listings, messaging, calling, and account management features.</li>
-            <li>Improve trust and safety, detect abuse, investigate reports, and enforce marketplace rules.</li>
-            <li>Help users recover accounts, manage support requests, and respond to policy or account questions.</li>
-            <li>Maintain service performance, security, and reliability across web and mobile experiences.</li>
+            <li><strong>Core Platform Features:</strong> Sign-in, profile management, posting and browsing listings, messaging, in-app calling, and transaction coordination</li>
+            <li><strong>Trust & Safety:</strong> Detecting and preventing fraud, abuse, and policy violations; investigating user reports; enforcing marketplace rules</li>
+            <li><strong>User Support:</strong> Account recovery, password resets, technical support, and answering policy questions</li>
+            <li><strong>Service Improvement:</strong> Analyzing usage patterns, fixing bugs, improving performance, and developing new features</li>
+            <li><strong>Verification:</strong> Verifying business credentials and legitimacy for company profiles</li>
+            <li><strong>Communication:</strong> Sending important updates, notifications, and information about policy changes</li>
+            <li><strong>Legal Compliance:</strong> Meeting legal obligations and responding to lawful requests</li>
         </ul>
     </section>
 
     <section class="card">
-        <h2>Permissions And Sensitive Access</h2>
-        <p>FarmYard may request device permissions only when the related feature is used.</p>
+        <h2>3. Data Sharing</h2>
+        <p>We share information only as necessary to operate FarmYard:</p>
         <ul>
-            <li>Microphone: for in-app voice calling between users.</li>
-            <li>Photos or media library: for selecting listing images or profile images.</li>
-            <li>Camera: if enabled in a future native build for direct capture.</li>
+            <li><strong>Public Information:</strong> Profile details, listings, ratings, and company verification badges are visible to all marketplace users</li>
+            <li><strong>Service Providers:</strong> Cloud hosting providers, authentication services, analytics services, and payment processors that support marketplace operations</li>
+            <li><strong>Legal Requests:</strong> Law enforcement or government agencies when required by law</li>
+            <li><strong>Business Transfers:</strong> In case of merger, acquisition, or sale of assets, your information may be transferred (you will be notified)</li>
         </ul>
-        <p>FarmYard should not access these permissions for unrelated purposes.</p>
+        <p><strong>Important:</strong> FarmYard does not act as a payment processor. We do not store or transfer payment information. All payments are arranged directly between buyers and sellers outside the platform.</p>
     </section>
 
     <section class="card">
-        <h2>Sharing</h2>
-        <p>FarmYard may display profile and listing information that users choose to publish in the marketplace. FarmYard may also share data with service providers that support hosting, authentication, storage, messaging, and app operations. FarmYard does not present itself as a payment processor for marketplace transactions.</p>
+        <h2>4. Permissions & Device Access</h2>
+        <p>FarmYard may request device permissions only when features that require them are used:</p>
+        <ul>
+            <li><strong>Microphone:</strong> Required only for in-app voice calls between users</li>
+            <li><strong>Camera:</strong> Used only when you choose to take or upload photos for listings or profile</li>
+            <li><strong>Photo Library/Files:</strong> Accessed only when you select images to upload for listings</li>
+            <li><strong>Location:</strong> Used to show nearby listings and help with local search (can be disabled in settings)</li>
+            <li><strong>Contacts:</strong> Never accessed without explicit user action</li>
+            <li><strong>Notifications:</strong> Only sent if you enable notifications in settings</li>
+        </ul>
+        <p>FarmYard will never access permissions for unrelated purposes or without clear user consent.</p>
     </section>
 
     <section class="card">
-        <h2>Data Retention And User Rights</h2>
-        <p>FarmYard may retain data for as long as needed to operate the marketplace, meet legal obligations, resolve disputes, and enforce policies. Users should be given a way to request account help, profile corrections, or deletion support through the published support channel before production launch.</p>
+        <h2>5. Data Retention</h2>
+        <ul>
+            <li><strong>Active Accounts:</strong> Your information is retained for as long as your account is active</li>
+            <li><strong>After Deletion:</strong> Most information is deleted within 30 days of account deletion, though backup copies may be retained for up to 90 days</li>
+            <li><strong>Legal Holds:</strong> Information may be retained longer if required by law or for dispute resolution</li>
+            <li><strong>Messages:</strong> Chat history is retained until deleted by the user or after 2 years of inactivity</li>
+        </ul>
     </section>
 
     <section class="card">
-        <h2>Children</h2>
-        <p>FarmYard is intended for general marketplace use and should not knowingly collect personal information from children where prohibited by law.</p>
+        <h2>6. Your Privacy Rights</h2>
+        <ul>
+            <li><strong>Access:</strong> You can view all your personal data by logging into your account</li>
+            <li><strong>Correction:</strong> You can update your profile, listings, and preferences anytime</li>
+            <li><strong>Deletion:</strong> You can delete your account and associated data (except where legally required to keep records)</li>
+            <li><strong>Export:</strong> You can request a copy of your data in a standard format</li>
+            <li><strong>Opt-Out:</strong> You can disable notifications, hide your phone number, or make your profile private</li>
+        </ul>
+        <p>To exercise any of these rights, contact <a href="mailto:support@modernfarmyard.com">support@modernfarmyard.com</a></p>
     </section>
 
     <section class="card">
-        <h2>Contact</h2>
-        <p>For support, email <a href="mailto:support@modernfarmyard.com">support@modernfarmyard.com</a> or visit our public support page.</p>
-        <p>Support page: <a href="./support.html">Support</a></p>
+        <h2>7. Security</h2>
+        <p>FarmYard uses industry-standard security measures to protect your data:</p>
+        <ul>
+            <li>Encrypted data transmission (HTTPS/TLS)</li>
+            <li>Secure password hashing and storage</li>
+            <li>Regular security audits and updates</li>
+            <li>Limited employee access to personal data</li>
+            <li>Two-factor authentication options</li>
+        </ul>
+        <p>However, no system is 100% secure. If you believe your account has been compromised, change your password immediately and contact <a href="mailto:support@modernfarmyard.com">support@modernfarmyard.com</a></p>
     </section>
+
+    <section class="card">
+        <h2>8. Children's Privacy</h2>
+        <p>FarmYard is not intended for users under 18 years old. We do not knowingly collect information from children. If we become aware that a minor has provided personal information, we will delete it promptly.</p>
+    </section>
+
+    <section class="card">
+        <h2>9. International Data Transfers</h2>
+        <p>FarmYard uses cloud services that may store data in multiple countries. By using FarmYard, you consent to your information being transferred to, stored in, and processed in countries other than your country of residence, including countries that may not have equivalent privacy protections.</p>
+    </section>
+
+    <section class="card">
+        <h2>10. Third-Party Links</h2>
+        <p>FarmYard may contain links to external websites. We are not responsible for their privacy practices. Always review their privacy policies before sharing information.</p>
+    </section>
+
+    <section class="card">
+        <h2>11. Changes to This Policy</h2>
+        <p>We may update this Privacy Policy at any time. Changes will be posted on this page with an updated effective date. Continued use of FarmYard after changes means you accept the new policy.</p>
+    </section>
+
+    <section class="card">
+        <h2>12. Contact & Support</h2>
+        <p>If you have questions about this Privacy Policy, want to exercise your privacy rights, or need assistance:</p>
+        <ul>
+            <li><strong>Email:</strong> <a href="mailto:support@modernfarmyard.com">support@modernfarmyard.com</a></li>
+            <li><strong>Support Page:</strong> <a href="./support.html">Visit Support</a></li>
+            <li><strong>In-App Support:</strong> Use the help option in the app menu</li>
+        </ul>
+        <p><em>FarmYard takes privacy seriously. If we cannot resolve your concern, you may have the right to lodge a complaint with your local data protection authority.</em></p>
+    </section>
+
+    <a href="./" class="back-link">← Back to App</a>
 </main>
 </body>
 </html>
