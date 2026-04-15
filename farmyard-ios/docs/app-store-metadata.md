@@ -22,9 +22,9 @@ farm, agriculture, produce, marketplace, crops, livestock, agri, inputs
 
 ## Support
 
-- Support email: support@farmyard.app
-- Privacy policy URL: https://farmyard.app/privacy.html
-- Marketing URL: https://farmyard.app/support.html
+- Support email: support@modernfarmyard.com
+- Privacy policy URL: https://modernfarmyard.app/privacy.html
+- Marketing URL: https://modernfarmyard.app/support.html
 
 ## Permissions Rationale
 
