@@ -15,6 +15,15 @@
             --line: rgba(103, 119, 96, 0.18);
         }
 
+        html[data-theme="dark"] {
+            --bg: #0f1712;
+            --surface: #1d2a22;
+            --text: #edf5ee;
+            --muted: #b5c4b7;
+            --line: rgba(161, 184, 167, 0.2);
+            --brand: #6ab16c;
+        }
+
         * { box-sizing: border-box; }
 
         body {
@@ -40,9 +49,12 @@
         }
 
         h1, h2 { margin: 0 0 14px; }
-        p, li { line-height: 1.6; }
+        h3 { margin: 0 0 10px; font-size: 1.1rem; }
+        p, li { line-height: 1.6; margin-bottom: 10px; }
+        li { margin-bottom: 8px; }
         ul { padding-left: 18px; }
-        a { color: var(--brand); }
+        a { color: var(--brand); text-decoration: none; }
+        a:hover { text-decoration: underline; }
         .eyebrow {
             text-transform: uppercase;
             letter-spacing: 0.08em;
@@ -54,47 +66,185 @@
             color: var(--muted);
             font-size: 0.95rem;
         }
+        .back-link {
+            display: inline-block;
+            margin-bottom: 20px;
+            padding: 8px 12px;
+            background: var(--brand);
+            color: white;
+            border-radius: 8px;
+            cursor: pointer;
+            border: none;
+            text-decoration: none;
+        }
+        .back-link:hover {
+            opacity: 0.9;
+        }
+        .alert {
+            background: rgba(212, 137, 63, 0.1);
+            border-left: 4px solid #d98d3f;
+            padding: 12px;
+            border-radius: 8px;
+            margin: 12px 0;
+        }
     </style>
 </head>
 <body>
 <main>
+    <a href="./" class="back-link">← Back to App</a>
+    
     <section class="card">
         <p class="eyebrow">FarmYard</p>
-        <h1>Support</h1>
-        <p class="note">This page is the public support URL for app review and store metadata after deployment.</p>
-        <p>If you need support, email <a href="mailto:support@modernfarmyard.com">support@modernfarmyard.com</a> or visit <a href="https://modernfarmyard.app/support.html">https://modernfarmyard.app/support.html</a>.</p>
+        <h1>Support Center</h1>
+        <p class="note">Get help with your FarmYard account, listings, and marketplace activity</p>
+        <div class="alert">
+            <strong>Quick Help:</strong> Check the FAQ section below before contacting support. Most common issues can be resolved in minutes!
+        </div>
     </section>
 
     <section class="card">
-        <h2>Support Topics</h2>
+        <h2>Contact Support</h2>
+        <p>Need immediate assistance? We're here to help:</p>
         <ul>
-            <li>Account access and login help</li>
-            <li>Listing moderation or removal questions</li>
-            <li>Fraud or safety reports</li>
-            <li>Profile or company team access issues</li>
-            <li>Messaging and call problems</li>
-            <li>Privacy or data requests</li>
+            <li><strong>Email:</strong> <a href="mailto:support@modernfarmyard.com">support@modernfarmyard.com</a></li>
+            <li><strong>Response Time:</strong> We aim to respond within 2 business days</li>
+            <li><strong>Support Hours:</strong> Monday–Friday, 9:00 AM–5:30 PM EAT</li>
+        </ul>
+        <p>When contacting support, please include:</p>
+        <ul>
+            <li>Your FarmYard username or email address</li>
+            <li>The specific issue or error you're experiencing</li>
+            <li>Steps you've already tried</li>
+            <li>Your device type and app version (if using the mobile app)</li>
+            <li>Any relevant listing or message IDs</li>
         </ul>
     </section>
 
     <section class="card">
-        <h2>Support Details</h2>
+        <h2>Frequently Asked Questions</h2>
+        
+        <h3>Account & Login Issues</h3>
         <ul>
-            <li>Support email: <a href="mailto:support@modernfarmyard.com">support@modernfarmyard.com</a></li>
-            <li>Support website: <a href="https://modernfarmyard.app/support.html">https://modernfarmyard.app/support.html</a></li>
-            <li>Response target: reply within 2 business days</li>
+            <li><strong>Forgot your password?</strong> Click "Forgot Password" on the login screen and follow the email instructions to reset it.</li>
+            <li><strong>Can't receive password reset emails?</strong> Check your spam/junk folder or contact support with a different email address on file.</li>
+            <li><strong>How do I enable two-factor authentication?</strong> Go to Account Settings → Security and enable 2FA to protect your account.</li>
+            <li><strong>Want to change your email?</strong> Go to Account Settings → Email and follow the verification process.</li>
+            <li><strong>How do I delete my account?</strong> Go to Account Settings → Delete Account. Your data will be removed within 30 days.</li>
+        </ul>
+
+        <h3>Posting & Listing Issues</h3>
+        <ul>
+            <li><strong>Why was my listing rejected?</strong> Listings must be agriculture-related and follow marketplace guidelines. Check the rejection message for details. You can resubmit after making corrections.</li>
+            <li><strong>How long does it take for a listing to approve?</strong> Most listings are approved within 1-2 hours. Some may take up to 24 hours for moderation review.</li>
+            <li><strong>Can I edit a listing after posting?</strong> Yes, click the listing and select "Edit". Changes are reviewed before going live.</li>
+            <li><strong>How do I delete a listing?</strong> Go to My Listings → select the listing → Delete. It will be removed immediately.</li>
+            <li><strong>What image formats are supported?</strong> JPG, PNG, and WebP images up to 10MB. Use high-quality, clear photos of the actual product.</li>
+            <li><strong>Can I post on behalf of someone else?</strong> Yes, if you're a verified sales representative of a company. The listing must show your company's information.</li>
+        </ul>
+
+        <h3>Messaging & Calling</h3>
+        <ul>
+            <li><strong>How do I message another user?</strong> Click on a listing and select "Message Seller" or go to Messages → Start Conversation.</li>
+            <li><strong>Can I call other users?</strong> Yes, if you have FarmYard installed on a mobile device or using a supported browser, click the phone icon to start a call.</li>
+            <li><strong>Why can't I make a call?</strong> Check that microphone is enabled in app permissions and both users have a stable internet connection.</li>
+            <li><strong>Is call data saved?</strong> Call history shows timing and duration for safety records, but call audio is not recorded.</li>
+            <li><strong>How do I block a user?</strong> Open their profile or chat → More Options → Block User. They won't be able to contact you.</li>
+            <li><strong>Can I delete a conversation?</strong> Yes, open the chat → More Options → Delete Chat. This is permanent.</li>
+        </ul>
+
+        <h3>Payments & Transactions</h3>
+        <ul>
+            <li><strong>Does FarmYard process payments?</strong> No. FarmYard is a marketplace for connecting buyers and sellers. All payments are arranged directly between parties outside the app.</li>
+            <li><strong>Is it safe to pay through FarmYard?</strong> Never send payments through FarmYard messages. Arrange payment details, location, and timing directly with the other party.</li>
+            <li><strong>What should I do if someone claims payment failed?</strong> Verify the transaction with your bank. If it's a FarmYard messaging issue, contact support.</li>
+            <li><strong>How do I request an order?</strong> Click on a listing and select "Request Order", specify quantity and delivery details, then discuss terms with the seller.</li>
+        </ul>
+
+        <h3>Verification & Trust</h3>
+        <ul>
+            <li><strong>What does the Verified Company badge mean?</strong> It means the company has passed FarmYard's review process and maintains high marketplace standards.</li>
+            <li><strong>How do I become a verified seller?</strong> Email <a href="mailto:support@modernfarmyard.com">support@modernfarmyard.com</a> with your business registration details, documents, and contact information.</li>
+            <li><strong>How often are companies reverified?</strong> Annually, or if there are complaints or policy violations.</li>
+            <li><strong>Can I rate other users?</strong> Yes, after a transaction. Open the conversation → Rate User → leave feedback to help other buyers and sellers.</li>
+        </ul>
+
+        <h3>Safety & Reporting</h3>
+        <ul>
+            <li><strong>I received a suspicious message or offer.</strong> Report it immediately by clicking Report User or Report Listing and provide details.</li>
+            <li><strong>What should I do if someone is scamming?</strong> Don't send money. Screenshot the conversation and report the user to support@modernfarmyard.com.</li>
+            <li><strong>Is my location information shared?</strong> Only your general location for finding nearby listings. Your exact address is not shown unless you choose to share it in messages.</li>
+            <li><strong>How do I report inappropriate content?</strong> Click Report → select the reason → submit. Our team reviews reports within 24 hours.</li>
+        </ul>
+
+        <h3>App & Technical Issues</h3>
+        <ul>
+            <li><strong>The app is slow or crashes.</strong> Try: restarting the app, clearing app cache, or reinstalling from the app store.</li>
+            <li><strong>Images won't upload.</strong> Check your internet connection, image size (under 10MB), and app permissions for camera/photo access.</li>
+            <li><strong>Notifications aren't working.</strong> Go to Settings → Notifications and enable "FarmYard Notifications".</li>
+            <li><strong>My listing isn't showing up.</strong> Check that it's approved. Go to My Listings → click the listing to see its status.</li>
+            <li><strong>Dark mode doesn't work.</strong> Go to Account tab and click the theme toggle button to switch between light and dark modes.</li>
         </ul>
     </section>
 
     <section class="card">
-        <h2>Report A Safety Issue</h2>
-        <p>If a user believes a listing, message, or call activity is fraudulent, abusive, or unsafe, FarmYard should provide a clear complaint path and keep enough detail to investigate the report.</p>
+        <h2>Report Issues</h2>
+        <h3>Safety Issues</h3>
+        <p>If you encounter fraudulent activity, abuse, or safety concerns:</p>
+        <ul>
+            <li>Report the listing or user immediately within the app</li>
+            <li>Do not send money or personal information to suspicious users</li>
+            <li>Email <a href="mailto:support@modernfarmyard.com">support@modernfarmyard.com</a> with details and screenshots</li>
+            <li>We investigate all reports within 24 hours</li>
+        </ul>
+
+        <h3>Listing Moderation Appeals</h3>
+        <p>If your listing was rejected or removed:</p>
+        <ul>
+            <li>Check the rejection reason in your notifications</li>
+            <li>Review FarmYard's marketplace rules (see Privacy & Terms in the app)</li>
+            <li>Make corrections and resubmit the listing</li>
+            <li>If you believe the decision was wrong, email support with your listing ID and explanation</li>
+        </ul>
+
+        <h3>Account Issues</h3>
+        <ul>
+            <li>Locked account? Verify your identity by confirming your phone number or email.</li>
+            <li>Suspended account? You'll receive an email with the reason. Contact support to appeal within 30 days.</li>
+            <li>Hacked account? Change your password immediately and contact support to review suspicious activity.</li>
+        </ul>
     </section>
 
     <section class="card">
-        <h2>Policy Links</h2>
-        <p><a href="./privacy.html">Privacy Policy</a></p>
+        <h2>Marketplace Rules</h2>
+        <p>All users must follow these guidelines:</p>
+        <ul>
+            <li><strong>Agriculture-Only:</strong> Only post products and services related to farming, agriculture, and food production</li>
+            <li><strong>Honest Listings:</strong> Accurately describe products, prices, quantities, and availability</li>
+            <li><strong>Truthful Profiles:</strong> Use your real name and accurate company information</li>
+            <li><strong>Respectful Communication:</strong> No harassment, spam, or abusive messages</li>
+            <li><strong>No Fraud:</strong> Don't misrepresent products, hide defects, or collect payments without delivering goods</li>
+            <li><strong>Legal Compliance:</strong> Ensure you have required licenses and permits for your products/services</li>
+            <li><strong>No Stolen Content:</strong> Don't use photos or descriptions from other listings</li>
+        </ul>
+        <p><strong>Violations may result in:</strong> Listing removal, account suspension, or permanent ban.</p>
     </section>
+
+    <section class="card">
+        <h2>Additional Resources</h2>
+        <ul>
+            <li><a href="./privacy.html">Privacy Policy</a> – How we protect your data</li>
+            <li><a href="./">Back to Marketplace</a> – Return to FarmYard</li>
+            <li><strong>Email Support:</strong> <a href="mailto:support@modernfarmyard.com">support@modernfarmyard.com</a></li>
+        </ul>
+    </section>
+
+    <section class="card">
+        <h2>Send Feedback</h2>
+        <p>Have ideas to improve FarmYard? We'd love to hear from you!</p>
+        <p>Email your suggestions to <a href="mailto:support@modernfarmyard.com">support@modernfarmyard.com</a> with the subject line: "FarmYard Feature Suggestion"</p>
+    </section>
+
+    <a href="./" class="back-link">← Back to App</a>
 </main>
 </body>
 </html>

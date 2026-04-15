@@ -2462,7 +2462,7 @@ function openAuthScreen(name){
 
 async function signInWithEmail(){
     if (!supabaseClient) {
-        handleSignedInSession(null, 'Auth service unavailable right now. Opened the app in local mode.');
+        await handleSignedInSession(null, 'Auth service unavailable right now. Opened the app in local mode.');
         return;
     }
     const email = document.getElementById('login-email').value.trim().toLowerCase();
@@ -2480,12 +2480,12 @@ async function signInWithEmail(){
         return;
     }
 
-    handleSignedInSession(data.session, inviteCode ? 'Welcome back. Company invite checked.' : 'Welcome back to FarmYard', { inviteCode });
+    await handleSignedInSession(data.session, inviteCode ? 'Welcome back. Company invite checked.' : 'Welcome back to FarmYard', { inviteCode });
 }
 
 async function signUpWithEmail(){
     if (!supabaseClient) {
-        handleSignedInSession(null, 'Auth service unavailable right now. Opened the app in local mode.');
+        await handleSignedInSession(null, 'Auth service unavailable right now. Opened the app in local mode.');
         return;
     }
     const fullName = document.getElementById('reg-name').value.trim();
@@ -2519,7 +2519,7 @@ async function signUpWithEmail(){
     }
 
     if (data.session) {
-        handleSignedInSession(
+        await handleSignedInSession(
             data.session,
             inviteCode ? 'Your account is ready. Company invite checked.' : 'Your account is ready',
             { inviteCode, phone: normalizedPhone, phoneCountryCode }
@@ -2780,6 +2780,9 @@ function getListingTimelineScore(listing){
     if (timelineMode === 'interest') {
         return (interestMatches * 10) + (locationMatches * 2) + isVerifiedSeller;
     }
+    if (timelineMode === 'all') {
+        return recencyBoost + isVerifiedSeller + isNegotiable;
+    }
     return (interestMatches * 7) + (locationMatches * 6) + (isVerifiedSeller * 3) + (isNegotiable * 2) + recencyBoost;
 }
 
@@ -2839,6 +2842,7 @@ function updateTimelineFeedCopy(listings){
         nearby: `Showing listings that look closest to ${locationLine}.`,
         recent: 'Showing the newest marketplace activity first.',
         interest: `Showing listings that match your strongest interests: ${interestLine}.`,
+        all: 'Browsing all marketplace listings. Search or filter by interest to find specific items.',
     };
     timelineFeedCopy.textContent = modeCopy[timelineMode] || `Showing ${listings.length} listings for your timeline.`;
 }
@@ -4316,7 +4320,7 @@ function showToast(message){
     }, 2200);
 }
 
-function handleSignedInSession(session, message, options = {}){
+async function handleSignedInSession(session, message, options = {}){
     const authContextMessage = syncCurrentUserFromSession(session, options);
     updatePlatformExperience();
     const requiresPhoneNumber = isAuthenticatedUser() && !hasRequiredPhoneNumber();
@@ -4337,7 +4341,7 @@ function handleSignedInSession(session, message, options = {}){
     if (options.phone && hasRequiredPhoneNumber(options.phone)) {
         savePersistedProfile();
     }
-    loadPersistedAccountData();
+    await loadPersistedAccountData();
 }
 
 function syncCurrentUserFromSession(session, options = {}){
