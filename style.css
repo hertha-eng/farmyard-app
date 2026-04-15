@@ -2756,6 +2756,11 @@ html[data-theme="dark"] .theme-toggle-icon {
     background: linear-gradient(135deg, rgba(242, 179, 106, 0.26), rgba(72, 136, 80, 0.24));
 }
 
+html[data-theme="dark"] header h1 {
+    background: rgba(29, 42, 34, 0.95);
+    color: #edf5ee;
+}
+
 html[data-theme="dark"] nav,
 html[data-theme="dark"] .market-hero,
 html[data-theme="dark"] .timeline-interest-panel,
@@ -2864,8 +2869,6 @@ html[data-theme="dark"] .auth-link-btn {
     header h1 { font-size: 1.5rem; }
     nav button { font-size: 0.85rem; }
     .theme-toggle {
-        top: calc(env(safe-area-inset-top, 0) + 10px);
-        right: 10px;
         padding: 9px 12px;
     }
     .theme-toggle-label { display: none; }
